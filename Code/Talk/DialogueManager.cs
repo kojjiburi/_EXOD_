@@ -67,12 +67,7 @@ public class DialogueManager : MonoBehaviour
 
         // 진행 키 → 다음 줄 or 타이핑 스킵
         if (Input.GetKeyDown(advanceKey))
-        {
-            if (_isTyping)
-                SkipTyping();
-            else
-                NextLine();
-        }
+            AdvanceDialogue();
     }
 
     // ═══════════════════════════════════════════════════
@@ -143,6 +138,21 @@ public class DialogueManager : MonoBehaviour
     }
 
     public bool IsDialogueOpen => _isDialogueOpen;
+
+    /// <summary>
+    /// 대화창의 '다음' 버튼과 Space 키가 함께 사용하는 진행 기능입니다.
+    /// 타이핑 중이면 현재 문장을 즉시 완성하고, 완성된 상태면 다음 줄로 넘어갑니다.
+    /// </summary>
+    public void AdvanceDialogue()
+    {
+        if (!_isDialogueOpen)
+            return;
+
+        if (_isTyping)
+            SkipTyping();
+        else
+            NextLine();
+    }
 
     // ═══════════════════════════════════════════════════
     //  내부 로직
