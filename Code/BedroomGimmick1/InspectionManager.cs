@@ -22,7 +22,11 @@ public class InspectionManager : MonoBehaviour
     private bool[] hiddenUiPreviousStates;
     private bool hasStoredUiStates;
 
+    private static readonly Vector2 DefaultDetailSize = new Vector2(760f, 540f);
+    private static readonly Vector2 CalendarDetailSize = new Vector2(780f, 780f);
+
     public bool IsOpen => inspectionPanel != null && inspectionPanel.activeSelf;
+    public string CurrentItemId => currentItem != null ? currentItem.ItemId : string.Empty;
 
     private void Awake()
     {
@@ -74,6 +78,7 @@ public class InspectionManager : MonoBehaviour
         currentItem = item;
         detailImage.sprite = item.DetailSprite;
         detailImage.preserveAspect = true;
+        ApplyDetailLayout(item);
         inspectionPanel.SetActive(true);
         HideOtherUi();
 
@@ -125,6 +130,15 @@ public class InspectionManager : MonoBehaviour
 
         detailImage.sprite = sprite;
         detailImage.preserveAspect = true;
+    }
+
+    private void ApplyDetailLayout(InspectableItem item)
+    {
+        RectTransform detailRect = detailImage.rectTransform;
+        bool isCalendar = item.ItemId == "bedroom_calendar";
+
+        detailRect.sizeDelta = isCalendar ? CalendarDetailSize : DefaultDetailSize;
+        detailRect.anchoredPosition = isCalendar ? new Vector2(0f, 35f) : Vector2.zero;
     }
 
     private void HideOtherUi()
