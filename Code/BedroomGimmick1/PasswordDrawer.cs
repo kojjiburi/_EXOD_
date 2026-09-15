@@ -31,15 +31,12 @@ public class PasswordDrawer : MonoBehaviour
     public bool IsKeyCollected => isKeyCollected;
     public string KeyItemId => keyItemId;
 
-    private const string UnlockedSaveKey = "EXOD.BedroomDrawer.Unlocked";
-    private const string KeyCollectedSaveKey = "EXOD.BedroomDrawer.KeyCollected";
-
     private void Awake()
     {
-        isUnlocked = PlayerPrefs.GetInt(UnlockedSaveKey, 0) == 1;
-        isKeyCollected = PlayerPrefs.GetInt(KeyCollectedSaveKey, 0) == 1;
-        if (isKeyCollected)
-            isUnlocked = true;
+        // 새 플레이는 항상 잠긴 서랍에서 시작합니다.
+        // 같은 플레이 도중에는 아래 상태값이 유지되므로 한 번 연 서랍은 다시 잠기지 않습니다.
+        isUnlocked = false;
+        isKeyCollected = false;
 
         if (confirmButton != null)
             confirmButton.onClick.AddListener(Submit);
@@ -100,8 +97,6 @@ public class PasswordDrawer : MonoBehaviour
         if (value == correctPassword)
         {
             isUnlocked = true;
-            PlayerPrefs.SetInt(UnlockedSaveKey, 1);
-            PlayerPrefs.Save();
 
             if (InspectionManager.Instance != null)
                 InspectionManager.Instance.SetCurrentDetailSprite(openedDrawerSprite);
@@ -176,16 +171,10 @@ public class PasswordDrawer : MonoBehaviour
     private void CollectKey()
     {
         isKeyCollected = true;
-        PlayerPrefs.SetInt(KeyCollectedSaveKey, 1);
-        PlayerPrefs.Save();
         ApplyPersistentVisual();
         onKeyCollected?.Invoke();
 
-        ShowDialogue(new[]
-        {
-            "황금 열쇠를 주웠다.",
-            "아이템 코드: golden_key"
-        });
+        ShowDialogue(new[] { "황금 열쇠를 주웠다." });
     }
 
     private static void ShowDialogue(string[] texts)
