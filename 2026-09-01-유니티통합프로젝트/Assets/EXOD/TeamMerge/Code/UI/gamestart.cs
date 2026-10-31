@@ -16,6 +16,7 @@ public class gamestart : MonoBehaviour
     }
     void OnMouseDown()
     {
-        SceneManager.LoadScene("Intro");
+        // 침실(1스테이지) 씬으로 시작합니다. 인트로 대화는 이 씬에서 자동으로 재생됩니다.
+        SceneManager.LoadScene("SampleScene");
     }
 }

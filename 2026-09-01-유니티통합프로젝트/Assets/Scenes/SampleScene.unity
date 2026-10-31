@@ -4821,6 +4821,9 @@ MonoBehaviour:
   fastTypingSpeed: 0.01
   advanceKey: 32
   skipKey: 304
+  choiceButtonWidth: 560
+  choiceButtonHeight: 64
+  choiceSpacing: 12
   onDialogueStart:
     m_PersistentCalls:
       m_Calls: []

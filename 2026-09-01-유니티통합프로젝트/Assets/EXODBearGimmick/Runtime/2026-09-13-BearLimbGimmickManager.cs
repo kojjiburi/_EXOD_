@@ -90,7 +90,14 @@ internal sealed class BearLimbGimmickManager : MonoBehaviour
         }
 
         collected.Add(itemId);
-        Say("주인공", $"{item.DisplayName}을 찾았다. ({collected.Count}/4)");
+
+        // 대사: Stage1Dialogues.BearLimbFound / BearAllCollected
+        List<DialogueLine> lines = Stage1Dialogues.Thought(
+            $"{Stage1Dialogues.BearLimbFound(itemId)} ({collected.Count}/{Limbs.Length})");
+        if (collected.Count == Limbs.Length)
+            lines.AddRange(Stage1Dialogues.BearAllCollected());
+        DialogueManager.Instance?.StartDialogue(lines);
+
         RefreshVisibility();
     }
 
@@ -98,13 +105,13 @@ internal sealed class BearLimbGimmickManager : MonoBehaviour
     {
         if (completed)
         {
-            Say("곰인형", "정말 고마워요!");
+            Say(Stage1Dialogues.Bear, "정말 고마워!");
             return;
         }
 
         if (collected.Count < Limbs.Length)
         {
-            Say("곰인형…?", $"아직 팔다리가 {Limbs.Length - collected.Count}개 부족해요.");
+            Say(Stage1Dialogues.BearUnknown, $"아직 팔다리가 {Limbs.Length - collected.Count}개 부족해…");
             return;
         }
 
@@ -119,10 +126,10 @@ internal sealed class BearLimbGimmickManager : MonoBehaviour
                 inventory.TryRemove(entry);
         }
 
-        bool alreadyHasReward = FindEntry(inventory, "door_password_note") != null;
+        bool alreadyHasReward = FindEntry(inventory, Stage1Dialogues.FridgeNoteItemId) != null;
         if (!alreadyHasReward && !inventory.TryAdd(rewardItem))
         {
-            Say("곰인형…?", "보상을 받을 자리가 필요해요.");
+            Say(Stage1Dialogues.Bear, "보답할 게 있는데… 받을 자리가 없네. 퀵슬롯을 조금 비워 줄래?");
             return;
         }
 
@@ -130,13 +137,12 @@ internal sealed class BearLimbGimmickManager : MonoBehaviour
         if (bearVisual != null && completeBearSprite != null)
             bearVisual.GetComponent<Image>().sprite = completeBearSprite;
 
-        DialogueManager.Instance?.StartDialogue(new List<DialogueLine>
-        {
-            new() { speakerName = "주인공", text = "다 모았다! 여기!", dialogueType = DialogueType.Character },
-            new() { speakerName = "곰인형", text = "저의 팔다리를 찾아주시다니 정말 감사할 따름이에요.", dialogueType = DialogueType.Character },
-            new() { speakerName = "곰인형", text = "이걸 드릴게요!", dialogueType = DialogueType.Character },
-            new() { speakerName = "주인공", text = "종이에 현관 비밀번호 단서가 적혀 있다.", dialogueType = DialogueType.Interaction }
-        });
+        // 대사: Stage1Dialogues.BearReturn
+        List<DialogueLine> lines = Stage1Dialogues.BearReturn();
+        if (Stage1StoryController.Instance != null)
+            Stage1StoryController.Instance.PlayCutscene(lines);
+        else
+            DialogueManager.Instance?.StartDialogue(lines);
     }
 
     private void CreateRuntimeItems()
@@ -144,7 +150,11 @@ internal sealed class BearLimbGimmickManager : MonoBehaviour
         foreach (LimbDefinition limb in Limbs)
             items[limb.Id] = CreateItem(limb.Id, limb.Name, false, new Color(0.67f, 0.45f, 0.28f, 1f));
 
-        rewardItem = CreateItem("door_password_note", "현관 비밀번호 단서", false, new Color(0.90f, 0.84f, 0.66f, 1f));
+        rewardItem = CreateItem(
+            Stage1Dialogues.FridgeNoteItemId,
+            Stage1Dialogues.FridgeNoteItemName,
+            false,
+            new Color(0.90f, 0.84f, 0.66f, 1f));
     }
 
     private static ItemData CreateItem(string id, string displayName, bool consume, Color iconColor)

@@ -50,6 +50,9 @@ public class SliderManager : MonoBehaviour
     [Min(0.1f)]
     [SerializeField] private float lockedWarningFadeDuration = 0.35f;
 
+    /// <summary>다른 방으로 이동한 직후 호출됩니다. (방 이름)</summary>
+    public event System.Action<string> RoomChanged;
+
     private readonly string[] _allRooms =
         { "침실", "거실", "주방", "복도", "화장실", "야외" };
     private readonly List<string> _unlockedRooms = new();
@@ -252,42 +255,12 @@ public class SliderManager : MonoBehaviour
         UnlockSlider();
         RoomManager.Instance?.Clear침실();
 
-        if (DialogueManager.Instance != null)
-        {
-            DialogueManager.Instance.StartDialogue(new List<DialogueLine>
-            {
-                new DialogueLine
-                {
-                    speakerName = "문",
-                    text = "열쇠로 문을 열었다.",
-                    dialogueType = DialogueType.Interaction
-                },
-                new DialogueLine
-                {
-                    speakerName = "곰인형…?",
-                    text = "저기..",
-                    dialogueType = DialogueType.Character
-                },
-                new DialogueLine
-                {
-                    speakerName = "주인공",
-                    text = "으악! 뭐야 이게 왜 말을",
-                    dialogueType = DialogueType.Character
-                },
-                new DialogueLine
-                {
-                    speakerName = "곰인형…?",
-                    text = "이거라니 너무해. 어쨌든 내 팔 다리를 찾아줄 수 있을까..?",
-                    dialogueType = DialogueType.Character
-                },
-                new DialogueLine
-                {
-                    speakerName = "주인공",
-                    text = "알았어",
-                    dialogueType = DialogueType.Character
-                }
-            });
-        }
+        // 문을 열면 곰인형이 말을 거는 장면 (대사: Stage1Dialogues.BearFirstMeet)
+        List<DialogueLine> bearLines = Stage1Dialogues.BearFirstMeet();
+        if (Stage1StoryController.Instance != null)
+            Stage1StoryController.Instance.PlayCutscene(bearLines);
+        else if (DialogueManager.Instance != null)
+            DialogueManager.Instance.StartDialogue(bearLines);
 
         return true;
     }
@@ -321,6 +294,7 @@ public class SliderManager : MonoBehaviour
         string roomName = _unlockedRooms[_currentIndex];
         ShowRoom(roomName);
         Debug.Log($"{roomName}으로 이동!");
+        RoomChanged?.Invoke(roomName);
     }
 
     private void InitializeRoomViews()
