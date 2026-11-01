@@ -104,40 +104,12 @@ public static class Stage1Dialogues
     };
 
     // ═══════════════════════════════════════════════════
-    //  3. 거실 시작 → 테이블 위의 물 (선택지)
+    //  3. 거실 시작 (거실의 물컵 기믹은 다른 팀원 담당)
     // ═══════════════════════════════════════════════════
 
     public static List<DialogueLine> LivingRoomArrival() => new List<DialogueLine>
     {
         Think("후… 일단 방 하나는 빠져나왔다."),
-        Think("너무 머리를 굴렸나. 목이 바싹 마르네."),
-        Think("…마침 테이블 위에 물컵이 있잖아?"),
-    };
-
-    public static readonly string[] WaterChoices =
-    {
-        "물을 마신다",
-        "마시지 않는다",
-    };
-
-    // 물을 마시면: 이 대사 뒤에 기절 (하트 1개 감소)
-    public static List<DialogueLine> WaterDrink() => new List<DialogueLine>
-    {
-        Narrate("꿀꺽, 꿀꺽."),
-        Say(Player, "…윽?! 뭐야, 이 맛…!"),
-        Think("몸이… 축 늘어진다. 눈앞이 빙글빙글…"),
-    };
-
-    public static List<DialogueLine> WaterAfterFaint() => new List<DialogueLine>
-    {
-        Think("…으, 머리야. 얼마나 쓰러져 있었던 거지?"),
-        Think("그녀가 둔 건 함부로 입에 대지 말자."),
-    };
-
-    public static List<DialogueLine> WaterRefuse() => new List<DialogueLine>
-    {
-        Think("…아니야. 그녀가 둔 걸 함부로 마실 순 없지."),
-        Think("목마른 건 참고, 나갈 방법부터 찾자."),
     };
 
     // ═══════════════════════════════════════════════════
