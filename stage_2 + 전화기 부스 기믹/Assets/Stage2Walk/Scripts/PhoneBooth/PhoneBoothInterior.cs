@@ -45,6 +45,8 @@ namespace EXOD.Walk
         [SerializeField] Color boothRed = new Color(0.50f, 0.03f, 0.06f, 1f);
         [SerializeField] Color boothDarkRed = new Color(0.26f, 0.01f, 0.03f, 1f);
         [SerializeField] Color glassTint = new Color(1f, 0.08f, 0.08f, 0.16f);
+        [Tooltip("켜면 유리창 위에 glassTint 색을 덧씌운다 (끄면 완전히 투명한 유리)")]
+        [SerializeField] bool tintGlass = false;
         [Tooltip("퀵슬롯(590)·상단 UI(600)보다 아래, 대화창(700)보다 아래")]
         [SerializeField] int canvasSortingOrder = 580;
 
@@ -618,7 +620,7 @@ namespace EXOD.Walk
                 Panel(root, "창틀 위", new Rect(w.xMin, w.yMax, w.width, f), boothDarkRed);
                 Panel(root, "창틀 아래", new Rect(w.xMin, w.yMin - f, w.width, f), boothDarkRed);
             }
-            Panel(root, "유리 (빨간 빛)", w, glassTint);
+            if (tintGlass) Panel(root, "유리 (빨간 빛)", w, glassTint);
 
             BuildPhone(root);
             BuildCallPanel(root);
