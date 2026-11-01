@@ -8,6 +8,8 @@ using UnityEngine.UI;
 /// 일차 진행
 /// - 일차는 3분이 지나면 넘어갑니다. (대화·컷신·기절 연출 중에는 시간이 멈춤)
 /// - 오른쪽 위 장소 이름 아래에 이번 일차의 남은 시간(m:ss)을 표시합니다.
+///   2스테이지(산책)에 있는 동안에는 그 바로 아래에 2스테이지 1분 타이머(DayClock)도 표시합니다.
+/// - 2스테이지에 가 있어도 이 3분 타이머는 초기화되지 않고 계속 흐릅니다.
 /// - 침실 침대를 클릭하면 "다음 일차로 넘어갈까?"를 묻고, [넘어간다]를 고르면 바로 다음 일차로 넘어갑니다.
 /// - 일차가 넘어가면 GManager.NextDay()가 호출되어 DAY 표시가 오르고,
 ///   ItemPositionManager가 제자리 검사(틀리면 하트 감소) 및 초기화를 합니다.
@@ -56,6 +58,9 @@ public sealed class DayCycleController : MonoBehaviour
     private bool secondWarningShown;
     private GameObject bedButton;
     private TextMeshProUGUI timerText;
+    private TextMeshProUGUI stage2TimerText;
+    private int lastShownStage2Seconds = -1;
+    private static readonly Color Stage2TimerColor = new(1f, 0.72f, 0.72f, 1f);
     private int lastShownSeconds = -1;
     private float nextRefreshTime;
 
@@ -130,6 +135,15 @@ public sealed class DayCycleController : MonoBehaviour
     // ═══════════════════════════════════════════════════
     //  일차 넘기기
     // ═══════════════════════════════════════════════════
+
+    /// <summary>오늘 남은 시간에서 초를 뺍니다. (2스테이지에서 들켰을 때 등) 0이 되면 바로 다음 일차로 넘어갑니다.</summary>
+    public void ConsumeTime(float seconds)
+    {
+        if (seconds <= 0f)
+            return;
+
+        elapsed = Mathf.Min(DayLengthSeconds, elapsed + seconds);
+    }
 
     public void AdvanceDay()
     {
@@ -246,6 +260,54 @@ public sealed class DayCycleController : MonoBehaviour
 
         float textBottom = string.IsNullOrEmpty(roomText.text) ? 0f : roomText.textBounds.min.y;
         rect.anchoredPosition = new Vector2(0f, textBottom - 2f);
+
+        UpdateStage2TimerText(rect);
+    }
+
+    // 2스테이지 1분 타이머: 3분 타이머 바로 아래, 2스테이지에 있을 때만 보입니다.
+    private void UpdateStage2TimerText(RectTransform stage1TimerRect)
+    {
+        EXOD.Walk.DayClock clock = EXOD.Walk.DayClock.Instance;
+        bool show = clock != null && Stage2HouseLink.IsInStage2;
+
+        if (stage2TimerText == null)
+        {
+            if (!show)
+                return;
+
+            GameObject go = new GameObject("2스테이지 남은 시간", typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
+            go.transform.SetParent(timerText.transform, false);
+            stage2TimerText = go.GetComponent<TextMeshProUGUI>();
+            stage2TimerText.font = timerText.font;
+            stage2TimerText.fontSize = timerText.fontSize;
+            stage2TimerText.fontStyle = FontStyles.Normal;
+            stage2TimerText.color = Stage2TimerColor;
+            stage2TimerText.alignment = timerText.alignment;
+            stage2TimerText.raycastTarget = false;
+            stage2TimerText.textWrappingMode = TextWrappingModes.NoWrap;
+
+            RectTransform rect = stage2TimerText.rectTransform;
+            rect.anchorMin = new Vector2(0f, 0f);
+            rect.anchorMax = new Vector2(1f, 0f);
+            rect.pivot = new Vector2(stage1TimerRect.pivot.x, 1f);
+            rect.sizeDelta = new Vector2(0f, timerText.fontSize * 1.3f);
+            rect.anchoredPosition = Vector2.zero;
+        }
+
+        if (stage2TimerText.gameObject.activeSelf != show)
+            stage2TimerText.gameObject.SetActive(show);
+        if (!show)
+        {
+            lastShownStage2Seconds = -1;
+            return;
+        }
+
+        int seconds = Mathf.CeilToInt(clock.Remaining);
+        if (seconds != lastShownStage2Seconds)
+        {
+            lastShownStage2Seconds = seconds;
+            stage2TimerText.text = $"{seconds / 60}:{seconds % 60:00}";
+        }
     }
 
     // ═══════════════════════════════════════════════════

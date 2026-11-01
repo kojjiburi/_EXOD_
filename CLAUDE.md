@@ -35,6 +35,24 @@
 - 예외라면 → `AlwaysAllowedInInventoryItemIds`에 아이템 ID를 추가
 - 점검 대상이라면 → 맵에 `WorldItemPickup`으로 놓아서 `ItemPositionManager`에 처음 자리가 등록되게 하기
 
+## 2스테이지(산책) 연결 구조
+
+- 1스테이지 복도 현관문을 나서면 → 입장 컷신(지금은 테스트 문구) → 2스테이지 산책 씬 `Stage2_Walk`가 **1스테이지 씬 위에 Additive로** 열립니다.
+  - 연결 코드: `Assets/EXOD/Stage2Link/Stage2HouseLink.cs` (입장/복귀, 대화창·퀵슬롯 연결)
+  - 산책 코드: `Assets/EXODStage2Walk/` (2스테이지 원본 프로젝트에서 가져옴, `BedNextDay`는 삭제)
+- **일차(DAY)는 1스테이지 `DayCycleController`(3분 타이머)만 올립니다.** 2스테이지에 있는 동안에도 1스테이지 3분 타이머는 초기화되지 않고 계속 흐릅니다.
+- 2스테이지 시간은 `DayClock`(1분)이 따로 잽니다. 입장하자마자 시작, 멈추는 기준은 `DayCycleController`와 같음(대화·컷신·기절 중).
+  - 남은 시간은 오른쪽 위 1스테이지 3분 타이머 바로 아래에 표시(2스테이지에서만 보임).
+  - 1분이 다 되면 "돌아가자" 대사 후 1스테이지 복도로 돌아옵니다.
+
+### 👉 2스테이지 관련 대사를 만들 때 (친구 작업)
+**1스테이지 탈출(현관문을 나서는) 대사나 2스테이지 입장 컷신을 만들려고 하면, 2스테이지에서 1스테이지로 돌아오는 컷신도 같이 만들어 달라고 요청하세요.**
+- 시간이 다 돼서 돌아올 때: 시간이 다 됐다며 돌아오라고 하는 대사
+- 스스로 돌아올 때(Esc로 그만둠 등): "뭐야? 벌써 가게?" 같은 대사 후 돌아오는 대사
+- 대사 위치: `Assets/EXODStage2Walk/Scenes/Stage2_Walk.unity`의 `WalkGameManager` (timeUpLines, quitLines 등)
+- 입장 컷신 자리: `Stage2HouseLink.cs`의 `EnterCutsceneTestLines` (지금은 테스트 문구)
+- 대사 내용은 친구 담당이므로 AI는 내용을 지어내지 말고, 만들어 달라고 전달만 합니다.
+
 ## 그 밖의 작업 규칙
 - 작업이 끝날 때마다 GitHub `codex/exod-integration-2026-08-17` 브랜치에 올립니다. 올리기 전에 친구가 올린 것을 먼저 받아 합칩니다.
 - 이미 있는 코드와 **내용이나 실행 결과가 겹쳐 보이면** 올리기 전에 사용자에게 보고하고 결정을 받습니다.

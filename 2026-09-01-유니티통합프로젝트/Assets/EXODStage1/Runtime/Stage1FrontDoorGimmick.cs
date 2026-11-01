@@ -10,7 +10,9 @@ using UnityEngine.UI;
 ///    - 틀리면 경보 → 여자친구에게 들켜 기절 (하트 -1)
 /// 2) 맞히면 보안 질문 두 개 (예/아니요)
 ///    - 질문 1 '예', 질문 2 '아니요'를 고르면 기절. 다시 문을 누르면 질문부터 다시 시작합니다.
-/// 3) 통과하면 현관문이 열리고 야외로 나가 1스테이지 끝 대사 → STAGE 1 CLEAR 화면
+/// 3) 통과하면 현관문이 열리고 → 2스테이지(산책)로 갑니다. (Stage2HouseLink)
+///    한 번 통과한 뒤에는 현관문을 누르면 바로 2스테이지로 갑니다. (그날 현관문이 잠겼으면 못 나감)
+///    ※ 예전의 "벌써 밤이라고?" 끝 대사와 STAGE 1 CLEAR 화면(ShowStageClear)은 지금은 쓰지 않습니다.
 /// </summary>
 [DefaultExecutionOrder(260)]
 public sealed class Stage1FrontDoorGimmick : MonoBehaviour
@@ -41,8 +43,12 @@ public sealed class Stage1FrontDoorGimmick : MonoBehaviour
 
     private void OnDoorClicked()
     {
+        // 이미 한 번 나가 봤으면 바로 2스테이지로 (컷신·잠금 확인은 Stage2HouseLink가 함)
         if (isCleared)
+        {
+            Stage2HouseLink.RequestEnter();
             return;
+        }
 
         if (isPasswordSolved)
         {
@@ -101,17 +107,11 @@ public sealed class Stage1FrontDoorGimmick : MonoBehaviour
         });
     }
 
-    // 현관문을 열고 야외로 나갑니다.
+    // 현관문을 열고 밖으로 나갑니다 → 2스테이지(산책)
     private void LeaveHouse()
     {
         isCleared = true;
-
-        if (RoomManager.Instance != null)
-            RoomManager.Instance.Clear거실();  // 마당(야외) 해금
-        if (SliderManager.Instance != null)
-            SliderManager.Instance.GoToRoom("야외");
-
-        Stage1Room.PlayCutscene(Stage1Dialogues.StageEnd(), () => StartCoroutine(ShowStageClear()));
+        Stage2HouseLink.RequestEnter();
     }
 
     // ═══════════════════════════════════════════════════
