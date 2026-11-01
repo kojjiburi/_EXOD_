@@ -5,7 +5,7 @@ namespace EXOD.Walk
     public enum WalkResult
     {
         None,
-        Completed,  // 두 번 왕복 완료
+        Completed,  // 정해진 왕복(1번) 완료
         TimeUp,     // 1분이 다 지남
         QuitEarly,  // Esc로 중간에 그만둠
         Caught,     // 상호작용하다 들킴

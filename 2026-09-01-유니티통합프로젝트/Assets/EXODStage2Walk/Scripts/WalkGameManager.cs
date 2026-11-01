@@ -92,6 +92,8 @@ namespace EXOD.Walk
         static bool firstIntroShown;
         DayClock clock;
         bool finishing;
+        // [통합] 왕복을 일찍 마치면 대문 앞에서 2스테이지 1분이 끝날 때까지 기다린다
+        bool waitingAtGate;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         static void ResetStatics() => firstIntroShown = false;
@@ -139,6 +141,7 @@ namespace EXOD.Walk
             Elapsed = 0f;
             finishing = false;
             IsRunning = true;
+            waitingAtGate = false;
             player.ResetToStart();
             player.CanMove = true;
             yandere.Begin();
@@ -151,7 +154,7 @@ namespace EXOD.Walk
 
             // 대화창·컷신·기절 연출 중에는 멈춤 (1스테이지 DayCycleController와 같은 기준)
             bool paused = DayClock.IsTimePaused();
-            player.CanMove = !paused;
+            player.CanMove = !paused && !waitingAtGate;
             yandere.Paused = paused;
             if (paused) return;
 
@@ -162,14 +165,19 @@ namespace EXOD.Walk
             if (!IsRunning) return;
 
             if (allowQuitEarly && WalkInput.QuitWalkDown()) { EndWalk(WalkResult.QuitEarly); return; }
-            if (player.LegsCompleted >= roundTripsRequired * 2) { EndWalk(WalkResult.Completed); return; }
+            // 왕복을 마치면 바로 끝내지 않고, 대문 앞에 멈춰 서서 1분이 다 될 때까지 기다린다 (그 동안에도 그녀는 뒤돌아봄)
+            if (!waitingAtGate && player.LegsCompleted >= roundTripsRequired * 2)
+            {
+                waitingAtGate = true;
+                player.CanMove = false;
+            }
             // 시간 초과는 DayClock(2스테이지 1분 타이머)이 알려 준다 → HandleTimeExpired
         }
 
         void HandleTimeExpired()
         {
             if (!IsRunning) return;
-            EndWalk(WalkResult.TimeUp);
+            EndWalk(waitingAtGate ? WalkResult.Completed : WalkResult.TimeUp);
         }
 
         void HandleClick(Vector2 screenPos)

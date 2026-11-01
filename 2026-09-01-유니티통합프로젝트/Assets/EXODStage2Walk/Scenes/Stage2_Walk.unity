@@ -1186,7 +1186,7 @@ BoxCollider2D:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 711138039}
-  m_Enabled: 1
+  m_Enabled: 0
   serializedVersion: 3
   m_Density: 1
   m_Material: {fileID: 0}
@@ -1446,7 +1446,7 @@ MonoBehaviour:
   moveSpeed: 5
   autoMove: 1
   matchDayClockDuration: 1
-  finishSecondsEarly: 5
+  finishSecondsEarly: 10
   moveScreen: 1
   screenCamera: {fileID: 0}
   leftEdge: {fileID: 330779161}
@@ -2011,7 +2011,7 @@ BoxCollider2D:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1115046722}
-  m_Enabled: 1
+  m_Enabled: 0
   serializedVersion: 3
   m_Density: 1
   m_Material: {fileID: 0}
