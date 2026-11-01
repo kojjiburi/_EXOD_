@@ -7,7 +7,7 @@ using UnityEngine.UI;
 
 /// <summary>
 /// 손전등 기믹
-/// - 화장실 한가운데(임시 위치)에 손전등이 놓여 있고, 클릭하면 퀵슬롯에 들어갑니다.
+/// - 화장실 수건(RRTowel) 뒤에 손전등이 숨겨져 있습니다. 수건을 치우면(획득하면) 보이고, 클릭하면 퀵슬롯에 들어갑니다.
 /// - 퀵슬롯의 손전등을 클릭 → "비출 물건을 선택하자." → [다음]을 누른 뒤 퀵슬롯 아이템을 하나 클릭합니다.
 /// - 종이 A~E를 비추면 Alight~Elight 그림을 화면에 보여 주고 [나가기]로 닫습니다. (아이템으로 얻지 않음)
 /// - 다른 아이템을 비추면 "이건 이렇게 사용하는 것이 아닌 것 같다." 대사가 나옵니다.
@@ -23,9 +23,6 @@ public sealed class FlashlightGimmick : MonoBehaviour
     public const string FlashlightItemId = "flashlight";
 
     private const string ResourceFolder = "EXODFlashlight/";
-    private const string FlashlightRoomViewName = "화장실 배경 화면"; // SliderManager가 만드는 화장실 화면
-    private static readonly Vector2 FlashlightPosition = Vector2.zero; // 임시 위치: 화장실 한가운데
-    private const float FlashlightPickupHeight = 110f;
 
     private const string PickupText = "손전등을 얻었다.";
     private const string SelectTargetText = "비출 물건을 선택하자.";
@@ -144,13 +141,13 @@ public sealed class FlashlightGimmick : MonoBehaviour
         if (flashlightItem == null || flashlightItem.Icon == null)
             return;
 
-        Transform roomView = FindRoomView(FlashlightRoomViewName);
+        Transform roomView = RestroomGimmick.FindRoomView();
         if (roomView == null)
             return;
 
         Sprite sprite = flashlightItem.Icon;
         pickupButton = new GameObject(
-            "손전등 (임시 위치)",
+            "손전등 (수건 뒤)",
             typeof(RectTransform),
             typeof(CanvasRenderer),
             typeof(Image),
@@ -158,12 +155,9 @@ public sealed class FlashlightGimmick : MonoBehaviour
         pickupButton.transform.SetParent(roomView, false);
 
         // 화장실 화면의 자식이라 화장실에 있을 때만 보입니다.
-        RectTransform rect = pickupButton.GetComponent<RectTransform>();
-        rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
-        rect.anchoredPosition = FlashlightPosition;
-        rect.sizeDelta = new Vector2(
-            FlashlightPickupHeight * sprite.rect.width / sprite.rect.height,
-            FlashlightPickupHeight);
+        // 맨 아래에 깔아서 수건(RRTowel)이 있는 동안은 가려져 클릭되지 않습니다.
+        pickupButton.transform.SetAsFirstSibling();
+        RestroomGimmick.PlaceByPixels(pickupButton.GetComponent<RectTransform>(), RestroomGimmick.FlashlightRect);
 
         Image image = pickupButton.GetComponent<Image>();
         image.sprite = sprite;
@@ -399,19 +393,6 @@ public sealed class FlashlightGimmick : MonoBehaviour
         {
             if (entry?.ItemData != null && entry.ItemData.ItemId == itemId)
                 return entry;
-        }
-
-        return null;
-    }
-
-    private static Transform FindRoomView(string objectName)
-    {
-        foreach (RectTransform rect in FindObjectsByType<RectTransform>(
-                     FindObjectsInactive.Include,
-                     FindObjectsSortMode.None))
-        {
-            if (rect.name == objectName)
-                return rect;
         }
 
         return null;
