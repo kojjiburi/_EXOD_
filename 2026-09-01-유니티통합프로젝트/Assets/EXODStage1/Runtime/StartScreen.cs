@@ -9,14 +9,15 @@ using UnityEngine.UI;
 /// 시작 화면(StartScenes)을 만듭니다. UI는 실행 중에 자동으로 만들어집니다.
 /// - 배경: 어두운 침실, 붉은빛이 새어 나오는 문 (Resources/EXODStage1/StartBackground.png)
 /// - 고장 난 형광등처럼 깜빡이고, 가끔 문 앞에 여자친구 실루엣이 스쳐 지나갑니다.
-/// - 제목이 가끔 지직거립니다. (제목은 GameTitle에서 바꿉니다)
+/// - 제목이 가끔 지직거립니다. (제목은 GameTitle, 부제는 Subtitle에서 바꿉니다)
 /// - 메뉴: 시작하기 / 설정(음량) / 종료
 /// - 시작하기: 암전 → "철컥" → 침실 씬
 /// </summary>
 public sealed class StartScreen : MonoBehaviour
 {
-    // TODO: 게임 제목이 정해지면 바꿔 주세요.
-    private const string GameTitle = "제목 미정";
+    // 제목 첫 줄 "Nemo"는 크게, 둘째 줄은 작게 표시합니다.
+    private const string GameTitle = "Nemo\n<size=46%>: No Exit My Love</size>";
+    private const string Subtitle = "Exit or Die";
     private const string TeamName = "TEAM EXOD";
     private const string StartSceneName = "StartScenes";
     private const string FirstStageSceneName = "SampleScene";
@@ -290,8 +291,8 @@ public sealed class StartScreen : MonoBehaviour
 
     private void BuildTitle()
     {
-        Vector2 anchor = new Vector2(0.79f, 0.68f);
-        Vector2 size = new Vector2(900f, 200f);
+        Vector2 anchor = new Vector2(0.79f, 0.70f);
+        Vector2 size = new Vector2(900f, 240f);
 
         titleGhostCyan = CreateText("제목 잔상(푸른)", canvasRoot, GameTitle, 110f, new Color(0.2f, 0.7f, 0.75f, 0f));
         Place(titleGhostCyan.rectTransform, anchor, size, Vector2.zero);
@@ -299,6 +300,10 @@ public sealed class StartScreen : MonoBehaviour
         Place(titleGhostRed.rectTransform, anchor, size, Vector2.zero);
         title = CreateText("제목", canvasRoot, GameTitle, 110f, TitleColor);
         Place(title.rectTransform, anchor, size, Vector2.zero);
+
+        TextMeshProUGUI subtitle = CreateText("부제", canvasRoot, Subtitle, 34f, new Color(0.62f, 0.58f, 0.60f, 1f));
+        Place(subtitle.rectTransform, new Vector2(0.79f, 0.555f), new Vector2(700f, 50f), Vector2.zero);
+        subtitle.characterSpacing = 12f;
     }
 
     private void BuildMenu()
@@ -309,9 +314,9 @@ public sealed class StartScreen : MonoBehaviour
         Stretch(rect);
         menuGroup = menu.GetComponent<CanvasGroup>();
 
-        CreateMenuButton(rect, "시작하기", new Vector2(0.79f, 0.44f), OnStartClicked);
-        CreateMenuButton(rect, "설정", new Vector2(0.79f, 0.36f), OpenSettings);
-        CreateMenuButton(rect, "종료", new Vector2(0.79f, 0.28f), QuitGame);
+        CreateMenuButton(rect, "시작하기", new Vector2(0.79f, 0.42f), OnStartClicked);
+        CreateMenuButton(rect, "설정", new Vector2(0.79f, 0.34f), OpenSettings);
+        CreateMenuButton(rect, "종료", new Vector2(0.79f, 0.26f), QuitGame);
     }
 
     // 글자만 보이는 메뉴 버튼. 마우스를 올리면 붉어지고 떨립니다.

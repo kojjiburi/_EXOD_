@@ -61,6 +61,12 @@ public sealed class Stage1StoryController : MonoBehaviour
         if (FindFirstObjectByType<Stage1FrontDoorGimmick>() == null)
             slider.gameObject.AddComponent<Stage1FrontDoorGimmick>();
 
+        if (FindFirstObjectByType<DialogueLog>() == null)
+            slider.gameObject.AddComponent<DialogueLog>();
+
+        if (FindFirstObjectByType<MemoZoom>() == null)
+            slider.gameObject.AddComponent<MemoZoom>();
+
         if (FindFirstObjectByType<Stage1HelpBar>() == null)
             slider.gameObject.AddComponent<Stage1HelpBar>();
 

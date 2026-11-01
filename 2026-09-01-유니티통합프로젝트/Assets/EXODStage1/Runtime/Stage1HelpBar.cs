@@ -23,7 +23,7 @@ public sealed class Stage1HelpBar : MonoBehaviour
 
     private static readonly string[] WalkTips =
     {
-        "길은 저절로 걷는다.",
+        "그녀와 길을 두 번 왕복하면 끝.",
         "그녀가 뒤돌아볼 때는 아무것도 건드리지 마.",
     };
 

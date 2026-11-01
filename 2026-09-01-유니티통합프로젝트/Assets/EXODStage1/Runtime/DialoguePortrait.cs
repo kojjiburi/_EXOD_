@@ -3,21 +3,27 @@ using UnityEngine;
 using UnityEngine.UI;
 
 /// <summary>
-/// 여자친구가 말할 때 대화창 왼쪽 위에 상반신 그림을 띄웁니다.
-/// - "???"   : 검은 실루엣 (정체를 숨김)
-/// - "여자친구": 원래 그림
-/// 그림 아랫부분은 대화창 뒤로 가려지고, 이름표는 그림 앞에 그려집니다.
-/// 그림 파일: Assets/Resources/EXODStage1/Girlfriend_Portrait.png (배경 투명)
+/// 말하는 인물의 그림을 대화창 왼쪽 위에 띄웁니다.
+/// - "???"      : 여자친구 검은 실루엣 (정체를 숨김)
+/// - "여자친구"  : 여자친구 상반신 (아랫부분은 대화창 뒤로 가려짐)
+/// - "곰인형…?" : 팔다리가 찢긴 곰돌이
+/// - "곰인형"   : 다 고쳐진 곰돌이
+/// 이름표는 그림 앞에 그려집니다.
+/// 그림 파일: Assets/Resources/EXODStage1/ (Girlfriend_Portrait, Bear_Portrait_Torn, Bear_Portrait)
 /// </summary>
 [DefaultExecutionOrder(240)]
 public sealed class DialoguePortrait : MonoBehaviour
 {
     private const string PortraitResourcePath = "EXODStage1/Girlfriend_Portrait";
+    private const string BearTornResourcePath = "EXODStage1/Bear_Portrait_Torn";
+    private const string BearResourcePath = "EXODStage1/Bear_Portrait";
 
     [Header("=== 배치 (Canvas 기준 크기) ===")]
-    [SerializeField] private float portraitHeight = 640f;  // 그림 전체 높이
-    [SerializeField] private float hiddenBelow = 230f;     // 대화창 뒤로 가려지는 높이
-    [SerializeField] private float leftInset = 40f;        // 대화창 왼쪽 끝에서 안쪽으로 들어간 거리
+    [SerializeField] private float girlfriendHeight = 780f;      // 여자친구 그림 전체 높이
+    [SerializeField] private float girlfriendHiddenBelow = 215f; // 대화창 뒤로 가려지는 높이
+    [SerializeField] private float bearHeight = 360f;            // 곰돌이 그림 전체 높이
+    [SerializeField] private float bearHiddenBelow = -72f;       // 곰돌이는 이름표 위로 올려 다 보이게
+    [SerializeField] private float leftInset = 40f;              // 대화창 왼쪽 끝에서 안쪽으로 들어간 거리
 
     [Header("=== 연출 ===")]
     [SerializeField] private float fadeDuration = 0.2f;
@@ -27,6 +33,11 @@ public sealed class DialoguePortrait : MonoBehaviour
     private CanvasGroup group;
     private Coroutine fadeCoroutine;
     private bool isShown;
+    private float hiddenBelow;
+
+    private Sprite girlfriendSprite;
+    private Sprite bearTornSprite;
+    private Sprite bearSprite;
 
     /// <summary>초상화 그림 (대화 배경 어둡게 효과가 그 뒤에 놓일 때 사용)</summary>
     public RectTransform PortraitRect => portrait != null ? portrait.rectTransform : null;
@@ -37,11 +48,11 @@ public sealed class DialoguePortrait : MonoBehaviour
         if (dm == null || dm.DialoguePanelRect == null)
             return;
 
-        Sprite sprite = LoadPortrait();
-        if (sprite == null)
-            return;
+        girlfriendSprite = LoadPortrait();
+        bearTornSprite = LoadSprite(BearTornResourcePath);
+        bearSprite = LoadSprite(BearResourcePath);
 
-        CreatePortrait(dm.DialoguePanelRect.parent, sprite);
+        CreatePortrait(dm.DialoguePanelRect.parent);
 
         dm.LineShown += OnLineShown;
         dm.onDialogueEnd.AddListener(Hide);
@@ -71,16 +82,31 @@ public sealed class DialoguePortrait : MonoBehaviour
         string speaker = line.speakerName != null ? line.speakerName.Trim() : string.Empty;
 
         if (speaker == Stage1Dialogues.Unknown)
-            Show(silhouetteColor);
+            Show(girlfriendSprite, silhouetteColor, girlfriendHeight, girlfriendHiddenBelow);
         else if (speaker == Stage1Dialogues.Girlfriend || speaker == "얀데레" || speaker == "여주")
-            Show(Color.white);
+            Show(girlfriendSprite, Color.white, girlfriendHeight, girlfriendHiddenBelow);
+        else if (speaker == Stage1Dialogues.BearUnknown)
+            Show(bearTornSprite, Color.white, bearHeight, bearHiddenBelow);
+        else if (speaker == Stage1Dialogues.Bear)
+            Show(bearSprite, Color.white, bearHeight, bearHiddenBelow);
         else
             Hide();
     }
 
-    private void Show(Color color)
+    private void Show(Sprite sprite, Color color, float height, float hidden)
     {
+        if (sprite == null)
+        {
+            Hide();
+            return;
+        }
+
+        portrait.sprite = sprite;
         portrait.color = color;
+        portrait.rectTransform.sizeDelta = new Vector2(height * sprite.rect.width / sprite.rect.height, height);
+        hiddenBelow = hidden;
+        FollowDialoguePanel();
+
         if (isShown)
             return;
 
@@ -161,7 +187,7 @@ public sealed class DialoguePortrait : MonoBehaviour
             topLeft - parentPivotOffset + new Vector2(leftInset, -hiddenBelow);
     }
 
-    private void CreatePortrait(Transform parent, Sprite sprite)
+    private void CreatePortrait(Transform parent)
     {
         GameObject go = new GameObject(
             "여자친구 초상화",
@@ -172,15 +198,12 @@ public sealed class DialoguePortrait : MonoBehaviour
         go.transform.SetParent(parent, false);
 
         portrait = go.GetComponent<Image>();
-        portrait.sprite = sprite;
         portrait.preserveAspect = true;
         portrait.raycastTarget = false;
 
         RectTransform rect = portrait.rectTransform;
         rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
         rect.pivot = Vector2.zero;
-        float aspect = sprite.rect.width / sprite.rect.height;
-        rect.sizeDelta = new Vector2(portraitHeight * aspect, portraitHeight);
 
         group = go.GetComponent<CanvasGroup>();
         group.alpha = 0f;
@@ -190,12 +213,18 @@ public sealed class DialoguePortrait : MonoBehaviour
         go.SetActive(false);
     }
 
+    /// <summary>여자친구 초상화 (게임 오버·시작 화면 실루엣에서도 사용)</summary>
     internal static Sprite LoadPortrait()
     {
-        Texture2D texture = Resources.Load<Texture2D>(PortraitResourcePath);
+        return LoadSprite(PortraitResourcePath);
+    }
+
+    private static Sprite LoadSprite(string resourcePath)
+    {
+        Texture2D texture = Resources.Load<Texture2D>(resourcePath);
         if (texture == null)
         {
-            Debug.LogWarning($"[DialoguePortrait] 초상화 이미지가 없습니다: Resources/{PortraitResourcePath}.png");
+            Debug.LogWarning($"[DialoguePortrait] 초상화 이미지가 없습니다: Resources/{resourcePath}.png");
             return null;
         }
 
