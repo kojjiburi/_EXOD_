@@ -46,9 +46,9 @@ namespace EXOD.Walk
         [Header("뒤돌기 전 말풍선 (2SWW)")]
         [Tooltip("1920x1080 화면 크기 그림. 비워 두면 Resources/Walk_2SWW")]
         [SerializeField] Sprite turnWarningSprite;
-        [Tooltip("뒤돌기 몇 초 전부터 말풍선을 보여줄지: 0.1초 × (1~5 중 무작위) = 0.1/0.2/0.3/0.4/0.5초. 다시 앞을 볼 때까지 유지")]
-        [SerializeField] int turnWarningLeadMinTenths = 1;
-        [SerializeField] int turnWarningLeadMaxTenths = 5;
+        [Tooltip("뒤돌기 몇 초 전부터 말풍선을 보여줄지: 0.1초 × (3~7 중 무작위) = 0.3/0.4/0.5/0.6/0.7초. 다시 앞을 볼 때까지 유지")]
+        [SerializeField] int turnWarningLeadMinTenths = 3;
+        [SerializeField] int turnWarningLeadMaxTenths = 7;
         float turnWarningLead = 0.5f;
 
         [Header("양 끝에서 좌우 반전 (같이 걷지 않을 때)")]
@@ -98,7 +98,7 @@ namespace EXOD.Walk
             PickTurnWarningLead();
         }
 
-        // 다음 뒤돌기 전에 말풍선을 띄울 시간: 0.1, 0.2, 0.3, 0.4, 0.5초 중 하나
+        // 다음 뒤돌기 전에 말풍선을 띄울 시간: 0.3, 0.4, 0.5, 0.6, 0.7초 중 하나 (사람 반응 속도 고려)
         void PickTurnWarningLead()
         {
             int min = Mathf.Max(1, Mathf.Min(turnWarningLeadMinTenths, turnWarningLeadMaxTenths));
