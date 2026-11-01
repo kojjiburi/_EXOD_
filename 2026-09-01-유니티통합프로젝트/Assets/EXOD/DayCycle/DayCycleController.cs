@@ -147,6 +147,17 @@ public sealed class DayCycleController : MonoBehaviour
 
     public void AdvanceDay()
     {
+        // 화면이 천천히 검어졌다가 'DAY-n'을 보여주고 다시 투명해집니다 (DayController). 일차는 검은 화면일 때 넘어갑니다.
+        if (DayController.IsTransitioning)
+            return;
+        if (DayController.TryPlayDayTransition(AdvanceDayNow))
+            return;
+
+        AdvanceDayNow();
+    }
+
+    private void AdvanceDayNow()
+    {
         elapsed = 0f;
 
         // 열쇠 안내는 열쇠를 얻은 뒤 처음 맞는 일차 끝에만 나옵니다.
@@ -353,6 +364,10 @@ public sealed class DayCycleController : MonoBehaviour
     {
         // 산책(2스테이지) 중에는 3분 타이머가 멈추고, 복귀할 때 1분을 한 번에 뺍니다.
         if (Stage2HouseLink.IsInStage2)
+            return true;
+
+        // 일차 넘김 페이드 중
+        if (DayController.IsTransitioning)
             return true;
 
         if (DialogueManager.Instance != null && DialogueManager.Instance.IsDialogueOpen)
