@@ -156,9 +156,9 @@ public static class Stage1Dialogues
         switch (limbId)
         {
             case "bear_left_arm": return "소파 쿠션 사이에… 곰돌이 왼팔이다.";
-            case "bear_right_arm": return "냄비 안에 이게 왜 들어 있어…?";
-            case "bear_left_leg": return "액자 뒤에 뭔가 걸려 있다.";
-            case "bear_right_leg": return "…변기 뒤에서 나오다니. 불쌍한 녀석.";
+            case "bear_right_arm": return "전자레인지에 왜 이게 있어?";
+            case "bear_left_leg": return "텅 빈 보드에… 못으로 박혀 있어.";
+            case "bear_right_leg": return "…변기 속에서 나오다니. 불쌍한 녀석.";
             default: return "곰돌이 팔다리를 찾았다.";
         }
     }

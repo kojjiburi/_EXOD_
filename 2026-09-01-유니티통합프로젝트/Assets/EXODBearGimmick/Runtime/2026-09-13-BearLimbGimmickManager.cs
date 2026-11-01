@@ -18,8 +18,9 @@ internal sealed class BearLimbGimmickManager : MonoBehaviour
         internal readonly Vector2 Position;
         internal readonly string ImagePath;
         internal readonly float Rotation;
+        internal readonly bool Nailed;
 
-        internal LimbDefinition(string id, string name, string room, Vector2 position, string imagePath, float rotation)
+        internal LimbDefinition(string id, string name, string room, Vector2 position, string imagePath, float rotation, bool nailed = false)
         {
             Id = id;
             Name = name;
@@ -27,18 +28,21 @@ internal sealed class BearLimbGimmickManager : MonoBehaviour
             Position = position;
             ImagePath = imagePath;
             Rotation = rotation;
+            Nailed = nailed;
         }
     }
 
     private static readonly LimbDefinition[] Limbs =
     {
-        // 왼팔: 소파 쿠션 사이에 끼워져 있음 / 오른팔: 조리대 위에 누워 있음 (Rotation은 그림 회전 각도)
+        // 왼팔: 소파 쿠션 사이 / 오른팔: 주방 전자레인지 안 / 왼다리: 복도 빈 보드에 못으로 박힘 / 오른다리: 화장실 변기 속
+        // (Position은 화면 가운데 기준 1920x1080 좌표, Rotation은 그림 회전 각도)
         new("bear_left_arm", "곰돌이 왼팔", "거실", new Vector2(-62f, -30f), "EXODBearGimmick/2026-11-01-Bear-LeftArm", -28f),
-        new("bear_right_arm", "곰돌이 오른팔", "주방", new Vector2(-480f, -70f), "EXODBearGimmick/2026-11-01-Bear-RightArm", 78f),
-        new("bear_left_leg", "곰돌이 왼다리", "복도", new Vector2(-500f, 120f), "EXODBearGimmick/2026-11-01-Bear-LeftLeg", 0f),
+        new("bear_right_arm", "곰돌이 오른팔", "주방", new Vector2(-333f, -45f), "EXODBearGimmick/2026-11-01-Bear-RightArm", 90f),
+        new("bear_left_leg", "곰돌이 왼다리", "복도", new Vector2(620f, 70f), "EXODBearGimmick/2026-11-01-Bear-LeftLeg", -8f, nailed: true),
         new("bear_right_leg", "곰돌이 오른다리", "화장실", new Vector2(-560f, -20f), "EXODBearGimmick/2026-11-01-Bear-RightLeg", 0f)
     };
 
+    private const string NailImagePath = "EXODBearGimmick/2026-11-01-Bear-Nail";
     private const string FridgeNoteImagePath = "EXODBearGimmick/2026-11-01-Fridge-Note";
     private const float PickupImageHeight = 120f;
 
@@ -261,6 +265,9 @@ internal sealed class BearLimbGimmickManager : MonoBehaviour
             pickupButtons[limb.Id] = sprite != null
                 ? CreateImageButton(limb.Name, sprite, limb.Position, limb.Rotation, () => TryCollect(limb.Id))
                 : CreateButton(limb.Name, limb.Position, () => TryCollect(limb.Id));
+
+            if (limb.Nailed)
+                AddNail(pickupButtons[limb.Id]);
         }
 
         CreateBearVisual();
@@ -330,6 +337,25 @@ internal sealed class BearLimbGimmickManager : MonoBehaviour
         Image hitboxImage = bearHitbox.GetComponent<Image>();
         hitboxImage.color = new Color(1f, 1f, 1f, 0f);
         bearHitbox.GetComponent<Button>().onClick.AddListener(ReturnLimbs);
+    }
+
+    // 팔다리 위쪽에 못 머리를 그려 보드에 박혀 있는 것처럼 보이게 합니다. (팔다리를 주우면 같이 사라짐)
+    private static void AddNail(GameObject limbButton)
+    {
+        Sprite nailSprite = LoadBearSprite(NailImagePath);
+        if (nailSprite == null || limbButton == null)
+            return;
+
+        GameObject nail = new("못", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        nail.transform.SetParent(limbButton.transform, false);
+        RectTransform rect = nail.GetComponent<RectTransform>();
+        rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 1f);
+        rect.anchoredPosition = new Vector2(0f, -22f);
+        rect.sizeDelta = new Vector2(30f, 30f);
+
+        Image image = nail.GetComponent<Image>();
+        image.sprite = nailSprite;
+        image.raycastTarget = false;
     }
 
     // 방에 떨어져 있는 팔다리 그림. 마우스를 올리면 살짝 밝아집니다.
