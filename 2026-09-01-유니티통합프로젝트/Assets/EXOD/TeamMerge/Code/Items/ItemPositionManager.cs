@@ -81,7 +81,7 @@ public sealed class ItemPositionManager : MonoBehaviour
     [SerializeField] private UnityEvent onAllItemsInPlace;
 
     [Header("Day End Reset (일차 종료 시 초기화)")]
-    [Tooltip("일차가 넘어갈 때 모든 아이템을 처음 자리로 되돌리고, 퀵슬롯의 종이(paper_)를 없앱니다.")]
+    [Tooltip("일차 종료 검사에서 틀린 게 있으면 모든 아이템을 처음 자리로 되돌리고, 퀵슬롯의 종이(paper_)를 없앱니다.")]
     [SerializeField] private bool resetItemsOnDayEnd = true;
     [Tooltip("초기화하지 않을 아이템 ID (서랍 기믹이 따로 관리하는 황금 열쇠 등)")]
     [SerializeField] private List<string> resetExcludedItemIds = new List<string> { "golden_key" };
@@ -295,9 +295,10 @@ public sealed class ItemPositionManager : MonoBehaviour
 
     private void HandleDayChanged(int newDay)
     {
-        CheckItemsOnDayEnd();
+        int misplacedCount = CheckItemsOnDayEnd();
 
-        if (resetItemsOnDayEnd)
+        // 하나라도 틀렸을 때만 초기화합니다. 모두 제자리면 종이 등 퀵슬롯은 그대로 둡니다.
+        if (misplacedCount > 0 && resetItemsOnDayEnd)
             ResetItemsForNewDay();
     }
 
@@ -343,7 +344,7 @@ public sealed class ItemPositionManager : MonoBehaviour
     }
 
     /// <summary>
-    /// 일차 종료 초기화: 모든 아이템을 처음 자리로 되돌리고(퀵슬롯에서도 빠짐),
+    /// 일차 종료 초기화 (검사에서 틀린 게 있을 때만 실행): 모든 아이템을 처음 자리로 되돌리고(퀵슬롯에서도 빠짐),
     /// 퀵슬롯에 있는 종이(paper_)는 없애서 처음 자리에서 다시 얻을 수 있게 합니다.
     /// </summary>
     [ContextMenu("일차 종료 초기화 테스트")]
