@@ -167,14 +167,27 @@ public sealed class StartScreen : MonoBehaviour
             silhouette.gameObject.SetActive(visible);
     }
 
-    // 제목이 가끔 지직거리며 붉은색·푸른색 잔상으로 갈라집니다.
+    // 제목은 늘 붉은색·푸른색 잔상으로 살짝 갈라진 채 떨리고, 가끔 크게 지직거립니다.
     private IEnumerator TitleGlitchLoop()
     {
         Vector2 home = title.rectTransform.anchoredPosition;
 
         while (true)
         {
-            yield return new WaitForSecondsRealtime(Random.Range(2.5f, 6f));
+            // 평소: 약한 글리치를 계속 (가끔 한 번씩 툭 튀기)
+            float calmEnd = Time.unscaledTime + Random.Range(1.5f, 4f);
+            while (Time.unscaledTime < calmEnd)
+            {
+                bool jump = Random.value < 0.08f;
+                float shake = jump ? 6f : 1.5f;
+                title.rectTransform.anchoredPosition = home + new Vector2(Random.Range(-shake, shake), 0f);
+                titleGhostRed.rectTransform.anchoredPosition = home + new Vector2(Random.Range(-7f, -3f), Random.Range(-1.5f, 1.5f));
+                titleGhostCyan.rectTransform.anchoredPosition = home + new Vector2(Random.Range(3f, 7f), Random.Range(-1.5f, 1.5f));
+                SetAlpha(titleGhostRed, Random.Range(0.3f, 0.45f));
+                SetAlpha(titleGhostCyan, Random.Range(0.2f, 0.35f));
+                title.enabled = true;
+                yield return new WaitForSecondsRealtime(Random.Range(0.05f, 0.09f));
+            }
 
             if (Random.value < 0.5f)
                 EXODSound.Play("glitch", 0.35f);
@@ -193,8 +206,6 @@ public sealed class StartScreen : MonoBehaviour
 
             title.enabled = true;
             title.rectTransform.anchoredPosition = home;
-            SetAlpha(titleGhostRed, 0f);
-            SetAlpha(titleGhostCyan, 0f);
         }
     }
 
