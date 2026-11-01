@@ -89,7 +89,10 @@ public class InspectionManager : MonoBehaviour
                 drawer.ApplyPersistentVisual();
         }
 
-        if (item.OpeningTexts != null && item.OpeningTexts.Length > 0 && DialogueManager.Instance != null)
+        // 서랍장 안내 대사("첫 번째 서랍에 잠금장치가…")는 처음 한 번만 보여 줍니다.
+        bool showOpening = item.ItemId != "bedroom_drawer" || InspectionState.MarkOpeningShown(item.ItemId);
+
+        if (showOpening && item.OpeningTexts != null && item.OpeningTexts.Length > 0 && DialogueManager.Instance != null)
         {
             DialogueManager.Instance.StartInteractionDialogue(item.ItemName, item.OpeningTexts);
         }
