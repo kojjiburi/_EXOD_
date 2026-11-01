@@ -73,8 +73,8 @@ public sealed class ItemPositionManager : MonoBehaviour
     [SerializeField] private bool checkOnDayEnd = true;
     [Tooltip("체크하면 틀린 아이템 개수만큼 하트가 줄고, 끄면 하나라도 틀렸을 때 하트 1개만 줄어듭니다.")]
     [SerializeField] private bool loseHeartPerWrongItem = false;
-    [Tooltip("검사에서 제외할 아이템 ID (예: 사용하면 사라지는 아이템). 황금 열쇠는 서랍 기믹이 따로 관리해서 기본으로 제외합니다.")]
-    [SerializeField] private List<string> ignoredItemIds = new List<string> { "golden_key", "paper_a", "paper_b", "paper_c", "paper_d", "paper_e" };
+    [Tooltip("검사에서 제외할 아이템 ID. 황금 열쇠(golden_key)는 점검 대상이라 여기 넣어도 무시됩니다.")]
+    [SerializeField] private List<string> ignoredItemIds = new List<string> { "paper_a", "paper_b", "paper_c", "paper_d", "paper_e" };
     [Tooltip("퀵슬롯에 들고 있어도 제자리로 치는 아이템 ID. 종이(paper_)와 기믹에 쓰면 사라지는 아이템은 여기 없어도 항상 괜찮습니다.")]
     [SerializeField] private List<string> inventoryAllowedItemIds = new List<string>();
 
@@ -90,6 +90,8 @@ public sealed class ItemPositionManager : MonoBehaviour
         "fridge_lock_note",
     };
 
+    private const string GoldenKeyItemId = "golden_key";
+
     private bool papersRemovedPermanently;
 
     /// <summary>종이가 영구히 없어졌을 때 (화장실 금고를 연 뒤) 호출됩니다.</summary>
@@ -104,8 +106,8 @@ public sealed class ItemPositionManager : MonoBehaviour
     [Header("Day End Reset (일차 종료 시 초기화)")]
     [Tooltip("일차 종료 검사에서 틀린 게 있으면 모든 아이템을 처음 자리로 되돌리고, 퀵슬롯의 종이(paper_)를 없앱니다.")]
     [SerializeField] private bool resetItemsOnDayEnd = true;
-    [Tooltip("초기화하지 않을 아이템 ID (서랍 기믹이 따로 관리하는 황금 열쇠 등)")]
-    [SerializeField] private List<string> resetExcludedItemIds = new List<string> { "golden_key" };
+    [Tooltip("초기화하지 않을 아이템 ID. 황금 열쇠(golden_key)는 서랍으로 돌아가야 해서 여기 넣어도 무시됩니다.")]
+    [SerializeField] private List<string> resetExcludedItemIds = new List<string>();
     [Tooltip("이 글자로 시작하는 아이템은 스테이지마다 1회성이라 일차가 넘어가면 퀵슬롯에서 없어지고 처음 자리에 다시 생깁니다.")]
     [SerializeField] private string paperItemIdPrefix = "paper_";
 
@@ -133,6 +135,11 @@ public sealed class ItemPositionManager : MonoBehaviour
         }
 
         Instance = this;
+
+        // 예전 씬 설정에 남아 있는 황금 열쇠 예외를 지웁니다. 황금 열쇠도 점검·초기화(서랍으로 복귀) 대상입니다.
+        ignoredItemIds.RemoveAll(id => id != null && id.Trim() == GoldenKeyItemId);
+        resetExcludedItemIds.RemoveAll(id => id != null && id.Trim() == GoldenKeyItemId);
+
         CaptureInitialPositions();
     }
 
@@ -477,6 +484,20 @@ public sealed class ItemPositionManager : MonoBehaviour
                 string itemId = entry?.ItemData != null ? entry.ItemData.ItemId : string.Empty;
                 if (restoredItemIds.Contains(itemId) || IsPaperItem(itemId))
                     inventory.TryRemove(entry);
+            }
+        }
+
+        // 처음 자리가 등록되지 않은 점검 대상 아이템은 되돌릴 곳이 없습니다. (새 아이템을 맵에 WorldItemPickup으로 놓지 않은 경우)
+        if (inventory != null)
+        {
+            foreach (QuickSlotEntry entry in inventory.Entries)
+            {
+                string itemId = entry?.ItemData != null ? entry.ItemData.ItemId : string.Empty;
+                if (!string.IsNullOrEmpty(itemId) && !IsPaperItem(itemId) && !IsAllowedInInventory(itemId) &&
+                    !HasCheckedRecordFor(itemId) && !IsIgnored(itemId))
+                {
+                    Debug.LogWarning($"[ItemPositionManager] '{itemId}'은(는) 처음 자리가 등록되지 않아 초기화하지 못했습니다. 맵에 WorldItemPickup으로 놓아 주세요.", this);
+                }
             }
         }
 

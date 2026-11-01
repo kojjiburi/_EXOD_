@@ -361,6 +361,10 @@ public sealed class DayCycleController : MonoBehaviour
         if (Stage1StoryController.Instance != null && Stage1StoryController.Instance.IsPlaying)
             return true;
 
+        // 거실 '이상한 물약' 머릿속 연타 기믹 중
+        if (StrangePotionGimmick.IsOpen)
+            return true;
+
         return PlayerFaintController.Instance != null && PlayerFaintController.Instance.IsBusy;
     }
 

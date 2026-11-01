@@ -19,7 +19,9 @@
   - 기믹을 진행해서 얻는 아이템 (예: 곰돌이 보답 `fridge_lock_note`)
   - 사용하면 사라지는 아이템 (예: 곰돌이 팔다리 `bear_left_arm` 등)
   - 종이 `paper_a`~`paper_e` (퀵슬롯에 들고 있어도 됨, 단 틀렸을 때 초기화되면 사라지고 다시 주울 수 있게 됨)
-- 단, **황금 열쇠 `golden_key`는 서랍 기믹으로 얻지만 점검 대상**입니다. (서랍에 다시 넣어야 함)
+- 단, **황금 열쇠 `golden_key`는 서랍 기믹으로 얻지만 점검·초기화 대상**입니다. (서랍에 다시 넣어야 함, 틀리면 서랍 안으로 돌아감)
+- 위 예외를 뺀 **퀵슬롯에 얻을 수 있는 모든 아이템**은 점검·초기화 대상입니다. 처음 자리는 `WorldItemPickup`이 시작할 때 자동으로 저장됩니다.
+  - 맵에 `WorldItemPickup`으로 놓지 않고 코드로 퀵슬롯에 바로 넣는 아이템은 처음 자리가 없어서 초기화가 안 됩니다(콘솔 경고). 이런 아이템은 화장실 선반(`RestroomGimmick`)·서랍(`PlayerSystemsSceneBridge`)처럼 처음 자리를 따로 등록해 주세요.
 
 예외 목록 위치 (`ItemPositionManager.cs`):
 - `AlwaysAllowedInInventoryItemIds` — 퀵슬롯에 들고 있어도 되는 아이템 (코드 상수)
