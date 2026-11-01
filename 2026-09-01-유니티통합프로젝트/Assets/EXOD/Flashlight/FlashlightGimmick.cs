@@ -51,6 +51,7 @@ public sealed class FlashlightGimmick : MonoBehaviour
     private float nextRefreshTime;
 
     public bool IsSelectingTarget => isSelectingTarget;
+    public bool IsInRoom => !pickedUp;
     public bool IsViewerOpen => viewerRoot != null && viewerRoot.activeSelf;
 
     // 시작 화면을 거쳐 들어오거나 [다시하기]로 씬을 다시 불러와도 동작하도록 씬이 열릴 때마다 확인합니다.
@@ -173,6 +174,17 @@ public sealed class FlashlightGimmick : MonoBehaviour
         button.onClick.AddListener(TryPickUp);
     }
 
+    /// <summary>손전등을 제자리(수건 뒤)에 다시 놓습니다. RestroomGimmick이 호출합니다.</summary>
+    public void PutBack()
+    {
+        if (!pickedUp)
+            return;
+
+        pickedUp = false;
+        if (pickupButton == null)
+            CreatePickupButton();
+    }
+
     private void TryPickUp()
     {
         if (pickedUp || IsBusy())
@@ -194,6 +206,7 @@ public sealed class FlashlightGimmick : MonoBehaviour
         pickedUp = true;
         if (pickupButton != null)
             Destroy(pickupButton);
+        RestroomGimmick.Instance?.NotifyFlashlightTaken();
 
         EXODSound.Play("item_pickup");
         Think(PickupText);

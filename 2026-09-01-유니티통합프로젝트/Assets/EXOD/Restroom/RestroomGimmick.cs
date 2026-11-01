@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Reflection;
 using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -9,6 +10,9 @@ using UnityEngine.UI;
 /// - 화장실 화면에 수건(RRTowel), 금고(RRSafe), 금고 잠금판(RRSafe_block), 변기 버튼(RRButton)을 놓습니다.
 ///   위치는 1920x1080 원본 그림 기준 픽셀 좌표(아래 Rect 상수)이며 배경과 같은 비율로 늘어납니다.
 /// - 수건은 아이템(towel)입니다. 클릭하면 퀵슬롯에 들어가고, 뒤에 숨겨져 있던 손전등이 드러납니다.
+/// - 제자리 돌려놓기: 퀵슬롯에서 손전등·수건을 끌어다 수건 자리에 놓으면 화장실에 다시 생깁니다.
+///   손전등을 먼저 둔 뒤에만 수건을 올릴 수 있습니다. (반대 순서는 불가)
+///   두 자리는 ItemPositionManager에 등록되어 일차 종료 제자리 검사에도 포함됩니다.
 /// - 금고 잠금판을 클릭하면 키패드(RRPass = PassBG + Pass1~9)가 뜹니다.
 ///   · 숫자를 누르면 그 숫자가 저장되고, 눌린 버튼은 어두워져서 다시 누를 수 없습니다.
 ///   · [닫기]로 닫았다가 다시 열면 모두 초기화됩니다.
@@ -56,6 +60,27 @@ public sealed class RestroomGimmick : MonoBehaviour
     private static readonly int[] Answer = { 7, 4, 1, 5, 2, 3, 8, 9, 6 };
 
     private const string TowelPickupText = "수건을 얻었다.";
+    private const string NeedFlashlightFirstText = "손전등을 먼저 제자리에 둬야 할 것 같다.";
+    private const string WrongPlaceText = "여기에 둘 물건이 아닌 것 같다.";
+    private const string RestroomRoomName = "화장실";
+
+    // 제자리 돌려놓기용 자리 (ItemPositionManager에 등록됨)
+    private sealed class ReturnSlot
+    {
+        public string ItemId;
+        public ItemData Item;
+        public string SlotId;
+        public WorldItemPickup Occupant; // 이 물건이 화장실에 놓여 있는 동안 자리를 채우는 보이지 않는 오브젝트
+        public bool IsFilled => Occupant != null;
+    }
+
+    private ReturnSlot towelSlot;
+    private ReturnSlot flashlightSlot;
+    private bool returnSlotsReady;
+    private Vector3 returnWorldPosition;
+    private ItemPositionManager positionManager;
+    private GameObject dropTarget;
+    private Transform roomViewTransform;
 
     private ItemData towelItem;
     private bool towelTaken;
@@ -103,6 +128,9 @@ public sealed class RestroomGimmick : MonoBehaviour
         if (keypadRoot != null)
             Destroy(keypadRoot);
 
+        if (dropTarget != null)
+            Destroy(dropTarget);
+
         if (Instance == this)
             Instance = null;
     }
@@ -122,10 +150,23 @@ public sealed class RestroomGimmick : MonoBehaviour
 
     private void Update()
     {
-        if (!roomObjectsCreated && Time.unscaledTime >= nextRefreshTime)
+        if (Time.unscaledTime >= nextRefreshTime)
         {
             nextRefreshTime = Time.unscaledTime + 0.5f;
-            TryCreateRoomObjects();
+            if (!roomObjectsCreated)
+                TryCreateRoomObjects();
+            if (roomObjectsCreated && !returnSlotsReady)
+                TrySetupReturnSlots();
+        }
+
+        if (returnSlotsReady)
+        {
+            // 화장실에 있을 때만 수건 자리에 놓을 수 있습니다.
+            bool inRestroom = roomViewTransform != null && roomViewTransform.gameObject.activeInHierarchy;
+            if (dropTarget != null && dropTarget.activeSelf != inRestroom)
+                dropTarget.SetActive(inRestroom);
+
+            RejectForeignPlacements();
         }
 
         if (IsKeypadOpen && Input.GetKeyDown(KeyCode.Escape))
@@ -143,6 +184,7 @@ public sealed class RestroomGimmick : MonoBehaviour
             return;
 
         roomObjectsCreated = true;
+        roomViewTransform = roomView;
 
         // 아래에 만든 것이 위에 그려집니다. (손전등은 FlashlightGimmick이 맨 아래에 깝니다)
         CreateRoomImage(roomView, "RRButton", ToiletButtonRect, null);
@@ -210,9 +252,255 @@ public sealed class RestroomGimmick : MonoBehaviour
         towelTaken = true;
         if (towelButton != null)
             Destroy(towelButton);
+        ReleaseSlot(towelSlot);
 
         EXODSound.Play("item_pickup");
         Think(TowelPickupText);
+    }
+
+    // ═══════════════════════════════════════════════════
+    //  제자리 돌려놓기 (손전등 → 수건 순서)
+    // ═══════════════════════════════════════════════════
+
+    private void TrySetupReturnSlots()
+    {
+        positionManager = ItemPositionManager.Instance != null
+            ? ItemPositionManager.Instance
+            : FindFirstObjectByType<ItemPositionManager>();
+        Camera worldCamera = Camera.main;
+        ItemData flashlightItem = Resources.Load<ItemData>("EXODFlashlight/Flashlight");
+        if (positionManager == null || worldCamera == null || roomViewTransform == null ||
+            towelItem == null || flashlightItem == null)
+        {
+            return;
+        }
+
+        if (!TryGetWorldRect(roomViewTransform as RectTransform, TowelRect, worldCamera,
+                out Vector3 center, out Vector2 size))
+        {
+            return;
+        }
+
+        returnWorldPosition = center;
+        bool flashlightInRoom = FlashlightGimmick.Instance == null || FlashlightGimmick.Instance.IsInRoom;
+
+        flashlightSlot = CreateReturnSlot(FlashlightGimmick.FlashlightItemId, flashlightItem, flashlightInRoom);
+        towelSlot = CreateReturnSlot(TowelItemId, towelItem, !towelTaken);
+        CreateDropTarget(center, size);
+        returnSlotsReady = true;
+    }
+
+    private ReturnSlot CreateReturnSlot(string itemId, ItemData item, bool startsFilled)
+    {
+        ReturnSlot slot = new ReturnSlot { ItemId = itemId, Item = item };
+        WorldItemPickup pickup = CreateOccupant(slot);
+        positionManager.RegisterInitialPickup(pickup);
+        slot.SlotId = pickup.PositionSlotId;
+
+        if (startsFilled)
+        {
+            slot.Occupant = pickup;
+        }
+        else
+        {
+            positionManager.NotifyPickedUp(pickup);
+            Destroy(pickup.gameObject);
+        }
+
+        return slot;
+    }
+
+    // 자리를 채우는 보이지 않는 WorldItemPickup (그림은 화장실 UI가 보여 줍니다)
+    private WorldItemPickup CreateOccupant(ReturnSlot slot)
+    {
+        GameObject go = new GameObject("화장실 제자리_" + slot.ItemId, typeof(BoxCollider2D), typeof(WorldItemPickup));
+        go.transform.position = returnWorldPosition;
+        go.GetComponent<BoxCollider2D>().enabled = false;
+
+        WorldItemPickup pickup = go.GetComponent<WorldItemPickup>();
+        pickup.Configure(slot.Item, false);
+        if (!string.IsNullOrEmpty(slot.SlotId))
+            pickup.BindPositionSlot(slot.SlotId, returnWorldPosition, slot.ItemId);
+        return pickup;
+    }
+
+    private void FillSlot(ReturnSlot slot)
+    {
+        if (slot == null || slot.IsFilled || positionManager == null)
+            return;
+
+        slot.Occupant = CreateOccupant(slot);
+        positionManager.RegisterInitialPickup(slot.Occupant);
+    }
+
+    private void ReleaseSlot(ReturnSlot slot)
+    {
+        if (slot == null || !slot.IsFilled)
+            return;
+
+        positionManager?.NotifyPickedUp(slot.Occupant);
+        Destroy(slot.Occupant.gameObject);
+        slot.Occupant = null;
+    }
+
+    /// <summary>손전등을 화장실에서 주웠을 때 FlashlightGimmick이 알려 줍니다.</summary>
+    public void NotifyFlashlightTaken()
+    {
+        ReleaseSlot(flashlightSlot);
+    }
+
+    // 수건 자리 위에 아이템을 끌어다 놓았을 때 (ItemInteractionTarget)
+    private void CreateDropTarget(Vector3 center, Vector2 size)
+    {
+        dropTarget = new GameObject("화장실 수건 자리 (놓기 판정)", typeof(BoxCollider2D), typeof(ItemInteractionTarget));
+        dropTarget.transform.position = center;
+        BoxCollider2D box = dropTarget.GetComponent<BoxCollider2D>();
+        box.size = size;
+        box.isTrigger = true;
+
+        ItemInteractionTarget target = dropTarget.GetComponent<ItemInteractionTarget>();
+        FieldInfo acceptAny = typeof(ItemInteractionTarget).GetField(
+            "acceptAnyItem", BindingFlags.Instance | BindingFlags.NonPublic);
+        acceptAny?.SetValue(target, true);
+        target.ItemAccepted += OnItemDropped;
+
+        dropTarget.SetActive(false);
+    }
+
+    private void OnItemDropped(ItemData item)
+    {
+        if (item == null)
+            return;
+
+        if (TryReturnItem(item.ItemId))
+            RemoveFromInventory(item.ItemId);
+    }
+
+    /// <summary>손전등은 수건이 없을 때만, 수건은 손전등이 놓인 뒤에만 돌려놓을 수 있습니다.</summary>
+    private bool TryReturnItem(string itemId)
+    {
+        bool inRestroom = SliderManager.Instance != null && SliderManager.Instance.CurrentRoom == RestroomRoomName;
+
+        if (inRestroom && itemId == FlashlightGimmick.FlashlightItemId &&
+            !flashlightSlot.IsFilled && !towelSlot.IsFilled)
+        {
+            FillSlot(flashlightSlot);
+            FlashlightGimmick.Instance?.PutBack();
+            EXODSound.Play("item_pickup");
+            return true;
+        }
+
+        if (inRestroom && itemId == TowelItemId && !towelSlot.IsFilled)
+        {
+            if (!flashlightSlot.IsFilled)
+            {
+                Think(NeedFlashlightFirstText);
+                return false;
+            }
+
+            FillSlot(towelSlot);
+            towelTaken = false;
+            if (towelButton == null && roomViewTransform != null)
+                towelButton = CreateRoomImage(roomViewTransform, "RRTowel", TowelRect, TakeTowel);
+            EXODSound.Play("item_pickup");
+            return true;
+        }
+
+        Think(WrongPlaceText);
+        return false;
+    }
+
+    // 다른 방에서 같은 화면 위치에 놓아 기존 시스템이 이 자리에 아이템을 만들어 버린 경우 되돌립니다.
+    private void RejectForeignPlacements()
+    {
+        if (positionManager == null)
+            return;
+
+        foreach (ReturnSlot slot in new[] { flashlightSlot, towelSlot })
+        {
+            if (slot == null || string.IsNullOrEmpty(slot.SlotId))
+                continue;
+
+            ItemPositionRecord record = null;
+            foreach (ItemPositionRecord candidate in positionManager.PositionRecords)
+            {
+                if (candidate.SlotId == slot.SlotId)
+                {
+                    record = candidate;
+                    break;
+                }
+            }
+
+            WorldItemPickup placed = record?.CurrentPickup;
+            if (placed == null || placed == slot.Occupant)
+                continue;
+
+            ItemData placedItem = placed.ItemData;
+            positionManager.NotifyPickedUp(placed);
+            Destroy(placed.gameObject);
+
+            if (placedItem == null)
+                continue;
+
+            if (!TryReturnItem(placedItem.ItemId))
+                GetInventory()?.TryAdd(placedItem);
+        }
+    }
+
+    private static void RemoveFromInventory(string itemId)
+    {
+        QuickSlotInventory inventory = GetInventory();
+        if (inventory == null)
+            return;
+
+        foreach (QuickSlotEntry entry in inventory.Entries)
+        {
+            if (entry?.ItemData != null && entry.ItemData.ItemId == itemId)
+            {
+                inventory.TryRemove(entry);
+                return;
+            }
+        }
+    }
+
+    private static bool TryGetWorldRect(
+        RectTransform roomView,
+        RectInt pixelRect,
+        Camera worldCamera,
+        out Vector3 center,
+        out Vector2 size)
+    {
+        center = default;
+        size = default;
+        if (roomView == null)
+            return false;
+
+        Canvas canvas = roomView.GetComponentInParent<Canvas>(true);
+        Camera uiCamera = canvas != null && canvas.renderMode != RenderMode.ScreenSpaceOverlay
+            ? canvas.worldCamera
+            : null;
+
+        Vector3[] corners = new Vector3[4];
+        roomView.GetWorldCorners(corners); // 0: 왼쪽 아래, 2: 오른쪽 위
+        Vector2 screenMin = RectTransformUtility.WorldToScreenPoint(uiCamera, corners[0]);
+        Vector2 screenMax = RectTransformUtility.WorldToScreenPoint(uiCamera, corners[2]);
+        if ((screenMax - screenMin).sqrMagnitude < 1f)
+            return false;
+
+        Vector2 PixelToScreen(float x, float y) => new Vector2(
+            Mathf.Lerp(screenMin.x, screenMax.x, x / ReferenceWidth),
+            Mathf.Lerp(screenMax.y, screenMin.y, y / ReferenceHeight));
+
+        float distance = Mathf.Abs(worldCamera.transform.position.z);
+        Vector2 a = PixelToScreen(pixelRect.xMin, pixelRect.yMax);
+        Vector2 b = PixelToScreen(pixelRect.xMax, pixelRect.yMin);
+        Vector3 worldA = worldCamera.ScreenToWorldPoint(new Vector3(a.x, a.y, distance));
+        Vector3 worldB = worldCamera.ScreenToWorldPoint(new Vector3(b.x, b.y, distance));
+        worldA.z = worldB.z = 0f;
+
+        center = (worldA + worldB) * 0.5f;
+        size = new Vector2(Mathf.Abs(worldB.x - worldA.x), Mathf.Abs(worldB.y - worldA.y));
+        return true;
     }
 
     // ═══════════════════════════════════════════════════

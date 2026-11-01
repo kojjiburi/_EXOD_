@@ -6,7 +6,8 @@ using UnityEngine.SceneManagement;
 
 /// <summary>
 /// UI 숨김 키 (Tab)
-/// - Tab을 누르면 상단 UI(DAY·하트·얀 얼굴)와 퀵슬롯을 숨기고, 다시 누르면 보입니다.
+/// - Tab을 누를 때마다 단계가 바뀝니다.
+///   1번: 상단 UI(DAY·하트·얀 얼굴)만 숨김 → 2번: 퀵슬롯까지 숨김 → 3번: 모두 다시 표시 → 다시 1번부터
 /// - 숨긴 동안에는 클릭도 통과해서 그 아래에 있는 물건(예: 화장실 수건)을 누를 수 있습니다.
 /// - 대화창, 조사 화면, 키패드 같은 기믹 UI는 숨기지 않습니다.
 /// - DAY 아래에 "UI숨김버튼-Tab" 안내 문구를 작게 붙이며, 이 문구도 상단 UI와 함께 숨겨집니다.
@@ -21,22 +22,28 @@ public sealed class HudToggle : MonoBehaviour
 
     private const string HintText = "UI숨김버튼-Tab";
     private const string HintObjectName = "UI숨김 안내";
+    private const float HintRaise = 10f; // 안내 문구를 위로 올리는 정도
     private const string StatusRootName = "EXOD_PlayerStatusSystem"; // DAY·하트·얀 얼굴이 있는 상단 UI
     private const string DayObjectName = "DAY";
     private const string QuickSlotCanvasName = "QuickSlotCanvas";   // 퀵슬롯 (씬을 넘어가도 유지됨)
 
-    // 씬을 다시 불러와도 숨김 상태를 유지합니다.
-    private static bool isHidden;
+    // 0: 모두 표시, 1: 상단 UI만 숨김, 2: 상단 UI + 퀵슬롯 숨김
+    // 씬을 다시 불러와도 숨김 단계를 유지합니다.
+    private const int HideLevelCount = 3;
+    private static int hideLevel;
 
-    private readonly List<CanvasGroup> hudGroups = new();
+    private readonly List<CanvasGroup> statusGroups = new();
+    private readonly List<CanvasGroup> quickSlotGroups = new();
     private float nextRefreshTime;
 
-    public static bool IsHidden => isHidden;
+    public static int HideLevel => hideLevel;
+    public static bool IsStatusHidden => hideLevel >= 1;
+    public static bool IsQuickSlotHidden => hideLevel >= 2;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void ResetStatic()
     {
-        isHidden = false;
+        hideLevel = 0;
     }
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
@@ -71,7 +78,7 @@ public sealed class HudToggle : MonoBehaviour
     {
         if (Input.GetKeyDown(ToggleKey) && !IsTypingInInputField())
         {
-            isHidden = !isHidden;
+            hideLevel = (hideLevel + 1) % HideLevelCount;
             RefreshTargets();
             Apply();
         }
@@ -85,29 +92,37 @@ public sealed class HudToggle : MonoBehaviour
         }
     }
 
-    public void SetHidden(bool hidden)
+    /// <summary>0: 모두 표시, 1: 상단 UI만 숨김, 2: 상단 UI + 퀵슬롯 숨김</summary>
+    public void SetHideLevel(int level)
     {
-        isHidden = hidden;
+        hideLevel = Mathf.Clamp(level, 0, HideLevelCount - 1);
         RefreshTargets();
         Apply();
     }
 
     private void Apply()
     {
-        foreach (CanvasGroup group in hudGroups)
+        SetVisible(statusGroups, !IsStatusHidden);
+        SetVisible(quickSlotGroups, !IsQuickSlotHidden);
+    }
+
+    private static void SetVisible(List<CanvasGroup> groups, bool visible)
+    {
+        foreach (CanvasGroup group in groups)
         {
             if (group == null)
                 continue;
 
-            group.alpha = isHidden ? 0f : 1f;
-            group.blocksRaycasts = !isHidden;
-            group.interactable = !isHidden;
+            group.alpha = visible ? 1f : 0f;
+            group.blocksRaycasts = visible;
+            group.interactable = visible;
         }
     }
 
     private void RefreshTargets()
     {
-        hudGroups.RemoveAll(group => group == null);
+        statusGroups.RemoveAll(group => group == null);
+        quickSlotGroups.RemoveAll(group => group == null);
 
         foreach (Canvas canvas in FindObjectsByType<Canvas>(FindObjectsInactive.Include, FindObjectsSortMode.None))
         {
@@ -120,8 +135,9 @@ public sealed class HudToggle : MonoBehaviour
             if (group == null)
                 group = canvas.gameObject.AddComponent<CanvasGroup>();
 
-            if (!hudGroups.Contains(group))
-                hudGroups.Add(group);
+            List<CanvasGroup> groups = isStatusCanvas ? statusGroups : quickSlotGroups;
+            if (!groups.Contains(group))
+                groups.Add(group);
 
             if (isStatusCanvas)
                 EnsureHint(canvas.transform);
@@ -173,7 +189,7 @@ public sealed class HudToggle : MonoBehaviour
         rect.pivot = new Vector2(0.5f, 1f);
         rect.sizeDelta = new Vector2(Mathf.Max(bounds.size.x * 2f, hintSize * 12f), hintSize * 1.6f);
         // DAY 글자를 감싼 흰 상자 테두리 아래로 내립니다.
-        rect.anchoredPosition = new Vector2(bounds.center.x, bounds.min.y - dayText.fontSize * 0.4f);
+        rect.anchoredPosition = new Vector2(bounds.center.x, bounds.min.y - dayText.fontSize * 0.4f + HintRaise);
     }
 
     private static Transform FindChildRecursive(Transform parent, string name)
