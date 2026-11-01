@@ -1,0 +1,17 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d239970dbeab4635ac734318d1cc7ee4, type: 3}
+  m_Name: WalkUiTheme
+  m_EditorClassIdentifier: 
+  font: {fileID: 12800000, guid: 7509c1326362adb4392d64cd140b7767, type: 3}
+  dialogueBox: {fileID: 7203260414184338161, guid: 77f96a76a1acbad499d637bdfb33475a, type: 3}
+  nameBox: {fileID: -5386266252084988996, guid: d4d31fb2531a320448cee4af3db30262, type: 3}
