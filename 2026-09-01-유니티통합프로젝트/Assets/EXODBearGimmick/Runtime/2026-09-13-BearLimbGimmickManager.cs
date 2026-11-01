@@ -16,25 +16,34 @@ internal sealed class BearLimbGimmickManager : MonoBehaviour
         internal readonly string Name;
         internal readonly string Room;
         internal readonly Vector2 Position;
+        internal readonly string ImagePath;
+        internal readonly float Rotation;
 
-        internal LimbDefinition(string id, string name, string room, Vector2 position)
+        internal LimbDefinition(string id, string name, string room, Vector2 position, string imagePath, float rotation)
         {
             Id = id;
             Name = name;
             Room = room;
             Position = position;
+            ImagePath = imagePath;
+            Rotation = rotation;
         }
     }
 
     private static readonly LimbDefinition[] Limbs =
     {
-        new("bear_left_arm", "곰돌이 왼팔", "거실", new Vector2(360f, -150f)),
-        new("bear_right_arm", "곰돌이 오른팔", "주방", new Vector2(-360f, -125f)),
-        new("bear_left_leg", "곰돌이 왼다리", "복도", new Vector2(-500f, 120f)),
-        new("bear_right_leg", "곰돌이 오른다리", "화장실", new Vector2(-560f, -20f))
+        // 왼팔: 소파 쿠션 사이에 끼워져 있음 / 오른팔: 조리대 위에 누워 있음 (Rotation은 그림 회전 각도)
+        new("bear_left_arm", "곰돌이 왼팔", "거실", new Vector2(-62f, -30f), "EXODBearGimmick/2026-11-01-Bear-LeftArm", -28f),
+        new("bear_right_arm", "곰돌이 오른팔", "주방", new Vector2(-480f, -70f), "EXODBearGimmick/2026-11-01-Bear-RightArm", 78f),
+        new("bear_left_leg", "곰돌이 왼다리", "복도", new Vector2(-500f, 120f), "EXODBearGimmick/2026-11-01-Bear-LeftLeg", 0f),
+        new("bear_right_leg", "곰돌이 오른다리", "화장실", new Vector2(-560f, -20f), "EXODBearGimmick/2026-11-01-Bear-RightLeg", 0f)
     };
 
+    private const string FridgeNoteImagePath = "EXODBearGimmick/2026-11-01-Fridge-Note";
+    private const float PickupImageHeight = 120f;
+
     private readonly Dictionary<string, ItemData> items = new();
+    private readonly Dictionary<string, Sprite> limbSprites = new();
     private readonly Dictionary<string, GameObject> pickupButtons = new();
     private readonly HashSet<string> collected = new();
     private GameObject root;
@@ -170,22 +179,27 @@ internal sealed class BearLimbGimmickManager : MonoBehaviour
     private void CreateRuntimeItems()
     {
         foreach (LimbDefinition limb in Limbs)
-            items[limb.Id] = CreateItem(limb.Id, limb.Name, false, new Color(0.67f, 0.45f, 0.28f, 1f));
+        {
+            limbSprites[limb.Id] = LoadBearSprite(limb.ImagePath);
+            items[limb.Id] = CreateItem(limb.Id, limb.Name, false, limbSprites[limb.Id], new Color(0.67f, 0.45f, 0.28f, 1f));
+        }
 
         rewardItem = CreateItem(
             Stage1Dialogues.FridgeNoteItemId,
             Stage1Dialogues.FridgeNoteItemName,
             false,
+            LoadBearSprite(FridgeNoteImagePath),
             new Color(0.90f, 0.84f, 0.66f, 1f));
     }
 
-    private static ItemData CreateItem(string id, string displayName, bool consume, Color iconColor)
+    // 그림이 없으면 색 네모 아이콘으로 대신합니다.
+    private static ItemData CreateItem(string id, string displayName, bool consume, Sprite icon, Color fallbackColor)
     {
         ItemData item = ScriptableObject.CreateInstance<ItemData>();
         item.name = id;
         SetPrivateField(item, "itemId", id);
         SetPrivateField(item, "displayName", displayName);
-        SetPrivateField(item, "icon", CreateIcon(iconColor));
+        SetPrivateField(item, "icon", icon != null ? icon : CreateIcon(fallbackColor));
         SetPrivateField(item, "consumeOnSuccessfulUse", consume);
         return item;
     }
@@ -238,7 +252,12 @@ internal sealed class BearLimbGimmickManager : MonoBehaviour
         EnsureRootDrawOrder();
 
         foreach (LimbDefinition limb in Limbs)
-            pickupButtons[limb.Id] = CreateButton(limb.Name, limb.Position, () => TryCollect(limb.Id));
+        {
+            limbSprites.TryGetValue(limb.Id, out Sprite sprite);
+            pickupButtons[limb.Id] = sprite != null
+                ? CreateImageButton(limb.Name, sprite, limb.Position, limb.Rotation, () => TryCollect(limb.Id))
+                : CreateButton(limb.Name, limb.Position, () => TryCollect(limb.Id));
+        }
 
         CreateBearVisual();
     }
@@ -307,6 +326,33 @@ internal sealed class BearLimbGimmickManager : MonoBehaviour
         Image hitboxImage = bearHitbox.GetComponent<Image>();
         hitboxImage.color = new Color(1f, 1f, 1f, 0f);
         bearHitbox.GetComponent<Button>().onClick.AddListener(ReturnLimbs);
+    }
+
+    // 방에 떨어져 있는 팔다리 그림. 마우스를 올리면 살짝 밝아집니다.
+    private GameObject CreateImageButton(string label, Sprite sprite, Vector2 position, float rotation, UnityEngine.Events.UnityAction action)
+    {
+        GameObject buttonObject = new(label, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Button));
+        buttonObject.transform.SetParent(root.transform, false);
+        RectTransform rect = buttonObject.GetComponent<RectTransform>();
+        rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
+        rect.anchoredPosition = position;
+        rect.sizeDelta = new Vector2(PickupImageHeight * sprite.rect.width / sprite.rect.height, PickupImageHeight);
+        rect.localEulerAngles = new Vector3(0f, 0f, rotation);
+
+        Image image = buttonObject.GetComponent<Image>();
+        image.sprite = sprite;
+        image.preserveAspect = true;
+
+        Button button = buttonObject.GetComponent<Button>();
+        ColorBlock colors = button.colors;
+        colors.normalColor = new Color(0.92f, 0.92f, 0.92f, 1f);
+        colors.highlightedColor = Color.white;
+        colors.pressedColor = new Color(0.75f, 0.75f, 0.75f, 1f);
+        colors.selectedColor = colors.normalColor;
+        button.colors = colors;
+        button.onClick.AddListener(action);
+
+        return buttonObject;
     }
 
     private GameObject CreateButton(string label, Vector2 position, UnityEngine.Events.UnityAction action)
