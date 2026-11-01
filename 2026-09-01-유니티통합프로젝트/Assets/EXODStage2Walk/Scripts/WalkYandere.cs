@@ -43,6 +43,16 @@ namespace EXOD.Walk
         [Tooltip("원본 스프라이트 그림이 오른쪽을 보고 있으면 켜기")]
         [SerializeField] bool spritesFaceRight = true;
 
+        [Header("뒤돌기 전 말풍선 (2SWW)")]
+        [Tooltip("1920x1080 화면 크기 그림. 비워 두면 Resources/Walk_2SWW")]
+        [SerializeField] Sprite turnWarningSprite;
+        [Tooltip("뒤돌기 몇 초 전부터 말풍선을 보여줄지 (다시 앞을 볼 때까지 유지)")]
+        [SerializeField] float turnWarningLead = 0.5f;
+
+        [Header("양 끝에서 좌우 반전 (같이 걷지 않을 때)")]
+        [Tooltip("화면이 오른쪽 끝에 도착하면 그림을 좌우 반전, 왼쪽 끝에 도착하면 다시 반전")]
+        [SerializeField] bool flipAtWalkEnds = true;
+
         [Header("임시 색 (스프라이트가 없을 때)")]
         [SerializeField] Color awayColor = Color.white;
         [SerializeField] Color watchingColor = new Color(1f, 0.85f, 0.2f);
@@ -59,6 +69,8 @@ namespace EXOD.Walk
         public bool Paused { get; set; }
 
         SpriteRenderer sr;
+        SpriteRenderer warningSr;
+        WalkPlayerMover walkMover;
         bool running;
         float timer;
         Camera centerCamera;
@@ -86,11 +98,13 @@ namespace EXOD.Walk
         public void Stop()
         {
             running = false;
+            SetWarningVisible(false);
         }
 
         public void SetCaught()
         {
             running = false;
+            SetWarningVisible(false);
             SetState(YandereState.Caught);
             onCaught.Invoke();
         }
@@ -99,6 +113,11 @@ namespace EXOD.Walk
         {
             if (!running || Paused) return;
             timer -= Time.deltaTime;
+
+            // 뒤돌기 0.5초 전부터 다시 앞을 볼 때까지 말풍선 표시
+            SetWarningVisible(State == YandereState.Watching ||
+                              (State == YandereState.Away && timer <= turnWarningLead));
+
             if (timer > 0f) return;
 
             if (State == YandereState.Away)
@@ -138,6 +157,67 @@ namespace EXOD.Walk
                 transform.position = p;
             }
             UpdateFacing();
+            UpdateEndFlip();
+            UpdateWarningTransform();
+        }
+
+        // 같이 걷지 않을 때: 화면이 오른쪽 끝에 도착하면 반전, 왼쪽 끝에 도착하면 원래대로 (세 그림 모두)
+        void UpdateEndFlip()
+        {
+            if (!flipAtWalkEnds || followTarget != null || sr == null) return;
+            if (walkMover == null) walkMover = FindMoverInScene();
+            if (walkMover == null) return;
+            sr.flipX = !walkMover.HeadingRight;
+        }
+
+        WalkPlayerMover FindMoverInScene()
+        {
+            foreach (var root in gameObject.scene.GetRootGameObjects())
+            {
+                var m = root.GetComponentInChildren<WalkPlayerMover>(true);
+                if (m != null) return m;
+            }
+            return null;
+        }
+
+        void SetWarningVisible(bool visible)
+        {
+            if (visible && warningSr == null)
+            {
+                if (turnWarningSprite == null) turnWarningSprite = Resources.Load<Sprite>("Walk_2SWW");
+                if (turnWarningSprite == null) return;
+                var go = new GameObject("뒤돌기 전 말풍선 (2SWW)");
+                go.transform.SetParent(transform.parent, false);
+                warningSr = go.AddComponent<SpriteRenderer>();
+                warningSr.sprite = turnWarningSprite;
+                if (sr != null)
+                {
+                    warningSr.sortingLayerID = sr.sortingLayerID;
+                    warningSr.sortingOrder = sr.sortingOrder + 1;
+                }
+            }
+            if (warningSr != null && warningSr.gameObject.activeSelf != visible)
+            {
+                warningSr.gameObject.SetActive(visible);
+                if (visible) UpdateWarningTransform();
+            }
+        }
+
+        // 말풍선 그림은 1920x1080 화면 전체 크기라 화면에 꽉 차게 깔고, 그녀가 반전되면 같이 반전한다
+        void UpdateWarningTransform()
+        {
+            if (warningSr == null || !warningSr.gameObject.activeSelf) return;
+            if (centerCamera == null) centerCamera = WalkCameraFit.FindInScene(gameObject.scene);
+            var cam = centerCamera;
+            if (cam == null || !cam.orthographic || warningSr.sprite == null) return;
+
+            float worldHeight = cam.orthographicSize * 2f;
+            float spriteHeight = warningSr.sprite.bounds.size.y;
+            float scale = spriteHeight > 0f ? worldHeight / spriteHeight : 1f;
+            var t = warningSr.transform;
+            t.position = new Vector3(cam.transform.position.x, cam.transform.position.y, transform.position.z);
+            t.localScale = new Vector3(scale, scale, 1f);
+            warningSr.flipX = sr != null && sr.flipX;
         }
 
         float FollowTargetX()

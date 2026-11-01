@@ -22,6 +22,8 @@ namespace EXOD.Walk
         [SerializeField] bool matchDayClockDuration = true;
         [Tooltip("시간이 끝나기 몇 초 전에 왕복을 마칠지")]
         [SerializeField] float finishSecondsEarly = 0.5f;
+        [Tooltip("[통합] 자동 이동일 때 양 끝에 도착하면 이만큼(초) 멈췄다가 돌아간다")]
+        [SerializeField] float endPauseSeconds = 2f;
 
         [Header("화면 이동 모드")]
         [Tooltip("켜면 플레이어를 숨기고 화면을 좌우로 움직인다 (화면 왕복)")]
@@ -49,6 +51,7 @@ namespace EXOD.Walk
         public float MaxX => maxX;
         public bool MovesScreen => moveScreen;
 
+        float pauseTimer;
         float minX = -8f;
         float maxX = 8f;
         WalkCameraFit fit;
@@ -79,6 +82,7 @@ namespace EXOD.Walk
             SetX(minX);
             LegsCompleted = 0;
             HeadingRight = true;
+            pauseTimer = 0f;
         }
 
         void ComputeBounds()
@@ -141,6 +145,13 @@ namespace EXOD.Walk
 
             if (!CanMove) return;
 
+            // 끝에 도착하면 잠깐 멈춘다
+            if (pauseTimer > 0f)
+            {
+                pauseTimer -= Time.deltaTime;
+                return;
+            }
+
             float h = autoMove ? (HeadingRight ? 1f : -1f) : WalkInput.Horizontal();
             if (h != 0f)
             {
@@ -153,12 +164,14 @@ namespace EXOD.Walk
             {
                 LegsCompleted++;
                 HeadingRight = false;
+                if (autoMove) pauseTimer = endPauseSeconds;
                 onLegCompleted.Invoke(LegsCompleted);
             }
             else if (!HeadingRight && x <= minX + arriveTolerance)
             {
                 LegsCompleted++;
                 HeadingRight = true;
+                if (autoMove) pauseTimer = endPauseSeconds;
                 onLegCompleted.Invoke(LegsCompleted);
             }
         }
@@ -170,7 +183,9 @@ namespace EXOD.Walk
                 return moveSpeed;
 
             int legs = WalkGameManager.Current != null ? WalkGameManager.Current.RoundTripsRequired * 2 : 4;
-            float seconds = Mathf.Max(1f, DayClock.Instance.DayLength - finishSecondsEarly);
+            // 마지막 도착 전까지 끝에서 멈추는 시간(구간 수 - 1번)을 빼고 계산
+            float pauses = Mathf.Max(0, legs - 1) * Mathf.Max(0f, endPauseSeconds);
+            float seconds = Mathf.Max(1f, DayClock.Instance.DayLength - finishSecondsEarly - pauses);
             float distance = Mathf.Max(0.01f, maxX - minX) * legs;
             return distance / seconds;
         }
