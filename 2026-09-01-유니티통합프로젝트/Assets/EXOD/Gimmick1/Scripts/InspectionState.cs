@@ -8,6 +8,13 @@ using UnityEngine;
 public static class InspectionState
 {
     private static readonly HashSet<string> examinedIds = new HashSet<string>();
+    private static readonly HashSet<string> openingShownIds = new HashSet<string>();
+
+    /// <summary>처음 열 때 나오는 안내 대사를 이번에 처음 보여 주는 거면 true.</summary>
+    public static bool MarkOpeningShown(string itemId)
+    {
+        return !string.IsNullOrWhiteSpace(itemId) && openingShownIds.Add(itemId);
+    }
 
     public static bool IsExamined(string itemId)
     {
@@ -28,5 +35,6 @@ public static class InspectionState
     public static void ResetAll()
     {
         examinedIds.Clear();
+        openingShownIds.Clear();
     }
 }
