@@ -8,7 +8,7 @@ using UnityEngine.UI;
 /// <summary>
 /// 1스테이지 이야기 진행을 맡습니다.
 /// - 침실 씬(SliderManager가 있는 씬)이 열리면 인트로를 재생합니다.
-/// - 거실에 처음 들어가면 거실 대사와 물 마시기 선택지를 재생합니다.
+/// - 거실에 처음 들어가면 거실 대사를 재생합니다.
 /// - 이야기 대사(컷신)가 나오는 동안 방 조사 영역과 장소 이동 버튼을 잠급니다.
 /// </summary>
 [DefaultExecutionOrder(220)]
@@ -60,6 +60,9 @@ public sealed class Stage1StoryController : MonoBehaviour
 
         if (FindFirstObjectByType<Stage1FrontDoorGimmick>() == null)
             slider.gameObject.AddComponent<Stage1FrontDoorGimmick>();
+
+        if (FindFirstObjectByType<Stage1HelpBar>() == null)
+            slider.gameObject.AddComponent<Stage1HelpBar>();
 
         if (FindFirstObjectByType<DialogueDimmer>() == null)
             slider.gameObject.AddComponent<DialogueDimmer>();
@@ -174,28 +177,8 @@ public sealed class Stage1StoryController : MonoBehaviour
         if (roomName == "거실" && !hasVisitedLivingRoom)
         {
             hasVisitedLivingRoom = true;
-            PlayChoiceCutscene(
-                Stage1Dialogues.LivingRoomArrival(),
-                Stage1Dialogues.WaterChoices,
-                OnWaterChosen);
+            PlayCutscene(Stage1Dialogues.LivingRoomArrival());
         }
-    }
-
-    // 물을 마시면 기절해서 하트가 1개 줄고, 마시지 않으면 그냥 탐색을 이어갑니다.
-    private void OnWaterChosen(int choice)
-    {
-        if (choice != 0)
-        {
-            PlayCutscene(Stage1Dialogues.WaterRefuse());
-            return;
-        }
-
-        PlayCutscene(Stage1Dialogues.WaterDrink(), () =>
-        {
-            PlayerFaintController faint = PlayerFaintController.Instance;
-            if (faint != null)
-                faint.Faint(() => PlayCutscene(Stage1Dialogues.WaterAfterFaint()));
-        });
     }
 
     // ═══════════════════════════════════════════════════
