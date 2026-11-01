@@ -14,6 +14,7 @@ using UnityEngine.UI;
 public sealed class Stage1HelpBar : MonoBehaviour
 {
     private const string Title = "행동 요령";
+    private const string BedTip = "다음 날로 넘어가려면 침실 침대를 눌러.";
 
     private static readonly string[] HouseRules =
     {
@@ -132,6 +133,7 @@ public sealed class Stage1HelpBar : MonoBehaviour
             $"<color=#{ColorUtility.ToHtmlStringRGB(GoalColor)}>목표: {goal}</color>",
             HouseRules[0],
             HouseRules[1],
+            BedTip,
         };
     }
 

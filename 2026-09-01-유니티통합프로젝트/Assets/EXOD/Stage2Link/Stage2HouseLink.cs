@@ -181,6 +181,21 @@ public sealed class Stage2HouseLink : MonoBehaviour
         yield return WalkFade.FadeIn();
         isTransitioning = false;
 
+        // 산책 중 그녀에게 들켰으면 하트 -1 (소리·붉은 화면은 Stage1SoundEffects, HP 0이면 PlayerFaintController가 게임 오버)
+        if (result == WalkResult.Caught)
+        {
+            HeartManager hearts = FindFirstObjectByType<HeartManager>(FindObjectsInactive.Include);
+            if (hearts != null)
+            {
+                hearts.HPM();
+                if (hearts.HP <= 0)
+                {
+                    WalkSession.LastResult = WalkResult.None;
+                    yield break;
+                }
+            }
+        }
+
         string message = WalkGameManager.ResultLabel(result);
         WalkSession.LastResult = WalkResult.None;
         if (!string.IsNullOrEmpty(message))
