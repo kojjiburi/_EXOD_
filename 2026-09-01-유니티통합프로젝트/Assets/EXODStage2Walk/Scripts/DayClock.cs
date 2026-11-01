@@ -48,6 +48,9 @@ namespace EXOD.Walk
         /// <summary>오늘(1스테이지 일차 기준) 현관문을 쓸 수 없는지</summary>
         public bool FrontDoorLocked => IsFrontDoorLockedToday();
 
+        /// <summary>[통합] 새 게임(다시 시작·타이틀로)일 때 현관문 잠금 기록을 지웁니다.</summary>
+        public static void ResetForNewGame() => lockedDay = int.MinValue;
+
         public static bool IsFrontDoorLockedToday() => lockedDay != int.MinValue && lockedDay == CurrentStage1Day();
 
         public int CurrentDay => CurrentStage1Day();

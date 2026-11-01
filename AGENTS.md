@@ -43,7 +43,7 @@
   - 연결 코드: `Assets/EXOD/Stage2Link/Stage2HouseLink.cs` (입장/복귀, 대화창·퀵슬롯 연결)
   - 산책 코드: `Assets/EXODStage2Walk/` (2스테이지 원본 프로젝트에서 가져옴, `BedNextDay`는 삭제)
 - **일차(DAY)는 1스테이지 `DayCycleController`(3분 타이머)만 올립니다.** 2스테이지에 있는 동안 1스테이지 3분 타이머는 멈추고, 산책이 끝나 돌아오면 **성공/실패 상관없이 1분을 뺍니다** (`Stage2HouseLink.WalkTimeCostSeconds`). 들켰을 때 시간은 따로 더 빼지 않고, 대신 **하트(HP)가 1 줄어듭니다** (`Stage2HouseLink.ReturnRoutine`, HP 0이면 게임 오버).
-- 산책 자동 이동 속도는 `DayClock` 1분 안에 2번 왕복이 끝나도록 자동 계산됩니다 (`WalkPlayerMover.matchDayClockDuration`).
+- 산책 자동 이동 속도는 `DayClock` 1분 안에 1번 왕복(`WalkGameManager.roundTripsRequired`)이 끝나도록 자동 계산됩니다 (`WalkPlayerMover.matchDayClockDuration`). 양 끝에서 2초 멈추고, 그녀가 뒤돌아보는 동안에도 멈추며, 멈춘 시간은 남은 시간에 맞춰 속도로 따라잡습니다.
 - 2스테이지 시간은 `DayClock`(1분)이 따로 잽니다. 입장하자마자 시작, 멈추는 기준은 `DayCycleController`와 같음(대화·컷신·기절 중).
   - 남은 시간은 오른쪽 위 1스테이지 3분 타이머 바로 아래에 표시(2스테이지에서만 보임).
   - 1분이 다 되면 "돌아가자" 대사 후 1스테이지 복도로 돌아옵니다.

@@ -152,7 +152,7 @@ MonoBehaviour:
   yandere: {fileID: 1662483086}
   worldCamera: {fileID: 1432310405}
   walkDurationSeconds: 60
-  roundTripsRequired: 2
+  roundTripsRequired: 1
   caughtPenaltySeconds: 60
   lockDoorAfterSuccess: 1
   allowQuitEarly: 1
@@ -677,7 +677,7 @@ SpriteRenderer:
   m_LightmapParameters: {fileID: 0}
   m_SortingLayerID: 0
   m_SortingLayer: 0
-  m_SortingOrder: -48
+  m_SortingOrder: -49
   m_Sprite: {fileID: 21300000, guid: 6475057dc1a261442b29f2123a5b477f, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
@@ -2212,7 +2212,7 @@ SpriteRenderer:
   m_LightmapParameters: {fileID: 0}
   m_SortingLayerID: 0
   m_SortingLayer: 0
-  m_SortingOrder: -49
+  m_SortingOrder: -48
   m_Sprite: {fileID: 21300000, guid: ded501a3c1912eb4ea41bd2efb80be6c, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
@@ -2700,7 +2700,7 @@ SpriteRenderer:
   m_LightmapParameters: {fileID: 0}
   m_SortingLayerID: 0
   m_SortingLayer: 0
-  m_SortingOrder: -49
+  m_SortingOrder: -48
   m_Sprite: {fileID: 21300000, guid: 78d1bc3db1c4cb94889ca176fbc33299, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0

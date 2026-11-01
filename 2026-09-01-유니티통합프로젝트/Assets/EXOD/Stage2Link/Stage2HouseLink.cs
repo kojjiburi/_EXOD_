@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using EXOD.Walk;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -322,6 +323,26 @@ public sealed class Stage2HouseLink : MonoBehaviour
                 : FindFirstObjectByType<QuickSlotInventory>();
             return inventory != null && inventory.TryAdd(item);
         };
+
+        // 산책 길의 아이템(종이 A~E)이 다시 나오는지:
+        //  - 퀵슬롯에 이미 있으면 안 나옴
+        //  - 화장실 금고를 열어 종이가 영구히 없어졌으면 안 나옴
+        //  - 그 외(아직 안 주웠거나, 일차 초기화로 퀵슬롯에서 빠짐)에는 다시 나옴 → 일차 초기화 때 '얻는 기회'도 초기화됨
+        WalkItemPickup.IsUnavailable = item =>
+        {
+            if (item == null)
+                return false;
+
+            ItemPositionManager positions = ItemPositionManager.Instance;
+            if (positions != null && positions.ArePapersRemovedPermanently && positions.IsPaperItem(item.ItemId))
+                return true;
+
+            QuickSlotInventory inventory = QuickSlotInventory.Instance != null
+                ? QuickSlotInventory.Instance
+                : FindFirstObjectByType<QuickSlotInventory>();
+            return inventory != null && inventory.Entries.Any(entry =>
+                entry != null && entry.ItemData != null && entry.ItemData.ItemId == item.ItemId);
+        };
     }
 
     private void UnhookStage2()
@@ -331,6 +352,7 @@ public sealed class Stage2HouseLink : MonoBehaviour
         WalkDialogue.ExternalShow = null;
         WalkDialogue.ExternalIsOpen = null;
         WalkItemPickup.Giver = null;
+        WalkItemPickup.IsUnavailable = null;
     }
 
     private static bool ShowWithTeamDialogue(IReadOnlyList<WalkLine> walkLines)

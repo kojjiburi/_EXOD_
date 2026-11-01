@@ -248,13 +248,21 @@ public sealed class FlashlightGimmick : MonoBehaviour
         Image backdrop = CreateImage("어두운 배경", viewerRoot.transform, new Color(0f, 0f, 0f, 0.85f));
         Stretch(backdrop.rectTransform);
 
+        // 비춘 그림 뒤에 까는 회색 정사각형 (화면 가운데)
+        Image square = CreateImage("회색 바탕", viewerRoot.transform, new Color(0.5f, 0.5f, 0.5f, 1f));
+        square.raycastTarget = false;
+        RectTransform squareRect = square.rectTransform;
+        squareRect.anchorMin = squareRect.anchorMax = new Vector2(0.5f, 0.5f);
+        squareRect.sizeDelta = new Vector2(840f, 840f);
+        squareRect.anchoredPosition = Vector2.zero;
+
         viewerImage = CreateImage("비춘 그림", viewerRoot.transform, Color.white);
         viewerImage.preserveAspect = true;
         viewerImage.raycastTarget = false;
         RectTransform imageRect = viewerImage.rectTransform;
         imageRect.anchorMin = imageRect.anchorMax = new Vector2(0.5f, 0.5f);
-        imageRect.sizeDelta = new Vector2(880f, 880f);
-        imageRect.anchoredPosition = new Vector2(0f, 40f);
+        imageRect.sizeDelta = new Vector2(840f, 840f);
+        imageRect.anchoredPosition = Vector2.zero;
 
         Image buttonImage = CreateImage("나가기", viewerRoot.transform, Color.white);
         RectTransform buttonRect = buttonImage.rectTransform;

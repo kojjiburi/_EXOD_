@@ -8,7 +8,7 @@ namespace EXOD.Walk
     /// <summary>
     /// 산책(외출) 기믹 진행 관리. 산책 씬에 하나 둔다.
     ///  - 시작하면 화면이 밝아지고 그녀의 대사가 나온 뒤 산책이 시작된다 (1스테이지와 같은 대화창).
-    ///  - 1분 안에 화면 좌우를 2번 왕복하면 성공 → 대사 후 집으로 돌아가고 일차는 계속 진행
+    ///  - 1분 안에 화면 좌우를 1번 왕복하면 성공 (roundTripsRequired) → 대사 후 집으로 돌아가고 일차는 계속 진행
     ///  - 그녀가 뒤돌아보고 있을 때 화면의 물체와 상호작용하면 실패
     ///    → 스프라이트 3, 그날 시간 1분 차감, 다음 날까지 현관문 사용 불가, 대사 후 집으로 돌아감
     ///  - 산책하는 동안에도 그날의 시간은 계속 흐른다 (대화창이 떠 있는 동안 산책 타이머와 그녀는 멈춘다)
@@ -28,7 +28,7 @@ namespace EXOD.Walk
 
         [Header("규칙")]
         [SerializeField] float walkDurationSeconds = 60f;
-        [SerializeField] int roundTripsRequired = 2;
+        [SerializeField] int roundTripsRequired = 1;
         [Tooltip("들켰을 때 그날 시간에서 빼는 초")]
         [SerializeField] float caughtPenaltySeconds = 60f;
         [Tooltip("들키지 않고 끝나도 그날은 다시 못 나가게 할지 (기획서: 하루 한 번 산책)")]
@@ -54,7 +54,7 @@ namespace EXOD.Walk
         [SerializeField] WalkLine[] firstIntroLines =
         {
             new WalkLine(Her, "오늘부터 하루에 한 번은 나랑 같이 산책하는 거야."),
-            new WalkLine(Her, "집 대문에서 저 길 끝까지, 두 번만 갔다 오고 들어가자."),
+            new WalkLine(Her, "집 대문에서 저 길 끝까지, 한 번만 갔다 오고 들어가자."),
             new WalkLine("", "(길은 저절로 걷는다. 그녀가 뒤돌아봤을 때 무언가를 건드리면 안 된다.)")
         };
         [SerializeField] WalkLine[] introLines = { new WalkLine(Her, "오늘도 같이 걷자.") };

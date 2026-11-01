@@ -27,6 +27,13 @@ namespace EXOD.Walk
         /// </summary>
         public static Func<ItemData, bool> Giver;
 
+        /// <summary>
+        /// [통합] 이 아이템이 산책 길에 다시 나오면 안 되는지 (이미 퀵슬롯에 있음 / 영구히 없어짐 등). 
+        /// 연결되어 있으면 "한 번 얻으면 다시 안 나옴" 기록 대신 이 판정을 씁니다.
+        /// (예: 종이는 일차 초기화로 퀵슬롯에서 빠지면 산책 길에서 다시 주울 수 있음)
+        /// </summary>
+        public static Func<ItemData, bool> IsUnavailable;
+
         /// <summary>얻은 아이템 이름 (디버그 표시용)</summary>
         public static readonly List<string> PickedNames = new List<string>();
 
@@ -36,6 +43,7 @@ namespace EXOD.Walk
         static void ResetStatics()
         {
             Giver = null;
+            IsUnavailable = null;
             PickedNames.Clear();
             pickedKeys.Clear();
         }
@@ -45,7 +53,10 @@ namespace EXOD.Walk
 
         void Awake()
         {
-            if (pickedKeys.Contains(Key))
+            bool unavailable = IsUnavailable != null && item != null
+                ? IsUnavailable(item)
+                : pickedKeys.Contains(Key);
+            if (unavailable)
             {
                 gameObject.SetActive(false);
                 return;
@@ -55,7 +66,8 @@ namespace EXOD.Walk
 
         void Pickup()
         {
-            if (pickedKeys.Contains(Key)) return;
+            if (IsUnavailable == null && pickedKeys.Contains(Key)) return;
+            if (IsUnavailable != null && item != null && IsUnavailable(item)) return;
 
             if (item == null)
             {
