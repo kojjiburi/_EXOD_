@@ -26,6 +26,7 @@ public class PasswordDrawer : MonoBehaviour
 
     private bool isUnlocked;
     private bool isKeyCollected;
+    private int lastTypedLength;
 
     public bool IsUnlocked => isUnlocked;
     public bool IsKeyCollected => isKeyCollected;
@@ -45,7 +46,10 @@ public class PasswordDrawer : MonoBehaviour
             backButton.onClick.AddListener(Close);
 
         if (passwordInput != null)
+        {
             passwordInput.onSubmit.AddListener(_ => Submit());
+            passwordInput.onValueChanged.AddListener(OnPasswordTyped);
+        }
 
         if (passwordPanel != null)
             passwordPanel.SetActive(false);
@@ -58,6 +62,17 @@ public class PasswordDrawer : MonoBehaviour
 
         if (backButton != null)
             backButton.onClick.RemoveListener(Close);
+
+        if (passwordInput != null)
+            passwordInput.onValueChanged.RemoveListener(OnPasswordTyped);
+    }
+
+    // 숫자를 하나 입력할 때마다 버튼 누르는 소리를 냅니다. (지울 때는 소리 없음)
+    private void OnPasswordTyped(string value)
+    {
+        if (value.Length > lastTypedLength)
+            EXODSound.Play("keypad_press");
+        lastTypedLength = value.Length;
     }
 
     public void Open()
@@ -97,6 +112,7 @@ public class PasswordDrawer : MonoBehaviour
         if (value == correctPassword)
         {
             isUnlocked = true;
+            EXODSound.Play("door_lock");
 
             if (InspectionManager.Instance != null)
                 InspectionManager.Instance.SetCurrentDetailSprite(openedDrawerSprite);
@@ -113,6 +129,7 @@ public class PasswordDrawer : MonoBehaviour
         }
         else
         {
+            EXODSound.Play("keypad_error");
             if (resultText != null)
                 resultText.text = "비밀번호가 맞지 않는다.";
 
@@ -171,6 +188,7 @@ public class PasswordDrawer : MonoBehaviour
     private void CollectKey()
     {
         isKeyCollected = true;
+        EXODSound.Play("item_pickup");
         ApplyPersistentVisual();
         onKeyCollected?.Invoke();
 

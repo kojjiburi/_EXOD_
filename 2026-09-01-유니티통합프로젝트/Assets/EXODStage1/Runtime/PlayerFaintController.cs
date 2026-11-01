@@ -9,6 +9,7 @@ using UnityEngine.UI;
 /// 플레이어 기절과 게임 오버를 맡습니다.
 /// - Faint(): 화면 암전 → "플레이어가 기절했다." → 하트 1개 감소 → 다시 밝아짐
 /// - 하트(HP)가 0이 되면 이유와 상관없이 게임 오버 창을 띄웁니다.
+/// - 게임 오버: 암전 → 여자친구 "우리는 평생 함께야... ♡" → GAME OVER 창
 /// - 게임 오버 창: [다시하기] 지금 씬을 처음부터, [로비로 돌아가기] 시작 화면으로
 /// UI는 실행 중에 자동으로 만들어집니다.
 /// </summary>
@@ -23,11 +24,20 @@ public sealed class PlayerFaintController : MonoBehaviour
     [SerializeField] private float fadeDuration = 0.8f;   // 암전·밝아짐에 걸리는 시간
     [SerializeField] private float holdDuration = 1.6f;   // 암전 상태로 문구를 보여주는 시간
 
+    [Header("=== 게임 오버 연출 ===")]
+    [SerializeField] private float gameOverTypingSpeed = 0.12f; // 여자친구 대사 타이핑 속도 (초/글자)
+    [SerializeField] private float gameOverLineHold = 1.8f;     // 대사를 다 보여준 뒤 기다리는 시간
+
     private HeartManager hearts;
     private GameObject overlayRoot;
     private Image blackout;
     private TextMeshProUGUI faintText;
     private GameObject gameOverPanel;
+    private CanvasGroup gameOverGroup;
+    private GameObject gameOverLineRoot;
+    private CanvasGroup gameOverLineGroup;
+    private Image gameOverPortrait;
+    private TextMeshProUGUI gameOverLineText;
     private bool isFainting;
     private bool isGameOver;
 
@@ -87,6 +97,7 @@ public sealed class PlayerFaintController : MonoBehaviour
         faintText.text = Stage1Dialogues.FaintText;
         SetAlpha(faintText, 0f);
 
+        EXODSound.Play("faint");
         yield return Fade(blackout, 0f, 1f, fadeDuration);
         yield return Fade(faintText, 0f, 1f, fadeDuration * 0.5f);
         yield return new WaitForSecondsRealtime(holdDuration);
@@ -124,7 +135,59 @@ public sealed class PlayerFaintController : MonoBehaviour
         overlayRoot.SetActive(true);
         faintText.gameObject.SetActive(false);
         SetAlpha(blackout, 1f);
+        gameOverPanel.SetActive(false);
+        StartCoroutine(GameOverRoutine());
+    }
+
+    // 여자친구의 마지막 대사를 보여준 뒤 GAME OVER 창을 띄웁니다. (도중에 넘길 수 없음)
+    private IEnumerator GameOverRoutine()
+    {
+        gameOverLineRoot.SetActive(true);
+        gameOverLineText.text = Stage1Dialogues.GameOverLine;
+        gameOverLineText.maxVisibleCharacters = 0;
+
+        EXODSound.StopAmbience(1f);
+        EXODSound.PlayHeartbeat(0.9f, 0.8f, 0.5f);
+
+        RectTransform portraitRect = gameOverPortrait != null ? gameOverPortrait.rectTransform : null;
+        Vector2 portraitEnd = portraitRect != null ? portraitRect.anchoredPosition : Vector2.zero;
+
+        yield return new WaitForSecondsRealtime(0.6f);
+
+        // 초상화가 아래에서 천천히 다가오며 나타납니다.
+        float elapsed = 0f;
+        const float appearDuration = 1.2f;
+        while (elapsed < appearDuration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float t = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(elapsed / appearDuration));
+            gameOverLineGroup.alpha = t;
+            if (portraitRect != null)
+                portraitRect.anchoredPosition = portraitEnd + new Vector2(0f, -60f * (1f - t));
+            yield return null;
+        }
+
+        gameOverLineText.ForceMeshUpdate();
+        int length = gameOverLineText.textInfo.characterCount;
+        for (int i = 1; i <= length; i++)
+        {
+            gameOverLineText.maxVisibleCharacters = i;
+            if (!char.IsWhiteSpace(gameOverLineText.textInfo.characterInfo[i - 1].character))
+                EXODSound.Play("type_tick_low", 0.5f);
+            yield return new WaitForSecondsRealtime(gameOverTypingSpeed);
+        }
+
+        yield return new WaitForSecondsRealtime(gameOverLineHold);
+
+        yield return FadeGroup(gameOverLineGroup, 1f, 0f, 0.8f);
+        gameOverLineRoot.SetActive(false);
+        if (portraitRect != null)
+            portraitRect.anchoredPosition = portraitEnd;
+
+        EXODSound.StopHeartbeat(0.3f);
+        EXODSound.Play("gameover_boom");
         gameOverPanel.SetActive(true);
+        yield return FadeGroup(gameOverGroup, 0f, 1f, 0.6f);
     }
 
     public void Restart()
@@ -189,17 +252,71 @@ public sealed class PlayerFaintController : MonoBehaviour
             new Color(0.85f, 0.85f, 0.85f, 1f));
         Stretch(faintText.rectTransform);
 
+        BuildGameOverLine();
         BuildGameOverPanel();
 
         faintText.gameObject.SetActive(false);
         overlayRoot.SetActive(false);
     }
 
+    private void BuildGameOverLine()
+    {
+        gameOverLineRoot = new GameObject("게임 오버 대사", typeof(RectTransform), typeof(CanvasGroup));
+        gameOverLineRoot.transform.SetParent(overlayRoot.transform, false);
+        Stretch(gameOverLineRoot.GetComponent<RectTransform>());
+        gameOverLineGroup = gameOverLineRoot.GetComponent<CanvasGroup>();
+        gameOverLineGroup.alpha = 0f;
+
+        Sprite sprite = DialoguePortrait.LoadPortrait();
+        if (sprite != null)
+        {
+            gameOverPortrait = CreateImage("여자친구", gameOverLineRoot.transform, Color.white);
+            gameOverPortrait.sprite = sprite;
+            gameOverPortrait.preserveAspect = true;
+            gameOverPortrait.raycastTarget = false;
+
+            RectTransform rect = gameOverPortrait.rectTransform;
+            rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0f);
+            rect.pivot = new Vector2(0.5f, 0f);
+            float height = 820f;
+            rect.sizeDelta = new Vector2(height * sprite.rect.width / sprite.rect.height, height);
+            rect.anchoredPosition = new Vector2(0f, 120f);
+        }
+
+        // 초상화 아래쪽을 아래로 갈수록 어둡게 덮어 글자가 잘 보이게 합니다.
+        Image shade = CreateImage("글자 배경", gameOverLineRoot.transform, new Color(0f, 0f, 0f, 0.92f));
+        shade.sprite = CreateFadeUpSprite();
+        shade.raycastTarget = false;
+        RectTransform shadeRect = shade.rectTransform;
+        shadeRect.anchorMin = new Vector2(0f, 0f);
+        shadeRect.anchorMax = new Vector2(1f, 0f);
+        shadeRect.pivot = new Vector2(0.5f, 0f);
+        shadeRect.sizeDelta = new Vector2(0f, 420f);
+        shadeRect.anchoredPosition = Vector2.zero;
+
+        TextMeshProUGUI name = CreateText("이름", gameOverLineRoot.transform, Stage1Dialogues.Girlfriend, 40f,
+            new Color(0.86f, 0.30f, 0.40f, 1f));
+        RectTransform nameRect = name.rectTransform;
+        nameRect.anchorMin = nameRect.anchorMax = new Vector2(0.5f, 0f);
+        nameRect.sizeDelta = new Vector2(1200f, 60f);
+        nameRect.anchoredPosition = new Vector2(0f, 210f);
+
+        gameOverLineText = CreateText("대사", gameOverLineRoot.transform, Stage1Dialogues.GameOverLine, 60f,
+            new Color(0.92f, 0.88f, 0.90f, 1f));
+        RectTransform lineRect = gameOverLineText.rectTransform;
+        lineRect.anchorMin = lineRect.anchorMax = new Vector2(0.5f, 0f);
+        lineRect.sizeDelta = new Vector2(1600f, 100f);
+        lineRect.anchoredPosition = new Vector2(0f, 120f);
+
+        gameOverLineRoot.SetActive(false);
+    }
+
     private void BuildGameOverPanel()
     {
-        gameOverPanel = new GameObject("게임 오버", typeof(RectTransform));
+        gameOverPanel = new GameObject("게임 오버", typeof(RectTransform), typeof(CanvasGroup));
         gameOverPanel.transform.SetParent(overlayRoot.transform, false);
         Stretch(gameOverPanel.GetComponent<RectTransform>());
+        gameOverGroup = gameOverPanel.GetComponent<CanvasGroup>();
 
         TextMeshProUGUI title = CreateText("게임 오버 제목", gameOverPanel.transform, "GAME OVER", 120f,
             new Color(0.72f, 0.08f, 0.12f, 1f));
@@ -230,6 +347,7 @@ public sealed class PlayerFaintController : MonoBehaviour
         colors.selectedColor = colors.normalColor;
         button.colors = colors;
         button.onClick.AddListener(onClick);
+        EXODSound.AttachUiSounds(image.gameObject);
 
         TextMeshProUGUI text = CreateText("글자", image.transform, label, 34f, Color.white);
         Stretch(text.rectTransform);
@@ -266,6 +384,22 @@ public sealed class PlayerFaintController : MonoBehaviour
         return text;
     }
 
+    // 아래는 불투명하고 위로 갈수록 투명해지는 세로 그라데이션
+    private static Sprite CreateFadeUpSprite()
+    {
+        const int height = 64;
+        Texture2D texture = new Texture2D(1, height, TextureFormat.RGBA32, false);
+        texture.wrapMode = TextureWrapMode.Clamp;
+        for (int y = 0; y < height; y++)
+        {
+            float alpha = Mathf.SmoothStep(1f, 0f, y / (height - 1f));
+            texture.SetPixel(0, y, new Color(1f, 1f, 1f, alpha));
+        }
+
+        texture.Apply();
+        return Sprite.Create(texture, new Rect(0, 0, 1, height), new Vector2(0.5f, 0.5f));
+    }
+
     private static void Stretch(RectTransform rect)
     {
         rect.anchorMin = Vector2.zero;
@@ -294,10 +428,29 @@ public sealed class PlayerFaintController : MonoBehaviour
         SetAlpha(graphic, to);
     }
 
+    private static IEnumerator FadeGroup(CanvasGroup group, float from, float to, float duration)
+    {
+        float elapsed = 0f;
+        while (elapsed < duration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            group.alpha = Mathf.Lerp(from, to, Mathf.Clamp01(elapsed / duration));
+            yield return null;
+        }
+
+        group.alpha = to;
+    }
+
     // Play 중 Inspector의 ⋮ 메뉴에서 실행해 기절 연출을 확인합니다.
     [ContextMenu("기절 테스트")]
     private void TestFaint()
     {
         Faint();
+    }
+
+    [ContextMenu("게임 오버 테스트")]
+    private void TestGameOver()
+    {
+        ShowGameOver();
     }
 }

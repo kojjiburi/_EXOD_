@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 [DefaultExecutionOrder(210)]
@@ -15,10 +16,19 @@ internal sealed class BedroomClueSparkleBootstrap : MonoBehaviour
     private readonly List<BedroomClueSparkle> sparkles = new();
     private Sprite sparkleSprite;
 
-    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
-    private static void Bootstrap()
+    // 시작 화면을 거쳐 들어오거나 [다시하기]로 씬을 다시 불러와도 동작하도록 씬이 열릴 때마다 확인합니다.
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+    private static void RegisterSceneHandler()
     {
-        if (FindFirstObjectByType<BedroomClueSparkleBootstrap>() != null)
+        SceneManager.sceneLoaded -= OnSceneLoaded;
+        SceneManager.sceneLoaded += OnSceneLoaded;
+    }
+
+    private static void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        // 방 조사 화면이 있는 씬(침실 씬)에서만 반짝임을 붙입니다.
+        if (FindFirstObjectByType<SliderManager>() == null
+            || FindFirstObjectByType<BedroomClueSparkleBootstrap>() != null)
             return;
 
         Canvas canvas = FindFirstObjectByType<Canvas>();

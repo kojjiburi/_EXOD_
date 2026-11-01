@@ -28,6 +28,9 @@ public sealed class DialoguePortrait : MonoBehaviour
     private Coroutine fadeCoroutine;
     private bool isShown;
 
+    /// <summary>초상화 그림 (대화 배경 어둡게 효과가 그 뒤에 놓일 때 사용)</summary>
+    public RectTransform PortraitRect => portrait != null ? portrait.rectTransform : null;
+
     private void Start()
     {
         DialogueManager dm = DialogueManager.Instance;
@@ -187,7 +190,7 @@ public sealed class DialoguePortrait : MonoBehaviour
         go.SetActive(false);
     }
 
-    private static Sprite LoadPortrait()
+    internal static Sprite LoadPortrait()
     {
         Texture2D texture = Resources.Load<Texture2D>(PortraitResourcePath);
         if (texture == null)

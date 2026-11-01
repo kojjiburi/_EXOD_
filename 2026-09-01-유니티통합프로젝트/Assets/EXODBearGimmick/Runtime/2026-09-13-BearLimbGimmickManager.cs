@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using TMPro;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
@@ -41,11 +42,19 @@ internal sealed class BearLimbGimmickManager : MonoBehaviour
     private GameObject bearHitbox;
     private Sprite incompleteBearSprite;
     private Sprite completeBearSprite;
+    private Sprite givingBearSprite;
     private ItemData rewardItem;
     private bool completed;
 
-    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
-    private static void Bootstrap()
+    // 시작 화면을 거쳐 들어오거나 [다시하기]로 씬을 다시 불러와도 동작하도록 씬이 열릴 때마다 확인합니다.
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+    private static void RegisterSceneHandler()
+    {
+        SceneManager.sceneLoaded -= OnSceneLoaded;
+        SceneManager.sceneLoaded += OnSceneLoaded;
+    }
+
+    private static void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
         if (FindFirstObjectByType<BearLimbGimmickManager>() != null)
             return;
@@ -90,6 +99,7 @@ internal sealed class BearLimbGimmickManager : MonoBehaviour
         }
 
         collected.Add(itemId);
+        EXODSound.Play("item_pickup");
 
         // 대사: Stage1Dialogues.BearLimbFound / BearAllCollected
         List<DialogueLine> lines = Stage1Dialogues.Thought(
@@ -134,15 +144,27 @@ internal sealed class BearLimbGimmickManager : MonoBehaviour
         }
 
         completed = true;
-        if (bearVisual != null && completeBearSprite != null)
-            bearVisual.GetComponent<Image>().sprite = completeBearSprite;
+        EXODSound.Play("music_box", 0.8f);
+        // 보답 대사 동안에는 쪽지를 내미는 곰, 끝나면 완성된 곰으로 바꿉니다.
+        SetBearSprite(givingBearSprite != null ? givingBearSprite : completeBearSprite);
 
         // 대사: Stage1Dialogues.BearReturn
         List<DialogueLine> lines = Stage1Dialogues.BearReturn();
         if (Stage1StoryController.Instance != null)
-            Stage1StoryController.Instance.PlayCutscene(lines);
+        {
+            Stage1StoryController.Instance.PlayCutscene(lines, () => SetBearSprite(completeBearSprite));
+        }
         else
+        {
+            SetBearSprite(completeBearSprite);
             DialogueManager.Instance?.StartDialogue(lines);
+        }
+    }
+
+    private void SetBearSprite(Sprite sprite)
+    {
+        if (bearVisual != null && sprite != null)
+            bearVisual.GetComponent<Image>().sprite = sprite;
     }
 
     private void CreateRuntimeItems()
@@ -204,6 +226,7 @@ internal sealed class BearLimbGimmickManager : MonoBehaviour
 
         incompleteBearSprite = LoadBearSprite("EXODBearGimmick/2026-09-13-Bear-Incomplete");
         completeBearSprite = LoadBearSprite("EXODBearGimmick/2026-09-13-Bear-Complete");
+        givingBearSprite = LoadBearSprite("EXODBearGimmick/2026-09-13-Bear-Giving");
 
         root = new GameObject("곰돌이 팔다리 기믹", typeof(RectTransform));
         root.transform.SetParent(canvas.transform, false);

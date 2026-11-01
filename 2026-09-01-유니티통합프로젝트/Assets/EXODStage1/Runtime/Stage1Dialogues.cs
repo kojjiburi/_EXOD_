@@ -14,6 +14,7 @@ public static class Stage1Dialogues
     public const string Bear = "곰인형";
     public const string DoorLock = "도어락";
 
+    public const string GameOverLine = "우리는 평생 함께야... ♡";
     public const string FaintText = "플레이어가 기절했다.";
 
     // 곰인형 보상 아이템 (냉장고 자물쇠를 여는 쪽지)
@@ -53,7 +54,7 @@ public static class Stage1Dialogues
         Say(Player, "…어, 일어났어."),
         Think("오늘도 어김없이 왔네. 하루도 빠짐없이, 같은 시간에."),
         Think("이대로 있다간 숨이 막혀 죽을 것 같아. …여길 나가야 해."),
-        Say(Unknown, "…무슨 생각해?"),
+        Say(Girlfriend, "…무슨 생각해?"),
     };
 
     public static readonly string[] IntroChoices =
@@ -67,16 +68,16 @@ public static class Stage1Dialogues
         List<DialogueLine> lines = choice == 0
             ? new List<DialogueLine>
             {
-                Say(Unknown, "아무것도? …그럼 내 생각은 안 했다는 거야?"),
+                Say(Girlfriend, "아무것도? …그럼 내 생각은 안 했다는 거야?"),
                 Say(Player, "아, 아니! 당연히 네 생각 했지! 사, 사랑해… 하하."),
-                Say(Unknown, "후훗. 알면 됐어."),
+                Say(Girlfriend, "후훗. 알면 됐어."),
             }
             : new List<DialogueLine>
             {
-                Say(Unknown, "역시~ 그럴 줄 알았어 ♡"),
+                Say(Girlfriend, "역시~ 그럴 줄 알았어 ♡"),
             };
 
-        lines.Add(Say(Unknown, "이따 밥 가져올게. 그때까지 얌전히 기다려야 해 ♡"));
+        lines.Add(Say(Girlfriend, "이따 밥 가져올게. 그때까지 얌전히 기다려야 해 ♡"));
         lines.Add(Narrate("철컥. 밖에서 문 잠기는 소리가 들렸다."));
         lines.Add(Think("…좋아. 그녀가 다시 오기 전에, 이 방부터 빠져나가자."));
         return lines;
@@ -99,7 +100,7 @@ public static class Stage1Dialogues
     };
 
     // ═══════════════════════════════════════════════════
-    //  3. 거실 시작 → 이상한 물약
+    //  3. 거실 시작 → 테이블 위의 물 (선택지)
     // ═══════════════════════════════════════════════════
 
     public static List<DialogueLine> LivingRoomArrival() => new List<DialogueLine>
@@ -107,33 +108,32 @@ public static class Stage1Dialogues
         Think("후… 일단 방 하나는 빠져나왔다."),
         Think("너무 머리를 굴렸나. 목이 바싹 마르네."),
         Think("…마침 테이블 위에 물컵이 있잖아?"),
+    };
+
+    public static readonly string[] WaterChoices =
+    {
+        "물을 마신다",
+        "마시지 않는다",
+    };
+
+    // 물을 마시면: 이 대사 뒤에 기절 (하트 1개 감소)
+    public static List<DialogueLine> WaterDrink() => new List<DialogueLine>
+    {
         Narrate("꿀꺽, 꿀꺽."),
         Say(Player, "…윽?! 뭐야, 이 맛…!"),
-        Think("몸이… 축 늘어진다. 손가락 하나 까딱하기 싫어."),
-        Think("생각해 보면… 밥도 주고, 재워도 주고."),
-        Think("이렇게 편한 공짜 인생이 또 있을까?"),
-        Think("…그냥, 탈출 같은 거 하지 말까…?"),
-        Narrate("머릿속을 맴도는 생각들을 떨쳐내자!"),
+        Think("몸이… 축 늘어진다. 눈앞이 빙글빙글…"),
     };
 
-    // 물약 기믹에서 머릿속을 떠다니는 유혹 문구
-    public static readonly string[] PotionTemptations =
+    public static List<DialogueLine> WaterAfterFaint() => new List<DialogueLine>
     {
-        "그냥 여기 살까?",
-        "밥도 주잖아",
-        "밖은 위험해",
-        "그녀는 날 사랑해",
-        "조금만 자고 생각하자",
+        Think("…으, 머리야. 얼마나 쓰러져 있었던 거지?"),
+        Think("그녀가 둔 건 함부로 입에 대지 말자."),
     };
 
-    public static List<DialogueLine> PotionFail() => new List<DialogueLine>
+    public static List<DialogueLine> WaterRefuse() => new List<DialogueLine>
     {
-        Think("…몰라. 방에 들어가서 잠이나 자야지."),
-    };
-
-    public static List<DialogueLine> PotionSuccess() => new List<DialogueLine>
-    {
-        Say(Player, "…!! 정신 차려! 내가 방금 무슨 생각을 한 거야? 얼른 여길 나가야 해."),
+        Think("…아니야. 그녀가 둔 걸 함부로 마실 순 없지."),
+        Think("목마른 건 참고, 나갈 방법부터 찾자."),
     };
 
     // ═══════════════════════════════════════════════════

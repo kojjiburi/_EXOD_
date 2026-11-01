@@ -198,6 +198,9 @@ public class DialogueManager : MonoBehaviour
     /// <summary>새 대사 한 줄이 표시되기 시작할 때 호출됩니다. (초상화 등)</summary>
     public event Action<DialogueLine> LineShown;
 
+    /// <summary>타이핑 중 글자가 하나 찍힐 때 호출됩니다. (타이핑 효과음)</summary>
+    public event Action<char> CharacterTyped;
+
     public RectTransform DialoguePanelRect => dialoguePanel != null ? dialoguePanel.transform as RectTransform : null;
     public RectTransform NamePanelRect => namePanel != null ? namePanel.transform as RectTransform : null;
 
@@ -250,6 +253,7 @@ public class DialogueManager : MonoBehaviour
         foreach (char c in text)
         {
             dialogueText.text += c;
+            CharacterTyped?.Invoke(c);
             yield return new WaitForSeconds(speed);
         }
 
