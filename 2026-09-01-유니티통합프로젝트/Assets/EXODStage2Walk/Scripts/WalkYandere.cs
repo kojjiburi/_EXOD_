@@ -161,13 +161,14 @@ namespace EXOD.Walk
             UpdateWarningTransform();
         }
 
-        // 같이 걷지 않을 때: 화면이 오른쪽 끝에 도착하면 반전, 왼쪽 끝에 도착하면 원래대로 (세 그림 모두)
+        // 같이 걷지 않을 때: 시작하자마자 한 번 반전(그림이 반대 방향을 보고 있어서),
+        // 화면이 오른쪽 끝에 도착하면 원래대로, 왼쪽 끝에 도착하면 다시 반전 (세 그림 모두)
         void UpdateEndFlip()
         {
             if (!flipAtWalkEnds || followTarget != null || sr == null) return;
             if (walkMover == null) walkMover = FindMoverInScene();
             if (walkMover == null) return;
-            sr.flipX = !walkMover.HeadingRight;
+            sr.flipX = walkMover.HeadingRight;
         }
 
         WalkPlayerMover FindMoverInScene()
