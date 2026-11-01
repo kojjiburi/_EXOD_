@@ -8,7 +8,7 @@ using UnityEngine.UI;
 /// <summary>
 /// 1스테이지 이야기 진행을 맡습니다.
 /// - 침실 씬(SliderManager가 있는 씬)이 열리면 인트로를 재생합니다.
-/// - 거실에 처음 들어가면 거실 대사와 물 마시기 선택지를 재생합니다.
+/// - 거실에 처음 들어가면 거실 대사를 재생합니다.
 /// - 이야기 대사(컷신)가 나오는 동안 방 조사 영역과 장소 이동 버튼을 잠급니다.
 /// </summary>
 [DefaultExecutionOrder(220)]
@@ -60,6 +60,9 @@ public sealed class Stage1StoryController : MonoBehaviour
 
         if (FindFirstObjectByType<Stage1FrontDoorGimmick>() == null)
             slider.gameObject.AddComponent<Stage1FrontDoorGimmick>();
+
+        if (FindFirstObjectByType<Stage1HelpBar>() == null)
+            slider.gameObject.AddComponent<Stage1HelpBar>();
 
         if (FindFirstObjectByType<DialogueDimmer>() == null)
             slider.gameObject.AddComponent<DialogueDimmer>();
