@@ -2755,6 +2755,7 @@ GameObject:
   - component: {fileID: 1662483088}
   - component: {fileID: 1662483087}
   - component: {fileID: 1662483086}
+  - component: {fileID: 1662483090}
   m_Layer: 0
   m_Name: Yandere
   m_TagString: Untagged
@@ -2775,8 +2776,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EXOD.Walk.WalkYandere
   sprite1Away: {fileID: 21300000, guid: c5ad475e15586924dba477d5ba9b33c7, type: 3}
-  sprite2Watching: {fileID: 21300000, guid: 80bd24697e595344abbb5c0421c0aaa1, type: 3}
-  sprite3Caught: {fileID: 21300000, guid: 629d74c1ad5353842b18e05f1f2f47f9, type: 3}
+  sprite2Watching: {fileID: 21300000, guid: 629d74c1ad5353842b18e05f1f2f47f9, type: 3}
+  sprite3Caught: {fileID: 21300000, guid: 80bd24697e595344abbb5c0421c0aaa1, type: 3}
   awayDuration: {x: 2, y: 5}
   watchingDuration: {x: 1, y: 2.5}
   firstTurnMinDelay: 2
@@ -2884,6 +2885,18 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1662483090
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1662483085}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4fabfcb964b050245b9ebcfeab72e3d7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &1914011438
 GameObject:
   m_ObjectHideFlags: 0
