@@ -7,7 +7,7 @@ using UnityEngine.UI;
 
 /// <summary>
 /// 손전등 기믹
-/// - 화장실 수건(RRTowel) 뒤에 손전등이 숨겨져 있습니다. 수건을 치우면(획득하면) 보이고, 클릭하면 퀵슬롯에 들어갑니다.
+/// - 화장실 수건(RRTowel) 뒤에 손전등이 숨겨져 있습니다. (놓기·줍기는 RestroomGimmick의 선반이 담당)
 /// - 퀵슬롯의 손전등을 클릭 → "비출 물건을 선택하자." → [다음]을 누른 뒤 퀵슬롯 아이템을 하나 클릭합니다.
 /// - 종이 A~E를 비추면 Alight~Elight 그림을 화면에 보여 주고 [나가기]로 닫습니다. (아이템으로 얻지 않음)
 /// - 다른 아이템을 비추면 "이건 이렇게 사용하는 것이 아닌 것 같다." 대사가 나옵니다.
@@ -24,7 +24,6 @@ public sealed class FlashlightGimmick : MonoBehaviour
 
     private const string ResourceFolder = "EXODFlashlight/";
 
-    private const string PickupText = "손전등을 얻었다.";
     private const string SelectTargetText = "비출 물건을 선택하자.";
     private const string WrongTargetText = "이건 이렇게 사용하는 것이 아닌 것 같다.";
 
@@ -38,9 +37,6 @@ public sealed class FlashlightGimmick : MonoBehaviour
         { "paper_e", "Elight" },
     };
 
-    private ItemData flashlightItem;
-    private GameObject pickupButton;
-    private bool pickedUp;
 
     private bool waitingForSelectDialogue;
     private bool isSelectingTarget;
@@ -51,7 +47,6 @@ public sealed class FlashlightGimmick : MonoBehaviour
     private float nextRefreshTime;
 
     public bool IsSelectingTarget => isSelectingTarget;
-    public bool IsInRoom => !pickedUp;
     public bool IsViewerOpen => viewerRoot != null && viewerRoot.activeSelf;
 
     // 시작 화면을 거쳐 들어오거나 [다시하기]로 씬을 다시 불러와도 동작하도록 씬이 열릴 때마다 확인합니다.
@@ -90,13 +85,6 @@ public sealed class FlashlightGimmick : MonoBehaviour
 
     private void Start()
     {
-        flashlightItem = Resources.Load<ItemData>(ResourceFolder + "Flashlight");
-        if (flashlightItem == null)
-            Debug.LogError("[Flashlight] 손전등 아이템을 찾을 수 없습니다: Resources/" + ResourceFolder + "Flashlight");
-
-        QuickSlotInventory inventory = GetInventory();
-        pickedUp = inventory != null && FindEntry(inventory, FlashlightItemId) != null;
-
         CreateViewer();
         RefreshRuntimeObjects();
     }
@@ -118,12 +106,9 @@ public sealed class FlashlightGimmick : MonoBehaviour
         }
     }
 
-    // 화장실 화면과 퀵슬롯은 실행 중에 만들어지므로 주기적으로 확인합니다.
+    // 퀵슬롯은 실행 중에 만들어지므로 주기적으로 확인합니다.
     private void RefreshRuntimeObjects()
     {
-        if (!pickedUp && pickupButton == null)
-            CreatePickupButton();
-
         foreach (QuickSlotSlotView slotView in FindObjectsByType<QuickSlotSlotView>(
                      FindObjectsInactive.Include,
                      FindObjectsSortMode.None))
@@ -131,85 +116,6 @@ public sealed class FlashlightGimmick : MonoBehaviour
             if (slotView.GetComponent<FlashlightSlotClickHandler>() == null)
                 slotView.gameObject.AddComponent<FlashlightSlotClickHandler>();
         }
-    }
-
-    // ═══════════════════════════════════════════════════
-    //  화장실에 놓인 손전등
-    // ═══════════════════════════════════════════════════
-
-    private void CreatePickupButton()
-    {
-        if (flashlightItem == null || flashlightItem.Icon == null)
-            return;
-
-        Transform roomView = RestroomGimmick.FindRoomView();
-        if (roomView == null)
-            return;
-
-        Sprite sprite = flashlightItem.Icon;
-        pickupButton = new GameObject(
-            "손전등 (수건 뒤)",
-            typeof(RectTransform),
-            typeof(CanvasRenderer),
-            typeof(Image),
-            typeof(Button));
-        pickupButton.transform.SetParent(roomView, false);
-
-        // 화장실 화면의 자식이라 화장실에 있을 때만 보입니다.
-        // 맨 아래에 깔아서 수건(RRTowel)이 있는 동안은 가려져 클릭되지 않습니다.
-        pickupButton.transform.SetAsFirstSibling();
-        RestroomGimmick.PlaceByPixels(pickupButton.GetComponent<RectTransform>(), RestroomGimmick.FlashlightRect);
-
-        Image image = pickupButton.GetComponent<Image>();
-        image.sprite = sprite;
-        image.preserveAspect = true;
-
-        Button button = pickupButton.GetComponent<Button>();
-        ColorBlock colors = button.colors;
-        colors.normalColor = new Color(0.92f, 0.92f, 0.92f, 1f);
-        colors.highlightedColor = Color.white;
-        colors.pressedColor = new Color(0.75f, 0.75f, 0.75f, 1f);
-        colors.selectedColor = colors.normalColor;
-        button.colors = colors;
-        button.onClick.AddListener(TryPickUp);
-    }
-
-    /// <summary>손전등을 제자리(수건 뒤)에 다시 놓습니다. RestroomGimmick이 호출합니다.</summary>
-    public void PutBack()
-    {
-        if (!pickedUp)
-            return;
-
-        pickedUp = false;
-        if (pickupButton == null)
-            CreatePickupButton();
-    }
-
-    private void TryPickUp()
-    {
-        if (pickedUp || IsBusy())
-            return;
-
-        QuickSlotInventory inventory = GetInventory();
-        if (inventory == null || flashlightItem == null)
-        {
-            Debug.LogError("[Flashlight] QuickSlotInventory 또는 손전등 아이템이 없습니다.", this);
-            return;
-        }
-
-        if (!inventory.TryAdd(flashlightItem))
-        {
-            Think("퀵슬롯이 가득 차서 손전등을 주울 수 없어.");
-            return;
-        }
-
-        pickedUp = true;
-        if (pickupButton != null)
-            Destroy(pickupButton);
-        RestroomGimmick.Instance?.NotifyFlashlightTaken();
-
-        EXODSound.Play("item_pickup");
-        Think(PickupText);
     }
 
     // ═══════════════════════════════════════════════════
@@ -398,17 +304,6 @@ public sealed class FlashlightGimmick : MonoBehaviour
         return QuickSlotInventory.Instance != null
             ? QuickSlotInventory.Instance
             : FindFirstObjectByType<QuickSlotInventory>();
-    }
-
-    private static QuickSlotEntry FindEntry(QuickSlotInventory inventory, string itemId)
-    {
-        foreach (QuickSlotEntry entry in inventory.Entries)
-        {
-            if (entry?.ItemData != null && entry.ItemData.ItemId == itemId)
-                return entry;
-        }
-
-        return null;
     }
 
     private static Image CreateImage(string name, Transform parent, Color color)

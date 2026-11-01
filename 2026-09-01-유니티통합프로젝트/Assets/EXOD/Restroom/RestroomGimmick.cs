@@ -9,10 +9,13 @@ using UnityEngine.UI;
 /// 화장실 기믹
 /// - 화장실 화면에 수건(RRTowel), 금고(RRSafe), 금고 잠금판(RRSafe_block), 변기 버튼(RRButton)을 놓습니다.
 ///   위치는 1920x1080 원본 그림 기준 픽셀 좌표(아래 Rect 상수)이며 배경과 같은 비율로 늘어납니다.
-/// - 수건은 아이템(towel)입니다. 클릭하면 퀵슬롯에 들어가고, 뒤에 숨겨져 있던 손전등이 드러납니다.
-/// - 제자리 돌려놓기: 퀵슬롯에서 손전등·수건을 끌어다 수건 자리에 놓으면 화장실에 다시 생깁니다.
-///   손전등을 먼저 둔 뒤에만 수건을 올릴 수 있습니다. (반대 순서는 불가)
-///   두 자리는 ItemPositionManager에 등록되어 일차 종료 제자리 검사에도 포함됩니다.
+/// - 수건 자리(선반): 처음에는 손전등 위에 수건이 덮여 있습니다. (아래 → 위: 손전등, 수건)
+///   · 맨 위 물건만 클릭해서 주울 수 있습니다. (수건을 치워야 손전등이 보임)
+///   · 퀵슬롯에서 아무 아이템이나 끌어다 놓으면 놓은 순서대로 쌓입니다. (막지 않고, 대사도 없음)
+///   · "손전등 위에 수건" 상태만 제자리입니다. 이 두 자리는 ItemPositionManager에 등록되어
+///     일차 종료 제자리 검사에서 틀리면 하트가 줄어듭니다.
+///   · 일차가 넘어가면 선반은 처음 상태(손전등 위에 수건)로 돌아가고, 퀵슬롯의 손전등·수건은 빠집니다.
+///     선반에 올려 둔 다른 물건은 처음 자리가 있으면 그리로, 없으면 퀵슬롯으로 돌아갑니다. (종이는 초기화)
 /// - 금고 잠금판을 클릭하면 키패드(RRPass = PassBG + Pass1~9)가 뜹니다.
 ///   · 숫자를 누르면 그 숫자가 저장되고, 눌린 버튼은 어두워져서 다시 누를 수 없습니다.
 ///   · [닫기]로 닫았다가 다시 열면 모두 초기화됩니다.
@@ -29,6 +32,8 @@ public sealed class RestroomGimmick : MonoBehaviour
     public const string RoomViewName = "화장실 배경 화면"; // SliderManager가 만드는 화장실 화면
 
     private const string ResourceFolder = "EXODRestroom/";
+    private const string FlashlightResourcePath = "EXODFlashlight/Flashlight";
+    private const string RestroomRoomName = "화장실";
     private const float ReferenceWidth = 1920f;
     private const float ReferenceHeight = 1080f;
 
@@ -38,7 +43,7 @@ public sealed class RestroomGimmick : MonoBehaviour
     private static readonly RectInt SafeBlockRect = FromCorners(1364, 25, 1518, 183);
     private static readonly RectInt ToiletButtonRect = FromCorners(490, 333, 534, 363);
 
-    // 손전등은 수건 뒤(같은 자리)에 숨겨 둡니다.
+    // 손전등과 그 밖의 물건은 수건 자리 가운데에 이 크기로 놓입니다.
     public static readonly RectInt FlashlightRect = FromCorners(596, 6, 716, 66);
 
     private static readonly RectInt PassBgRect = FromCorners(534, 121, 1385, 973);
@@ -60,32 +65,40 @@ public sealed class RestroomGimmick : MonoBehaviour
     private static readonly int[] Answer = { 7, 4, 1, 5, 2, 3, 8, 9, 6 };
 
     private const string TowelPickupText = "수건을 얻었다.";
-    private const string RestroomRoomName = "화장실";
+    private const string FlashlightPickupText = "손전등을 얻었다.";
 
-    // 제자리 돌려놓기용 자리 (ItemPositionManager에 등록됨)
-    private sealed class ReturnSlot
+    // ── 수건 자리(선반)에 쌓인 물건 (0번이 맨 아래) ──
+    private sealed class ShelfItem
     {
-        public string ItemId;
         public ItemData Item;
-        public string SlotId;
-        public WorldItemPickup Occupant; // 이 물건이 화장실에 놓여 있는 동안 자리를 채우는 보이지 않는 오브젝트
-        public bool IsFilled => Occupant != null;
+        public GameObject View;
     }
 
-    private ReturnSlot towelSlot;
-    private ReturnSlot flashlightSlot;
-    private bool returnSlotsReady;
-    private Vector3 returnWorldPosition;
+    private readonly List<ShelfItem> shelf = new();
+
+    // 제자리 검사용 자리 (ItemPositionManager에 등록됨)
+    // 아래 자리: 손전등이 있어야 함 / 위 자리: 수건이 있어야 함
+    private sealed class CheckSlot
+    {
+        public string ExpectedItemId;
+        public ItemData ExpectedItem;
+        public string SlotId;
+        public WorldItemPickup Occupant; // 자리를 채우는 보이지 않는 오브젝트
+    }
+
+    private CheckSlot bottomSlot;
+    private CheckSlot topSlot;
+    private bool checkSlotsReady;
+    private Vector3 shelfWorldPosition;
     private ItemPositionManager positionManager;
     private GameObject dropTarget;
     private Transform roomViewTransform;
 
     private ItemData towelItem;
-    private bool towelTaken;
+    private ItemData flashlightItem;
     private bool safeUnlocked;
     private bool roomObjectsCreated;
 
-    private GameObject towelButton;
     private GameObject safeBlockButton;
 
     private GameObject keypadRoot; // RRPass
@@ -97,6 +110,12 @@ public sealed class RestroomGimmick : MonoBehaviour
     public bool IsKeypadOpen => keypadRoot != null && keypadRoot.activeSelf;
     public bool IsSafeUnlocked => safeUnlocked;
     public IReadOnlyList<int> EnteredNumbers => enteredNumbers;
+
+    /// <summary>수건 자리가 "손전등 위에 수건"인 제자리 상태인지</summary>
+    public bool IsShelfCorrect =>
+        shelf.Count == 2 &&
+        shelf[0].Item != null && shelf[0].Item.ItemId == FlashlightGimmick.FlashlightItemId &&
+        shelf[1].Item != null && shelf[1].Item.ItemId == TowelItemId;
 
     // 시작 화면을 거쳐 들어오거나 [다시하기]로 씬을 다시 불러와도 동작하도록 씬이 열릴 때마다 확인합니다.
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
@@ -129,6 +148,9 @@ public sealed class RestroomGimmick : MonoBehaviour
         if (dropTarget != null)
             Destroy(dropTarget);
 
+        if (positionManager != null)
+            positionManager.ItemsResetForNewDay -= ResetShelfForNewDay;
+
         if (Instance == this)
             Instance = null;
     }
@@ -136,11 +158,16 @@ public sealed class RestroomGimmick : MonoBehaviour
     private void Start()
     {
         towelItem = Resources.Load<ItemData>(ResourceFolder + "Towel");
-        if (towelItem == null)
-            Debug.LogError("[Restroom] 수건 아이템을 찾을 수 없습니다: Resources/" + ResourceFolder + "Towel");
+        flashlightItem = Resources.Load<ItemData>(FlashlightResourcePath);
+        if (towelItem == null || flashlightItem == null)
+            Debug.LogError("[Restroom] 수건 또는 손전등 아이템을 찾을 수 없습니다.");
 
+        // 처음 상태: 손전등 위에 수건 (이미 퀵슬롯에 있는 것은 빼고)
         QuickSlotInventory inventory = GetInventory();
-        towelTaken = inventory != null && HasItem(inventory, TowelItemId);
+        if (flashlightItem != null && (inventory == null || !HasItem(inventory, flashlightItem.ItemId)))
+            shelf.Add(new ShelfItem { Item = flashlightItem });
+        if (towelItem != null && (inventory == null || !HasItem(inventory, TowelItemId)))
+            shelf.Add(new ShelfItem { Item = towelItem });
 
         CreateKeypad();
         TryCreateRoomObjects();
@@ -153,18 +180,18 @@ public sealed class RestroomGimmick : MonoBehaviour
             nextRefreshTime = Time.unscaledTime + 0.5f;
             if (!roomObjectsCreated)
                 TryCreateRoomObjects();
-            if (roomObjectsCreated && !returnSlotsReady)
-                TrySetupReturnSlots();
+            if (roomObjectsCreated && !checkSlotsReady)
+                TrySetupCheckSlots();
         }
 
-        if (returnSlotsReady)
+        if (checkSlotsReady)
         {
             // 화장실에 있을 때만 수건 자리에 놓을 수 있습니다.
             bool inRestroom = roomViewTransform != null && roomViewTransform.gameObject.activeInHierarchy;
             if (dropTarget != null && dropTarget.activeSelf != inRestroom)
                 dropTarget.SetActive(inRestroom);
 
-            RejectForeignPlacements();
+            ReturnForeignPlacements();
         }
 
         if (IsKeypadOpen && Input.GetKeyDown(KeyCode.Escape))
@@ -184,34 +211,33 @@ public sealed class RestroomGimmick : MonoBehaviour
         roomObjectsCreated = true;
         roomViewTransform = roomView;
 
-        // 아래에 만든 것이 위에 그려집니다. (손전등은 FlashlightGimmick이 맨 아래에 깝니다)
-        CreateRoomImage(roomView, "RRButton", ToiletButtonRect, null);
-        CreateRoomImage(roomView, "RRSafe", SafeRect, null);
+        CreateRoomImage(roomView, "RRButton", LoadSprite("RRButton"), ToiletButtonRect, null, false);
+        CreateRoomImage(roomView, "RRSafe", LoadSprite("RRSafe"), SafeRect, null, false);
 
         if (!safeUnlocked)
-            safeBlockButton = CreateRoomImage(roomView, "RRSafe_block", SafeBlockRect, OpenKeypad);
+            safeBlockButton = CreateRoomImage(roomView, "RRSafe_block", LoadSprite("RRSafe_block"), SafeBlockRect, OpenKeypad, false);
 
-        if (!towelTaken)
-            towelButton = CreateRoomImage(roomView, "RRTowel", TowelRect, TakeTowel);
+        RebuildShelfViews();
     }
 
     private GameObject CreateRoomImage(
         Transform parent,
-        string spriteName,
+        string objectName,
+        Sprite sprite,
         RectInt pixelRect,
-        UnityEngine.Events.UnityAction onClick)
+        UnityEngine.Events.UnityAction onClick,
+        bool preserveAspect)
     {
-        Sprite sprite = LoadSprite(spriteName);
         if (sprite == null)
             return null;
 
-        GameObject go = new GameObject(spriteName, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        GameObject go = new GameObject(objectName, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
         go.transform.SetParent(parent, false);
         PlaceByPixels(go.GetComponent<RectTransform>(), pixelRect);
 
         Image image = go.GetComponent<Image>();
         image.sprite = sprite;
-        image.preserveAspect = false;
+        image.preserveAspect = preserveAspect;
         image.raycastTarget = onClick != null;
 
         if (onClick != null)
@@ -229,44 +255,93 @@ public sealed class RestroomGimmick : MonoBehaviour
         return go;
     }
 
-    private void TakeTowel()
+    // ═══════════════════════════════════════════════════
+    //  수건 자리(선반): 쌓기 / 줍기 / 제자리 판정
+    // ═══════════════════════════════════════════════════
+
+    // 쌓인 순서대로 그림을 다시 만듭니다. 맨 위 물건만 클릭할 수 있습니다.
+    private void RebuildShelfViews()
     {
-        if (towelTaken || IsBusy())
-            return;
-
-        QuickSlotInventory inventory = GetInventory();
-        if (inventory == null || towelItem == null)
+        foreach (ShelfItem entry in shelf)
         {
-            Debug.LogError("[Restroom] QuickSlotInventory 또는 수건 아이템이 없습니다.", this);
-            return;
+            if (entry.View != null)
+                Destroy(entry.View);
+            entry.View = null;
         }
 
-        if (!inventory.TryAdd(towelItem))
-        {
-            Think("퀵슬롯이 가득 차서 수건을 집을 수 없어.");
+        if (roomViewTransform == null)
             return;
+
+        for (int i = 0; i < shelf.Count; i++)
+        {
+            ShelfItem entry = shelf[i];
+            bool isTop = i == shelf.Count - 1;
+            bool isTowel = entry.Item.ItemId == TowelItemId;
+
+            Sprite sprite = isTowel ? LoadSprite("RRTowel") : entry.Item.Icon;
+            RectInt rect = isTowel ? TowelRect : FlashlightRect;
+            entry.View = CreateRoomImage(
+                roomViewTransform,
+                "선반_" + entry.Item.ItemId,
+                sprite,
+                rect,
+                isTop ? TakeTopShelfItem : null,
+                !isTowel);
         }
 
-        towelTaken = true;
-        if (towelButton != null)
-            Destroy(towelButton);
-        ReleaseSlot(towelSlot);
-
-        EXODSound.Play("item_pickup");
-        Think(TowelPickupText);
+        // 대화창·슬라이더 등 다른 UI보다 위로 올라가지 않도록, 금고 등 방 물건 바로 뒤에 둡니다.
+        // (방 화면 자식 안에서만 순서가 바뀌므로 다른 UI에는 영향 없음)
     }
 
-    // ═══════════════════════════════════════════════════
-    //  제자리 돌려놓기 (손전등 → 수건 순서)
-    // ═══════════════════════════════════════════════════
+    private void TakeTopShelfItem()
+    {
+        if (shelf.Count == 0 || IsBusy())
+            return;
 
-    private void TrySetupReturnSlots()
+        ShelfItem top = shelf[shelf.Count - 1];
+        QuickSlotInventory inventory = GetInventory();
+        if (inventory == null || top.Item == null)
+            return;
+
+        if (!inventory.TryAdd(top.Item))
+        {
+            Think("퀵슬롯이 가득 차서 주울 수 없어.");
+            return;
+        }
+
+        if (top.View != null)
+            Destroy(top.View);
+        shelf.RemoveAt(shelf.Count - 1);
+        RebuildShelfViews();
+        SyncCheckSlots();
+
+        EXODSound.Play("item_pickup");
+        if (top.Item.ItemId == TowelItemId)
+            Think(TowelPickupText);
+        else if (top.Item.ItemId == FlashlightGimmick.FlashlightItemId)
+            Think(FlashlightPickupText);
+    }
+
+    /// <summary>수건 자리 위에 아이템을 놓습니다. 화장실에서는 어떤 아이템이든 순서대로 쌓입니다.</summary>
+    private bool TryPlaceOnShelf(ItemData item)
+    {
+        bool inRestroom = SliderManager.Instance != null && SliderManager.Instance.CurrentRoom == RestroomRoomName;
+        if (!inRestroom || item == null)
+            return false;
+
+        shelf.Add(new ShelfItem { Item = item });
+        RebuildShelfViews();
+        SyncCheckSlots();
+        EXODSound.Play("item_pickup");
+        return true;
+    }
+
+    private void TrySetupCheckSlots()
     {
         positionManager = ItemPositionManager.Instance != null
             ? ItemPositionManager.Instance
             : FindFirstObjectByType<ItemPositionManager>();
         Camera worldCamera = Camera.main;
-        ItemData flashlightItem = Resources.Load<ItemData>("EXODFlashlight/Flashlight");
         if (positionManager == null || worldCamera == null || roomViewTransform == null ||
             towelItem == null || flashlightItem == null)
         {
@@ -279,72 +354,125 @@ public sealed class RestroomGimmick : MonoBehaviour
             return;
         }
 
-        returnWorldPosition = center;
-        bool flashlightInRoom = FlashlightGimmick.Instance == null || FlashlightGimmick.Instance.IsInRoom;
-
-        flashlightSlot = CreateReturnSlot(FlashlightGimmick.FlashlightItemId, flashlightItem, flashlightInRoom);
-        towelSlot = CreateReturnSlot(TowelItemId, towelItem, !towelTaken);
+        shelfWorldPosition = center;
+        bottomSlot = RegisterCheckSlot(flashlightItem);
+        topSlot = RegisterCheckSlot(towelItem);
+        positionManager.MarkExternallyManaged(bottomSlot.SlotId);
+        positionManager.MarkExternallyManaged(topSlot.SlotId);
+        positionManager.ItemsResetForNewDay += ResetShelfForNewDay;
         CreateDropTarget(center, size);
-        returnSlotsReady = true;
+        checkSlotsReady = true;
+        SyncCheckSlots();
     }
 
-    private ReturnSlot CreateReturnSlot(string itemId, ItemData item, bool startsFilled)
+    private CheckSlot RegisterCheckSlot(ItemData expectedItem)
     {
-        ReturnSlot slot = new ReturnSlot { ItemId = itemId, Item = item };
-        WorldItemPickup pickup = CreateOccupant(slot);
+        CheckSlot slot = new CheckSlot { ExpectedItemId = expectedItem.ItemId, ExpectedItem = expectedItem };
+        WorldItemPickup pickup = CreateOccupant(slot, expectedItem);
         positionManager.RegisterInitialPickup(pickup);
         slot.SlotId = pickup.PositionSlotId;
-
-        if (startsFilled)
-        {
-            slot.Occupant = pickup;
-        }
-        else
-        {
-            positionManager.NotifyPickedUp(pickup);
-            Destroy(pickup.gameObject);
-        }
-
+        positionManager.NotifyPickedUp(pickup);
+        Destroy(pickup.gameObject);
         return slot;
     }
 
-    // 자리를 채우는 보이지 않는 WorldItemPickup (그림은 화장실 UI가 보여 줍니다)
-    private WorldItemPickup CreateOccupant(ReturnSlot slot)
+    private WorldItemPickup CreateOccupant(CheckSlot slot, ItemData item)
     {
-        GameObject go = new GameObject("화장실 제자리_" + slot.ItemId, typeof(BoxCollider2D), typeof(WorldItemPickup));
-        go.transform.position = returnWorldPosition;
+        GameObject go = new GameObject("화장실 제자리_" + slot.ExpectedItemId, typeof(BoxCollider2D), typeof(WorldItemPickup));
+        go.transform.position = shelfWorldPosition;
         go.GetComponent<BoxCollider2D>().enabled = false;
 
         WorldItemPickup pickup = go.GetComponent<WorldItemPickup>();
-        pickup.Configure(slot.Item, false);
+        pickup.Configure(item, false);
         if (!string.IsNullOrEmpty(slot.SlotId))
-            pickup.BindPositionSlot(slot.SlotId, returnWorldPosition, slot.ItemId);
+            pickup.BindPositionSlot(slot.SlotId, shelfWorldPosition, slot.ExpectedItemId);
         return pickup;
     }
 
-    private void FillSlot(ReturnSlot slot)
+    private void SetSlotItem(CheckSlot slot, ItemData item)
     {
-        if (slot == null || slot.IsFilled || positionManager == null)
+        if (slot == null || positionManager == null)
             return;
 
-        slot.Occupant = CreateOccupant(slot);
+        if (slot.Occupant != null && slot.Occupant.ItemData == item)
+            return;
+
+        if (slot.Occupant != null)
+        {
+            positionManager.NotifyPickedUp(slot.Occupant);
+            Destroy(slot.Occupant.gameObject);
+            slot.Occupant = null;
+        }
+
+        if (item == null)
+            return;
+
+        slot.Occupant = CreateOccupant(slot, item);
         positionManager.RegisterInitialPickup(slot.Occupant);
     }
 
-    private void ReleaseSlot(ReturnSlot slot)
+    // 쌓인 상태를 제자리 검사 자리 두 개에 반영합니다.
+    // 제자리("손전등 위에 수건")일 때만 두 자리가 모두 맞고, 그 밖에는 하나 이상 틀리게 됩니다.
+    private void SyncCheckSlots()
     {
-        if (slot == null || !slot.IsFilled)
+        if (!checkSlotsReady)
             return;
 
-        positionManager?.NotifyPickedUp(slot.Occupant);
-        Destroy(slot.Occupant.gameObject);
-        slot.Occupant = null;
+        ItemData bottom = shelf.Count > 0 ? shelf[0].Item : null;
+        ItemData top = null;
+        if (shelf.Count == 2)
+        {
+            top = shelf[1].Item;
+        }
+        else if (shelf.Count > 2)
+        {
+            // 셋 이상 쌓였으면 수건이 아닌 물건으로 채워서 틀린 상태가 되게 합니다.
+            for (int i = 1; i < shelf.Count; i++)
+            {
+                if (shelf[i].Item.ItemId != TowelItemId)
+                {
+                    top = shelf[i].Item;
+                    break;
+                }
+            }
+        }
+
+        SetSlotItem(bottomSlot, bottom);
+        SetSlotItem(topSlot, top);
     }
 
-    /// <summary>손전등을 화장실에서 주웠을 때 FlashlightGimmick이 알려 줍니다.</summary>
-    public void NotifyFlashlightTaken()
+    // 일차 종료 초기화: 선반을 "손전등 위에 수건"으로 되돌립니다.
+    private void ResetShelfForNewDay()
     {
-        ReleaseSlot(flashlightSlot);
+        QuickSlotInventory inventory = GetInventory();
+
+        foreach (ShelfItem entry in shelf)
+        {
+            string itemId = entry.Item != null ? entry.Item.ItemId : string.Empty;
+            if (itemId == TowelItemId || itemId == FlashlightGimmick.FlashlightItemId)
+                continue;
+
+            // 처음 자리가 있는 물건은 ItemPositionManager가 이미 되돌렸고, 종이는 초기화되므로 그냥 치웁니다.
+            bool hasOwnPlace = positionManager != null &&
+                               (positionManager.HasResettableRecordFor(itemId) || positionManager.IsPaperItem(itemId));
+            if (!hasOwnPlace && entry.Item != null)
+                inventory?.TryAdd(entry.Item);
+        }
+
+        foreach (ShelfItem entry in shelf)
+        {
+            if (entry.View != null)
+                Destroy(entry.View);
+        }
+
+        shelf.Clear();
+        shelf.Add(new ShelfItem { Item = flashlightItem });
+        shelf.Add(new ShelfItem { Item = towelItem });
+        RemoveFromInventory(FlashlightGimmick.FlashlightItemId);
+        RemoveFromInventory(TowelItemId);
+
+        RebuildShelfViews();
+        SyncCheckSlots();
     }
 
     // 수건 자리 위에 아이템을 끌어다 놓았을 때 (ItemInteractionTarget)
@@ -367,52 +495,17 @@ public sealed class RestroomGimmick : MonoBehaviour
 
     private void OnItemDropped(ItemData item)
     {
-        if (item == null)
-            return;
-
-        if (TryReturnItem(item.ItemId))
+        if (item != null && TryPlaceOnShelf(item))
             RemoveFromInventory(item.ItemId);
     }
 
-    /// <summary>손전등은 수건이 없을 때만, 수건은 손전등이 놓인 뒤에만 돌려놓을 수 있습니다.</summary>
-    private bool TryReturnItem(string itemId)
-    {
-        bool inRestroom = SliderManager.Instance != null && SliderManager.Instance.CurrentRoom == RestroomRoomName;
-
-        if (inRestroom && itemId == FlashlightGimmick.FlashlightItemId &&
-            !flashlightSlot.IsFilled && !towelSlot.IsFilled)
-        {
-            FillSlot(flashlightSlot);
-            FlashlightGimmick.Instance?.PutBack();
-            EXODSound.Play("item_pickup");
-            return true;
-        }
-
-        if (inRestroom && itemId == TowelItemId && !towelSlot.IsFilled)
-        {
-            // 손전등이 먼저 놓여 있어야 합니다. (안내 대사 없음: 플레이어가 기억해야 함)
-            if (!flashlightSlot.IsFilled)
-                return false;
-
-            FillSlot(towelSlot);
-            towelTaken = false;
-            if (towelButton == null && roomViewTransform != null)
-                towelButton = CreateRoomImage(roomViewTransform, "RRTowel", TowelRect, TakeTowel);
-            EXODSound.Play("item_pickup");
-            return true;
-        }
-
-        // 놓을 수 없는 경우에는 아무 일도 일어나지 않고 아이템은 퀵슬롯에 남습니다.
-        return false;
-    }
-
-    // 다른 방에서 같은 화면 위치에 놓아 기존 시스템이 이 자리에 아이템을 만들어 버린 경우 되돌립니다.
-    private void RejectForeignPlacements()
+    // 다른 방에서 같은 화면 위치에 놓아 기존 시스템이 검사 자리에 아이템을 만들어 버린 경우 퀵슬롯으로 되돌립니다.
+    private void ReturnForeignPlacements()
     {
         if (positionManager == null)
             return;
 
-        foreach (ReturnSlot slot in new[] { flashlightSlot, towelSlot })
+        foreach (CheckSlot slot in new[] { bottomSlot, topSlot })
         {
             if (slot == null || string.IsNullOrEmpty(slot.SlotId))
                 continue;
@@ -435,11 +528,10 @@ public sealed class RestroomGimmick : MonoBehaviour
             positionManager.NotifyPickedUp(placed);
             Destroy(placed.gameObject);
 
-            if (placedItem == null)
-                continue;
-
-            if (!TryReturnItem(placedItem.ItemId))
+            if (placedItem != null && !TryPlaceOnShelf(placedItem))
                 GetInventory()?.TryAdd(placedItem);
+
+            SyncCheckSlots();
         }
     }
 

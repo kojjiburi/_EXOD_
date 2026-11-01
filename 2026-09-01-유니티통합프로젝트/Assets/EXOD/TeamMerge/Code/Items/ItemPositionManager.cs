@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.Events;
 
@@ -9,6 +10,7 @@ public sealed class ItemPositionRecord
     [SerializeField] private string slotId;
     [SerializeField] private Vector3 originalPosition;
     [SerializeField] private string originalItemId;
+    [SerializeField] private ItemData originalItem;
 
     [Header("Current State (Runtime)")]
     [SerializeField] private bool isOccupied;
@@ -18,6 +20,7 @@ public sealed class ItemPositionRecord
     public string SlotId => slotId;
     public Vector3 OriginalPosition => originalPosition;
     public string OriginalItemId => originalItemId;
+    public ItemData OriginalItem => originalItem;
     public bool IsOccupied => isOccupied && currentPickup != null;
     public string CurrentItemId => IsOccupied ? currentItemId : string.Empty;
     public WorldItemPickup CurrentPickup => IsOccupied ? currentPickup : null;
@@ -31,6 +34,7 @@ public sealed class ItemPositionRecord
         this.slotId = slotId;
         this.originalPosition = originalPosition;
         this.originalItemId = originalItemId ?? string.Empty;
+        originalItem = initialPickup != null ? initialPickup.ItemData : null;
         SetOccupant(initialPickup);
     }
 
@@ -76,8 +80,22 @@ public sealed class ItemPositionManager : MonoBehaviour
     [Tooltip("모든 아이템이 제자리일 때 실행할 기능")]
     [SerializeField] private UnityEvent onAllItemsInPlace;
 
+    [Header("Day End Reset (일차 종료 시 초기화)")]
+    [Tooltip("일차가 넘어갈 때 모든 아이템을 처음 자리로 되돌리고, 퀵슬롯의 종이(paper_)를 없앱니다.")]
+    [SerializeField] private bool resetItemsOnDayEnd = true;
+    [Tooltip("초기화하지 않을 아이템 ID (서랍 기믹이 따로 관리하는 황금 열쇠 등)")]
+    [SerializeField] private List<string> resetExcludedItemIds = new List<string> { "golden_key" };
+    [Tooltip("이 글자로 시작하는 아이템은 스테이지마다 1회성이라 일차가 넘어가면 퀵슬롯에서 없어지고 처음 자리에 다시 생깁니다.")]
+    [SerializeField] private string paperItemIdPrefix = "paper_";
+
+    /// <summary>일차 종료 초기화가 끝난 뒤 호출됩니다. (화장실 선반처럼 따로 관리하는 기믹이 자기 상태를 되돌릴 때 사용)</summary>
+    public event Action ItemsResetForNewDay;
+
     private readonly Dictionary<string, ItemPositionRecord> recordBySlotId =
         new Dictionary<string, ItemPositionRecord>();
+
+    // 다른 기믹이 직접 관리하는 자리 (검사는 하지만 초기화는 그 기믹이 함)
+    private readonly HashSet<string> externallyManagedSlotIds = new HashSet<string>();
 
     private GManager subscribedDayManager;
 
@@ -278,6 +296,114 @@ public sealed class ItemPositionManager : MonoBehaviour
     private void HandleDayChanged(int newDay)
     {
         CheckItemsOnDayEnd();
+
+        if (resetItemsOnDayEnd)
+            ResetItemsForNewDay();
+    }
+
+    /// <summary>이 자리는 다른 기믹이 직접 관리합니다. 제자리 검사에는 포함되지만 초기화는 하지 않습니다.</summary>
+    public void MarkExternallyManaged(string slotId)
+    {
+        if (!string.IsNullOrWhiteSpace(slotId))
+            externallyManagedSlotIds.Add(slotId);
+    }
+
+    public bool IsPaperItem(string itemId)
+    {
+        return !string.IsNullOrEmpty(itemId) &&
+               !string.IsNullOrEmpty(paperItemIdPrefix) &&
+               itemId.StartsWith(paperItemIdPrefix, StringComparison.Ordinal);
+    }
+
+    /// <summary>이 아이템의 처음 자리가 등록되어 있는지 (초기화 때 그 자리로 돌아가는지)</summary>
+    public bool HasResettableRecordFor(string itemId)
+    {
+        foreach (ItemPositionRecord record in positionRecords)
+        {
+            if (record.OriginalItemId == itemId &&
+                !externallyManagedSlotIds.Contains(record.SlotId) &&
+                !IsResetExcluded(itemId))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private bool IsResetExcluded(string itemId)
+    {
+        foreach (string excluded in resetExcludedItemIds)
+        {
+            if (!string.IsNullOrWhiteSpace(excluded) && excluded.Trim() == itemId)
+                return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// 일차 종료 초기화: 모든 아이템을 처음 자리로 되돌리고(퀵슬롯에서도 빠짐),
+    /// 퀵슬롯에 있는 종이(paper_)는 없애서 처음 자리에서 다시 얻을 수 있게 합니다.
+    /// </summary>
+    [ContextMenu("일차 종료 초기화 테스트")]
+    public void ResetItemsForNewDay()
+    {
+        QuickSlotInventory inventory = QuickSlotInventory.Instance != null
+            ? QuickSlotInventory.Instance
+            : FindFirstObjectByType<QuickSlotInventory>();
+        HashSet<string> restoredItemIds = new HashSet<string>();
+
+        foreach (ItemPositionRecord record in positionRecords.ToArray())
+        {
+            record.RefreshOccupancy();
+            string originalId = record.OriginalItemId;
+            if (string.IsNullOrEmpty(originalId) ||
+                externallyManagedSlotIds.Contains(record.SlotId) ||
+                IsResetExcluded(originalId))
+            {
+                continue;
+            }
+
+            if (record.IsOccupied && record.CurrentItemId == originalId)
+                continue;
+
+            // 다른 아이템이 놓여 있으면 치웁니다. 처음 자리가 따로 없는 아이템은 퀵슬롯으로 돌려줍니다.
+            if (record.IsOccupied)
+            {
+                WorldItemPickup wrongPickup = record.CurrentPickup;
+                ItemData wrongItem = wrongPickup.ItemData;
+                record.SetOccupant(null);
+                Destroy(wrongPickup.gameObject);
+
+                if (wrongItem != null && inventory != null &&
+                    !HasResettableRecordFor(wrongItem.ItemId) && !IsPaperItem(wrongItem.ItemId))
+                {
+                    inventory.TryAdd(wrongItem);
+                }
+            }
+
+            if (record.OriginalItem == null)
+                continue;
+
+            WorldItemPickup restored = CreatePlacedPickup(record.OriginalItem, record);
+            record.SetOccupant(restored);
+            restoredItemIds.Add(originalId);
+        }
+
+        // 처음 자리로 돌아간 아이템과 종이는 퀵슬롯에서 뺍니다.
+        if (inventory != null)
+        {
+            foreach (QuickSlotEntry entry in inventory.Entries.ToArray())
+            {
+                string itemId = entry?.ItemData != null ? entry.ItemData.ItemId : string.Empty;
+                if (restoredItemIds.Contains(itemId) || IsPaperItem(itemId))
+                    inventory.TryRemove(entry);
+            }
+        }
+
+        Debug.Log($"[ItemPositionManager] 일차 종료 초기화: {restoredItemIds.Count}개 자리 복구, 종이 초기화", this);
+        ItemsResetForNewDay?.Invoke();
     }
 
     /// <summary>원래 아이템이 원래 자리에 없는 위치 목록을 돌려줍니다.</summary>
