@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Events;
 
 [Serializable]
 public sealed class ItemPositionRecord
@@ -63,8 +64,22 @@ public sealed class ItemPositionManager : MonoBehaviour
     [SerializeField] private List<ItemPositionRecord> positionRecords =
         new List<ItemPositionRecord>();
 
+    [Header("Day End Check (일차 종료 시 제자리 검사)")]
+    [Tooltip("일차가 넘어갈 때(GManager.NextDay) 아이템이 제자리에 있는지 검사합니다.")]
+    [SerializeField] private bool checkOnDayEnd = true;
+    [Tooltip("체크하면 틀린 아이템 개수만큼 하트가 줄고, 끄면 하나라도 틀렸을 때 하트 1개만 줄어듭니다.")]
+    [SerializeField] private bool loseHeartPerWrongItem = false;
+    [Tooltip("검사에서 제외할 아이템 ID (예: 사용하면 사라지는 아이템). 황금 열쇠는 서랍 기믹이 따로 관리해서 기본으로 제외합니다.")]
+    [SerializeField] private List<string> ignoredItemIds = new List<string> { "golden_key", "paper_a", "paper_b", "paper_c", "paper_d", "paper_e" };
+    [Tooltip("하나라도 제자리가 아닐 때 추가로 실행할 기능")]
+    [SerializeField] private UnityEvent onItemsMisplaced;
+    [Tooltip("모든 아이템이 제자리일 때 실행할 기능")]
+    [SerializeField] private UnityEvent onAllItemsInPlace;
+
     private readonly Dictionary<string, ItemPositionRecord> recordBySlotId =
         new Dictionary<string, ItemPositionRecord>();
+
+    private GManager subscribedDayManager;
 
     public IReadOnlyList<ItemPositionRecord> PositionRecords => positionRecords;
     public float PlacementRadius => placementRadius;
@@ -82,8 +97,16 @@ public sealed class ItemPositionManager : MonoBehaviour
         CaptureInitialPositions();
     }
 
+    private void Start()
+    {
+        if (enabled)
+            SubscribeToDayManager();
+    }
+
     private void OnDestroy()
     {
+        UnsubscribeFromDayManager();
+
         if (Instance == this)
             Instance = null;
     }
@@ -218,6 +241,128 @@ public sealed class ItemPositionManager : MonoBehaviour
         WorldItemPickup placedPickup = CreatePlacedPickup(itemData, usedPosition);
         usedPosition.SetOccupant(placedPickup);
         return true;
+    }
+
+    // ═══════════════════════════════════════════════════
+    //  일차 종료 시 제자리 검사
+    // ═══════════════════════════════════════════════════
+
+    private void SubscribeToDayManager()
+    {
+        if (!checkOnDayEnd || subscribedDayManager != null)
+            return;
+
+        GManager dayManager = GManager.Instance != null
+            ? GManager.Instance
+            : FindFirstObjectByType<GManager>(FindObjectsInactive.Include);
+
+        if (dayManager == null)
+        {
+            Debug.LogWarning("[ItemPositionManager] GManager를 찾을 수 없어 일차 종료 검사를 하지 않습니다.", this);
+            return;
+        }
+
+        dayManager.onDayChanged += HandleDayChanged;
+        subscribedDayManager = dayManager;
+    }
+
+    private void UnsubscribeFromDayManager()
+    {
+        if (subscribedDayManager == null)
+            return;
+
+        subscribedDayManager.onDayChanged -= HandleDayChanged;
+        subscribedDayManager = null;
+    }
+
+    private void HandleDayChanged(int newDay)
+    {
+        CheckItemsOnDayEnd();
+    }
+
+    /// <summary>원래 아이템이 원래 자리에 없는 위치 목록을 돌려줍니다.</summary>
+    public List<ItemPositionRecord> GetMisplacedRecords()
+    {
+        List<ItemPositionRecord> misplaced = new List<ItemPositionRecord>();
+
+        foreach (ItemPositionRecord record in positionRecords)
+        {
+            record.RefreshOccupancy();
+
+            if (IsIgnored(record.OriginalItemId))
+                continue;
+
+            // 비어 있거나, 다른 아이템이 놓여 있으면 제자리가 아닙니다.
+            if (!record.IsOccupied || record.CurrentItemId != record.OriginalItemId)
+                misplaced.Add(record);
+        }
+
+        return misplaced;
+    }
+
+    public bool AreAllItemsInOriginalPlace()
+    {
+        return GetMisplacedRecords().Count == 0;
+    }
+
+    /// <summary>
+    /// 제자리 검사를 하고, 틀린 게 있으면 하트를 줄입니다. 틀린 위치 개수를 돌려줍니다.
+    /// 하트가 0이 되면 PlayerFaintController가 게임 오버를 띄웁니다.
+    /// </summary>
+    public int CheckItemsOnDayEnd()
+    {
+        List<ItemPositionRecord> misplaced = GetMisplacedRecords();
+
+        if (misplaced.Count == 0)
+        {
+            Debug.Log("[ItemPositionManager] 일차 종료 검사: 모든 아이템이 제자리입니다.", this);
+            onAllItemsInPlace?.Invoke();
+            return 0;
+        }
+
+        foreach (ItemPositionRecord record in misplaced)
+        {
+            string current = record.IsOccupied ? record.CurrentItemId : "(비어 있음)";
+            Debug.Log(
+                $"[ItemPositionManager] 제자리 아님: 원래 '{record.OriginalItemId}', 지금 '{current}' ({record.SlotId})",
+                this);
+        }
+
+        HeartManager hearts = FindFirstObjectByType<HeartManager>(FindObjectsInactive.Include);
+        if (hearts == null)
+        {
+            Debug.LogWarning("[ItemPositionManager] HeartManager를 찾을 수 없어 하트를 줄이지 못했습니다.", this);
+        }
+        else
+        {
+            int penalty = loseHeartPerWrongItem ? misplaced.Count : 1;
+            for (int i = 0; i < penalty; i++)
+                hearts.HPM();
+        }
+
+        onItemsMisplaced?.Invoke();
+        return misplaced.Count;
+    }
+
+    private bool IsIgnored(string itemId)
+    {
+        if (string.IsNullOrWhiteSpace(itemId))
+            return true;
+
+        foreach (string ignoredId in ignoredItemIds)
+        {
+            if (!string.IsNullOrWhiteSpace(ignoredId) && ignoredId.Trim() == itemId)
+                return true;
+        }
+
+        return false;
+    }
+
+    // Play 중 Inspector의 ⋮ 메뉴에서 실행해 검사를 확인합니다.
+    [ContextMenu("일차 종료 제자리 검사 테스트")]
+    private void TestDayEndCheck()
+    {
+        CheckItemsOnDayEnd();
     }
 
     private WorldItemPickup CreatePlacedPickup(

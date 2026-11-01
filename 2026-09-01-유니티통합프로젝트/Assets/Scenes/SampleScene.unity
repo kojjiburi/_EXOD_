@@ -1298,6 +1298,21 @@ MonoBehaviour:
   placementRadius: 0.8
   placedItemSortingOrder: 1000
   positionRecords: []
+  checkOnDayEnd: 1
+  loseHeartPerWrongItem: 0
+  ignoredItemIds:
+  - golden_key
+  - paper_a
+  - paper_b
+  - paper_c
+  - paper_d
+  - paper_e
+  onItemsMisplaced:
+    m_PersistentCalls:
+      m_Calls: []
+  onAllItemsInPlace:
+    m_PersistentCalls:
+      m_Calls: []
 --- !u!4 &439178484
 Transform:
   m_ObjectHideFlags: 0
