@@ -19,7 +19,7 @@ using UnityEngine.UI;
 /// - 금고 잠금판을 클릭하면 키패드(RRPass = PassBG + Pass1~9)가 뜹니다.
 ///   · 숫자를 누르면 그 숫자가 저장되고, 눌린 버튼은 어두워져서 다시 누를 수 없습니다.
 ///   · [닫기]로 닫았다가 다시 열면 모두 초기화됩니다.
-///   · 7 4 1 5 2 3 8 9 6 순서로 누르면 금고 잠금판이 사라집니다.
+///   · 7 4 1 5 2 3 8 9 6 순서로 누르면 금고 잠금판이 사라지고, 모든 종이(paper_)가 영구히 없어집니다.
 /// 그림과 아이템 데이터는 Assets/EXOD/Restroom/Resources/EXODRestroom 에 있습니다.
 /// 실행할 때 SliderManager가 있는 씬에 자동으로 붙습니다.
 /// </summary>
@@ -149,7 +149,10 @@ public sealed class RestroomGimmick : MonoBehaviour
             Destroy(dropTarget);
 
         if (positionManager != null)
+        {
             positionManager.ItemsResetForNewDay -= ResetShelfForNewDay;
+            positionManager.PapersRemovedPermanently -= RemovePapersFromShelf;
+        }
 
         if (Instance == this)
             Instance = null;
@@ -360,6 +363,7 @@ public sealed class RestroomGimmick : MonoBehaviour
         positionManager.MarkExternallyManaged(bottomSlot.SlotId);
         positionManager.MarkExternallyManaged(topSlot.SlotId);
         positionManager.ItemsResetForNewDay += ResetShelfForNewDay;
+        positionManager.PapersRemovedPermanently += RemovePapersFromShelf;
         CreateDropTarget(center, size);
         checkSlotsReady = true;
         SyncCheckSlots();
@@ -470,6 +474,28 @@ public sealed class RestroomGimmick : MonoBehaviour
         shelf.Add(new ShelfItem { Item = towelItem });
         RemoveFromInventory(FlashlightGimmick.FlashlightItemId);
         RemoveFromInventory(TowelItemId);
+
+        RebuildShelfViews();
+        SyncCheckSlots();
+    }
+
+    private void RemovePapersFromShelf()
+    {
+        bool changed = false;
+        for (int i = shelf.Count - 1; i >= 0; i--)
+        {
+            ItemData item = shelf[i].Item;
+            if (item == null || positionManager == null || !positionManager.IsPaperItem(item.ItemId))
+                continue;
+
+            if (shelf[i].View != null)
+                Destroy(shelf[i].View);
+            shelf.RemoveAt(i);
+            changed = true;
+        }
+
+        if (!changed)
+            return;
 
         RebuildShelfViews();
         SyncCheckSlots();
@@ -662,6 +688,10 @@ public sealed class RestroomGimmick : MonoBehaviour
 
         EXODSound.Play("key_unlock");
         Debug.Log("[Restroom] 금고 비밀번호 정답! RRSafe_block을 지웠습니다.", this);
+
+        // 금고를 열면 종이는 모두 없어집니다. (퀵슬롯·맵·선반 어디에 있든)
+        ItemPositionManager manager = positionManager != null ? positionManager : ItemPositionManager.GetOrCreate();
+        manager?.RemovePapersPermanently();
     }
 
     private void CreateKeypad()

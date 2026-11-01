@@ -78,14 +78,24 @@ public sealed class ItemPositionManager : MonoBehaviour
     [Tooltip("퀵슬롯에 들고 있어도 제자리로 치는 아이템 ID. 종이(paper_)와 기믹에 쓰면 사라지는 아이템은 여기 없어도 항상 괜찮습니다.")]
     [SerializeField] private List<string> inventoryAllowedItemIds = new List<string>();
 
-    // 기믹을 푸는 데 쓰면 사라지는 아이템 (예: 곰돌이에게 돌려주는 팔다리) → 들고 있어도 제자리 검사에서 제외
-    private static readonly string[] GimmickConsumedItemIds =
+    // 퀵슬롯에 들고 있어도 제자리 검사에서 제외하는 아이템
+    // - 기믹을 푸는 데 쓰면 사라지는 아이템 (곰돌이에게 돌려주는 팔다리)
+    // - 냉장고 비밀번호 쪽지 (곰돌이 보답)
+    private static readonly string[] AlwaysAllowedInInventoryItemIds =
     {
         "bear_left_arm",
         "bear_right_arm",
         "bear_left_leg",
         "bear_right_leg",
+        "fridge_lock_note",
     };
+
+    private bool papersRemovedPermanently;
+
+    /// <summary>종이가 영구히 없어졌을 때 (화장실 금고를 연 뒤) 호출됩니다.</summary>
+    public event Action PapersRemovedPermanently;
+
+    public bool ArePapersRemovedPermanently => papersRemovedPermanently;
     [Tooltip("하나라도 제자리가 아닐 때 추가로 실행할 기능")]
     [SerializeField] private UnityEvent onItemsMisplaced;
     [Tooltip("모든 아이템이 제자리일 때 실행할 기능")]
@@ -178,6 +188,13 @@ public sealed class ItemPositionManager : MonoBehaviour
     {
         if (pickup == null || pickup.ItemData == null)
             return;
+
+        // 금고를 연 뒤에는 종이가 다시 나타나지 않습니다.
+        if (papersRemovedPermanently && IsPaperItem(pickup.ItemData.ItemId))
+        {
+            Destroy(pickup.gameObject);
+            return;
+        }
 
         string existingSlotId = pickup.PositionSlotId;
         if (!string.IsNullOrWhiteSpace(existingSlotId) &&
@@ -311,6 +328,55 @@ public sealed class ItemPositionManager : MonoBehaviour
         // 하나라도 틀렸을 때만 초기화합니다. 모두 제자리면 종이 등 퀵슬롯은 그대로 둡니다.
         if (misplacedCount > 0 && resetItemsOnDayEnd)
             ResetItemsForNewDay();
+    }
+
+    /// <summary>
+    /// 모든 종이(paper_)를 영구히 없앱니다. 퀵슬롯·맵 어디에 있든 사라지고, 일차 초기화로도 돌아오지 않습니다.
+    /// (화장실 금고 잠금판이 풀렸을 때 RestroomGimmick이 호출)
+    /// </summary>
+    public void RemovePapersPermanently()
+    {
+        papersRemovedPermanently = true;
+
+        QuickSlotInventory inventory = QuickSlotInventory.Instance != null
+            ? QuickSlotInventory.Instance
+            : FindFirstObjectByType<QuickSlotInventory>();
+        if (inventory != null)
+        {
+            foreach (QuickSlotEntry entry in inventory.Entries.ToArray())
+            {
+                if (entry?.ItemData != null && IsPaperItem(entry.ItemData.ItemId))
+                    inventory.TryRemove(entry);
+            }
+        }
+
+        foreach (ItemPositionRecord record in positionRecords.ToArray())
+        {
+            record.RefreshOccupancy();
+            if (record.IsOccupied && IsPaperItem(record.CurrentItemId))
+            {
+                WorldItemPickup paperPickup = record.CurrentPickup;
+                record.SetOccupant(null);
+                Destroy(paperPickup.gameObject);
+            }
+
+            if (IsPaperItem(record.OriginalItemId))
+            {
+                positionRecords.Remove(record);
+                recordBySlotId.Remove(record.SlotId);
+            }
+        }
+
+        foreach (WorldItemPickup pickup in FindObjectsByType<WorldItemPickup>(
+                     FindObjectsInactive.Include,
+                     FindObjectsSortMode.None))
+        {
+            if (pickup.ItemData != null && IsPaperItem(pickup.ItemData.ItemId))
+                Destroy(pickup.gameObject);
+        }
+
+        Debug.Log("[ItemPositionManager] 종이를 모두 없앴습니다.", this);
+        PapersRemovedPermanently?.Invoke();
     }
 
     /// <summary>이 자리는 다른 기믹이 직접 관리합니다. 제자리 검사에는 포함되지만 초기화는 하지 않습니다.</summary>
@@ -489,7 +555,7 @@ public sealed class ItemPositionManager : MonoBehaviour
 
     /// <summary>
     /// 퀵슬롯에 들고 있는 아이템 중 제자리가 아닌 것으로 치는 아이템 ID 목록입니다.
-    /// 종이(paper_), 기믹에 쓰면 사라지는 아이템(곰돌이 팔다리), 허용 목록의 아이템만 들고 있어도 괜찮고,
+    /// 종이(paper_), 기믹에 쓰면 사라지는 아이템(곰돌이 팔다리), 냉장고 비밀번호 쪽지, 허용 목록의 아이템만 들고 있어도 괜찮고,
     /// 나머지는 모두 제자리가 아닌 것으로 봅니다.
     /// (처음 자리가 등록된 아이템은 그 자리가 비어 있는 것으로 이미 세므로 여기서는 빼서 두 번 세지 않습니다)
     /// </summary>
@@ -530,7 +596,7 @@ public sealed class ItemPositionManager : MonoBehaviour
 
     private bool IsAllowedInInventory(string itemId)
     {
-        if (Array.IndexOf(GimmickConsumedItemIds, itemId) >= 0)
+        if (Array.IndexOf(AlwaysAllowedInInventoryItemIds, itemId) >= 0)
             return true;
 
         foreach (string allowed in inventoryAllowedItemIds)
