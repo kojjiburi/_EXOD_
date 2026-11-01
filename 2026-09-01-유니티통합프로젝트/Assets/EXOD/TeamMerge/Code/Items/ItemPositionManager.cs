@@ -75,6 +75,17 @@ public sealed class ItemPositionManager : MonoBehaviour
     [SerializeField] private bool loseHeartPerWrongItem = false;
     [Tooltip("검사에서 제외할 아이템 ID (예: 사용하면 사라지는 아이템). 황금 열쇠는 서랍 기믹이 따로 관리해서 기본으로 제외합니다.")]
     [SerializeField] private List<string> ignoredItemIds = new List<string> { "golden_key", "paper_a", "paper_b", "paper_c", "paper_d", "paper_e" };
+    [Tooltip("퀵슬롯에 들고 있어도 제자리로 치는 아이템 ID. 종이(paper_)와 기믹에 쓰면 사라지는 아이템은 여기 없어도 항상 괜찮습니다.")]
+    [SerializeField] private List<string> inventoryAllowedItemIds = new List<string>();
+
+    // 기믹을 푸는 데 쓰면 사라지는 아이템 (예: 곰돌이에게 돌려주는 팔다리) → 들고 있어도 제자리 검사에서 제외
+    private static readonly string[] GimmickConsumedItemIds =
+    {
+        "bear_left_arm",
+        "bear_right_arm",
+        "bear_left_leg",
+        "bear_right_leg",
+    };
     [Tooltip("하나라도 제자리가 아닐 때 추가로 실행할 기능")]
     [SerializeField] private UnityEvent onItemsMisplaced;
     [Tooltip("모든 아이템이 제자리일 때 실행할 기능")]
@@ -429,7 +440,7 @@ public sealed class ItemPositionManager : MonoBehaviour
 
     public bool AreAllItemsInOriginalPlace()
     {
-        return GetMisplacedRecords().Count == 0;
+        return GetMisplacedRecords().Count == 0 && GetMisplacedInventoryItemIds().Count == 0;
     }
 
     /// <summary>
@@ -439,8 +450,10 @@ public sealed class ItemPositionManager : MonoBehaviour
     public int CheckItemsOnDayEnd()
     {
         List<ItemPositionRecord> misplaced = GetMisplacedRecords();
+        List<string> misplacedInInventory = GetMisplacedInventoryItemIds();
+        int misplacedCount = misplaced.Count + misplacedInInventory.Count;
 
-        if (misplaced.Count == 0)
+        if (misplacedCount == 0)
         {
             Debug.Log("[ItemPositionManager] 일차 종료 검사: 모든 아이템이 제자리입니다.", this);
             onAllItemsInPlace?.Invoke();
@@ -455,6 +468,9 @@ public sealed class ItemPositionManager : MonoBehaviour
                 this);
         }
 
+        foreach (string itemId in misplacedInInventory)
+            Debug.Log($"[ItemPositionManager] 제자리 아님: '{itemId}' 이(가) 퀵슬롯에 있음", this);
+
         HeartManager hearts = FindFirstObjectByType<HeartManager>(FindObjectsInactive.Include);
         if (hearts == null)
         {
@@ -462,13 +478,68 @@ public sealed class ItemPositionManager : MonoBehaviour
         }
         else
         {
-            int penalty = loseHeartPerWrongItem ? misplaced.Count : 1;
+            int penalty = loseHeartPerWrongItem ? misplacedCount : 1;
             for (int i = 0; i < penalty; i++)
                 hearts.HPM();
         }
 
         onItemsMisplaced?.Invoke();
-        return misplaced.Count;
+        return misplacedCount;
+    }
+
+    /// <summary>
+    /// 퀵슬롯에 들고 있는 아이템 중 제자리가 아닌 것으로 치는 아이템 ID 목록입니다.
+    /// 종이(paper_), 기믹에 쓰면 사라지는 아이템(곰돌이 팔다리), 허용 목록의 아이템만 들고 있어도 괜찮고,
+    /// 나머지는 모두 제자리가 아닌 것으로 봅니다.
+    /// (처음 자리가 등록된 아이템은 그 자리가 비어 있는 것으로 이미 세므로 여기서는 빼서 두 번 세지 않습니다)
+    /// </summary>
+    public List<string> GetMisplacedInventoryItemIds()
+    {
+        List<string> result = new List<string>();
+        QuickSlotInventory inventory = QuickSlotInventory.Instance != null
+            ? QuickSlotInventory.Instance
+            : FindFirstObjectByType<QuickSlotInventory>();
+        if (inventory == null)
+            return result;
+
+        foreach (QuickSlotEntry entry in inventory.Entries)
+        {
+            string itemId = entry?.ItemData != null ? entry.ItemData.ItemId : string.Empty;
+            if (string.IsNullOrEmpty(itemId) || IsPaperItem(itemId) || IsAllowedInInventory(itemId))
+                continue;
+
+            if (HasCheckedRecordFor(itemId))
+                continue;
+
+            result.Add(itemId);
+        }
+
+        return result;
+    }
+
+    private bool HasCheckedRecordFor(string itemId)
+    {
+        foreach (ItemPositionRecord record in positionRecords)
+        {
+            if (record.OriginalItemId == itemId && !IsIgnored(itemId))
+                return true;
+        }
+
+        return false;
+    }
+
+    private bool IsAllowedInInventory(string itemId)
+    {
+        if (Array.IndexOf(GimmickConsumedItemIds, itemId) >= 0)
+            return true;
+
+        foreach (string allowed in inventoryAllowedItemIds)
+        {
+            if (!string.IsNullOrWhiteSpace(allowed) && allowed.Trim() == itemId)
+                return true;
+        }
+
+        return false;
     }
 
     private bool IsIgnored(string itemId)
