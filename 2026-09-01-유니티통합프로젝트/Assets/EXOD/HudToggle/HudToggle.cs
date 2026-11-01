@@ -22,7 +22,7 @@ public sealed class HudToggle : MonoBehaviour
 
     private const string HintText = "UI숨김버튼-Tab";
     private const string HintObjectName = "UI숨김 안내";
-    private const float HintRaise = 10f; // 안내 문구를 위로 올리는 정도
+    private const float HintGap = 1f; // DAY 글자와 안내 문구 사이 간격 (DAY 상자 안에 들어가도록)
     private const string StatusRootName = "EXOD_PlayerStatusSystem"; // DAY·하트·얀 얼굴이 있는 상단 UI
     private const string DayObjectName = "DAY";
     private const string QuickSlotCanvasName = "QuickSlotCanvas";   // 퀵슬롯 (씬을 넘어가도 유지됨)
@@ -163,7 +163,7 @@ public sealed class HudToggle : MonoBehaviour
 
         dayText.ForceMeshUpdate();
         Bounds bounds = dayText.textBounds;
-        float hintSize = Mathf.Max(8f, dayText.fontSize * 0.42f);
+        float hintSize = Mathf.Max(8f, dayText.fontSize * 0.34f);
 
         GameObject hintObject = new GameObject(
             HintObjectName,
@@ -188,8 +188,8 @@ public sealed class HudToggle : MonoBehaviour
         rect.anchorMin = rect.anchorMax = ((RectTransform)day).pivot;
         rect.pivot = new Vector2(0.5f, 1f);
         rect.sizeDelta = new Vector2(Mathf.Max(bounds.size.x * 2f, hintSize * 12f), hintSize * 1.6f);
-        // DAY 글자를 감싼 흰 상자 테두리 아래로 내립니다.
-        rect.anchoredPosition = new Vector2(bounds.center.x, bounds.min.y - dayText.fontSize * 0.4f + HintRaise);
+        // DAY 글자 바로 아래, DAY 상자 안에 넣습니다.
+        rect.anchoredPosition = new Vector2(bounds.center.x, bounds.min.y - HintGap);
     }
 
     private static Transform FindChildRecursive(Transform parent, string name)

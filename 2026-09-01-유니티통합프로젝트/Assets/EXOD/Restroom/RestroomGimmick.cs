@@ -60,8 +60,6 @@ public sealed class RestroomGimmick : MonoBehaviour
     private static readonly int[] Answer = { 7, 4, 1, 5, 2, 3, 8, 9, 6 };
 
     private const string TowelPickupText = "수건을 얻었다.";
-    private const string NeedFlashlightFirstText = "손전등을 먼저 제자리에 둬야 할 것 같다.";
-    private const string WrongPlaceText = "여기에 둘 물건이 아닌 것 같다.";
     private const string RestroomRoomName = "화장실";
 
     // 제자리 돌려놓기용 자리 (ItemPositionManager에 등록됨)
@@ -392,11 +390,9 @@ public sealed class RestroomGimmick : MonoBehaviour
 
         if (inRestroom && itemId == TowelItemId && !towelSlot.IsFilled)
         {
+            // 손전등이 먼저 놓여 있어야 합니다. (안내 대사 없음: 플레이어가 기억해야 함)
             if (!flashlightSlot.IsFilled)
-            {
-                Think(NeedFlashlightFirstText);
                 return false;
-            }
 
             FillSlot(towelSlot);
             towelTaken = false;
@@ -406,7 +402,7 @@ public sealed class RestroomGimmick : MonoBehaviour
             return true;
         }
 
-        Think(WrongPlaceText);
+        // 놓을 수 없는 경우에는 아무 일도 일어나지 않고 아이템은 퀵슬롯에 남습니다.
         return false;
     }
 
