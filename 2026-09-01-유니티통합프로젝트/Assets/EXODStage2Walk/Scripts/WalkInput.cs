@@ -97,6 +97,15 @@ namespace EXOD.Walk
             Vector3 world = cam.ScreenToWorldPoint(new Vector3(screenPosition.x, screenPosition.y, 0f));
             var hits = Physics2D.OverlapPointAll(new Vector2(world.x, world.y));
 
+            // [통합] 숨겨진 아이템(종이 등)이 겹쳐 있으면 주변 물체(가로등·물웅덩이·벤치 등)보다 먼저 집는다.
+            foreach (var hit in hits)
+            {
+                var pickup = hit.GetComponentInParent<WalkItemPickup>();
+                if (pickup == null || !pickup.isActiveAndEnabled) continue;
+                var c = hit.GetComponentInParent<T>();
+                if (c != null) return c;
+            }
+
             T best = null;
             int bestOrder = int.MinValue;
             foreach (var hit in hits)

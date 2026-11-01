@@ -1446,7 +1446,7 @@ MonoBehaviour:
   moveSpeed: 5
   autoMove: 1
   matchDayClockDuration: 1
-  finishSecondsEarly: 0.5
+  finishSecondsEarly: 5
   moveScreen: 1
   screenCamera: {fileID: 0}
   leftEdge: {fileID: 330779161}

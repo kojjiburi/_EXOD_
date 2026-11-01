@@ -21,7 +21,7 @@ namespace EXOD.Walk
         [Tooltip("[통합] 켜면 자동 이동 속도를 2스테이지 시간(DayClock, 1분)에 맞춰서, 시간이 끝날 즈음 정해진 왕복을 마치게 합니다. (moveSpeed 무시)")]
         [SerializeField] bool matchDayClockDuration = true;
         [Tooltip("시간이 끝나기 몇 초 전에 왕복을 마칠지")]
-        [SerializeField] float finishSecondsEarly = 0.5f;
+        [SerializeField] float finishSecondsEarly = 5f;
         [Tooltip("[통합] 자동 이동일 때 양 끝에 도착하면 이만큼(초) 멈췄다가 돌아간다")]
         [SerializeField] float endPauseSeconds = 2f;
 
