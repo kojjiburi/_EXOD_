@@ -401,7 +401,8 @@ internal sealed class BearLimbGimmickManager : MonoBehaviour
 
         bool blocked =
             (DialogueManager.Instance != null && DialogueManager.Instance.IsDialogueOpen) ||
-            (InspectionManager.Instance != null && InspectionManager.Instance.IsOpen);
+            (InspectionManager.Instance != null && InspectionManager.Instance.IsOpen) ||
+            Stage1FridgeGimmick.IsAnyInsideShown;
         string room = SliderManager.Instance.CurrentRoom;
         if (string.IsNullOrEmpty(room))
             room = "침실";

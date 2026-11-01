@@ -59,8 +59,16 @@ namespace EXOD.Walk
         };
         [SerializeField] WalkLine[] introLines = { new WalkLine(Her, "오늘도 같이 걷자.") };
         [SerializeField] WalkLine[] completedLines = { new WalkLine(Her, "오늘 산책 즐거웠어. 이제 들어가자.") };
-        [SerializeField] WalkLine[] timeUpLines = { new WalkLine(Her, "벌써 시간이 다 됐네. 들어가자.") };
-        [SerializeField] WalkLine[] quitLines = { new WalkLine(Her, "벌써 들어가고 싶어? …그래, 들어가자.") };
+        [SerializeField] WalkLine[] timeUpLines =
+        {
+            new WalkLine(Her, "어머, 벌써 시간이 이렇게 됐네. 이제 집에 가자."),
+            new WalkLine("", "…다시 그 집으로 돌아간다.")
+        };
+        [SerializeField] WalkLine[] quitLines =
+        {
+            new WalkLine(Her, "뭐야? 벌써 가게? …나랑 걷는 게 싫은 거야?"),
+            new WalkLine(Her, "농담이야~ 들어가자 ♡")
+        };
         [SerializeField] WalkLine[] caughtLines =
         {
             new WalkLine(Her, "…지금 뭐 하는 거야?"),

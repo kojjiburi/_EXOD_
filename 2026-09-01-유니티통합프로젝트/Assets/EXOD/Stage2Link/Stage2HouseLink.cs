@@ -22,12 +22,7 @@ public sealed class Stage2HouseLink : MonoBehaviour
     private const string ReturnRoomName = "복도";
     private const string Stage2RoomLabel = "산책";
 
-    // 현관문을 나설 때 나오는 컷신 자리 (친구가 만들 예정, 지금은 테스트 문구)
-    private static readonly string[] EnterCutsceneTestLines =
-    {
-        "(테스트) 현관문을 열고 밖으로 나섰다.",
-        "(테스트) ※ 여기에 2스테이지 입장 컷신이 들어갈 예정입니다.",
-    };
+    // 현관문을 나설 때 나오는 컷신은 Stage1Dialogues.Stage2EnterFirst / Stage2EnterAgain (처음 / 두 번째부터)
 
     private const string DoorLockedText = "오늘은 더 이상 밖에 나갈 수 없다…";
 
@@ -35,6 +30,7 @@ public sealed class Stage2HouseLink : MonoBehaviour
     private static readonly HashSet<string> KeepVisibleOnCanvas = new() { "대화창", "이름표" };
 
     private bool isTransitioning;
+    private bool hasEnteredOnce;
     private bool inStage2;
     private readonly List<GameObject> hiddenObjects = new();
     private Camera hiddenCamera;
@@ -107,9 +103,10 @@ public sealed class Stage2HouseLink : MonoBehaviour
         }
 
         isTransitioning = true;
-        List<DialogueLine> cutscene = new();
-        foreach (string line in EnterCutsceneTestLines)
-            cutscene.Add(new DialogueLine { speakerName = string.Empty, text = line, dialogueType = DialogueType.Narration });
+        List<DialogueLine> cutscene = hasEnteredOnce
+            ? Stage1Dialogues.Stage2EnterAgain()
+            : Stage1Dialogues.Stage2EnterFirst();
+        hasEnteredOnce = true;
 
         if (Stage1StoryController.Instance != null)
             Stage1StoryController.Instance.PlayCutscene(cutscene, () => StartCoroutine(EnterRoutine()));

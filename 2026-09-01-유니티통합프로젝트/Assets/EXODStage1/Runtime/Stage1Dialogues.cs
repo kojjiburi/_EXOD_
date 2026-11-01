@@ -200,6 +200,11 @@ public static class Stage1Dialogues
         Narrate("안쪽 깊숙이… 검은 비닐봉지가 들어 있다."),
         Think("서, 설마… 이거… 시… 시체…?"),
         Think("…그래도 확인은 해야겠지. (부스럭)"),
+    };
+
+    // 냉장고 안 그림을 띄운 채로 나오는 대사
+    public static List<DialogueLine> FridgeInside() => new List<DialogueLine>
+    {
         Narrate("봉지 안에는 복숭아 3개, 감 5개, 사과 2개, 파인애플 1개가 들어 있다."),
         Say(Player, "…휴, 과일이잖아. 간 떨어질 뻔했네."),
         Think("근데 개수를 딱딱 맞춰서 넣어 놨네… 뭔가 의미가 있는 걸까?"),
@@ -261,6 +266,27 @@ public static class Stage1Dialogues
     {
         Say(DoorLock, "인증되었습니다. 사랑해, 자기야 ♡"),
         Say(Player, "휴… 매일같이 받던 질문 공세가 이럴 때 도움이 되네."),
+    };
+
+    // ═══════════════════════════════════════════════════
+    //  현관문을 나설 때 → 2스테이지(산책) 입장 컷신 (Stage2HouseLink)
+    // ═══════════════════════════════════════════════════
+
+    // 처음 나갈 때: 문 앞에 그녀가 서 있는 반전
+    public static List<DialogueLine> Stage2EnterFirst() => new List<DialogueLine>
+    {
+        Narrate("끼익— 현관문이 열렸다."),
+        Narrate("문 앞에… 누군가 서 있다."),
+        Say(Girlfriend, "어머, 자기야. 마중 나와 준 거야?"),
+        Think("…들켰다. 심장이 멎는 줄 알았어."),
+        Say(Girlfriend, "마침 잘됐다. 우리 같이 산책하자 ♡"),
+    };
+
+    // 두 번째부터 (다음 날 다시 나갈 때)
+    public static List<DialogueLine> Stage2EnterAgain() => new List<DialogueLine>
+    {
+        Narrate("현관문을 열자, 그녀가 기다리고 있었다."),
+        Say(Girlfriend, "오늘도 산책 갈 시간이야, 자기야."),
     };
 
     // ═══════════════════════════════════════════════════

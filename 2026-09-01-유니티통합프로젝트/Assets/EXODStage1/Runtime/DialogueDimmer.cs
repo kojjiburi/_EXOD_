@@ -12,6 +12,9 @@ public sealed class DialogueDimmer : MonoBehaviour
     [SerializeField, Range(0f, 1f)] private float dimAlpha = 0.65f;  // 어두운 정도 (1이면 완전히 검정)
     [SerializeField] private float fadeDuration = 0.25f;
 
+    /// <summary>켜 두면 대화 중에도 어둡게 하지 않습니다. (냉장고 안 그림처럼 보여 줘야 하는 화면)</summary>
+    public static bool Suppressed { get; set; }
+
     private Image dim;
     private DialoguePortrait portrait;
     private Coroutine fadeCoroutine;
@@ -49,6 +52,9 @@ public sealed class DialogueDimmer : MonoBehaviour
 
     private void Show()
     {
+        if (Suppressed)
+            return;
+
         dim.gameObject.SetActive(true);
         KeepBehindDialogue();
         StartFade(dimAlpha);

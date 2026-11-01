@@ -53,7 +53,7 @@
 - 시간이 다 돼서 돌아올 때: 시간이 다 됐다며 돌아오라고 하는 대사
 - 스스로 돌아올 때(Esc로 그만둠 등): "뭐야? 벌써 가게?" 같은 대사 후 돌아오는 대사
 - 대사 위치: `Assets/EXODStage2Walk/Scenes/Stage2_Walk.unity`의 `WalkGameManager` (timeUpLines, quitLines 등)
-- 입장 컷신 자리: `Stage2HouseLink.cs`의 `EnterCutsceneTestLines` (지금은 테스트 문구)
+- 입장 컷신: `Stage1Dialogues.cs`의 `Stage2EnterFirst`(처음) / `Stage2EnterAgain`(두 번째부터) — `Stage2HouseLink`가 재생
 - 대사 내용은 친구 담당이므로 AI는 내용을 지어내지 말고, 만들어 달라고 전달만 합니다.
 
 ## 그 밖의 작업 규칙
