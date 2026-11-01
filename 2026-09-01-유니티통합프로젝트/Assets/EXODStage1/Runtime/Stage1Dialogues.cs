@@ -104,9 +104,8 @@ public static class Stage1Dialogues
     };
 
     // ═══════════════════════════════════════════════════
-    //  3. 거실 시작 → 테이블 위의 이상한 물약 (선택지 + 연타 기믹)
-    //     - 마시지 않으면: 목이 말라 기절(하트 -1) → 거실 도착 장면부터 다시
-    //     - 마시면: '탈출 하지 말까' 생각 지우기 연타 기믹 (StrangePotionGimmick)
+    //  3. 거실 시작 → 테이블 위의 이상한 물약 (바로 마시고 연타 기믹)
+    //     - 목이 말라 물약을 마시면 '탈출 하지 말까' 생각 지우기 연타 기믹 (StrangePotionGimmick)
     //       실패: "그냥 이렇게 살자" → 하트 -1 → 다시 도전 / 성공: "내가 무슨 생각을! 얼른 탈출하자"
     // ═══════════════════════════════════════════════════
 
@@ -117,25 +116,7 @@ public static class Stage1Dialogues
         Think("…테이블 위에 물약 병이 하나 놓여 있다."),
     };
 
-    public static readonly string[] PotionChoices =
-    {
-        "물약을 마신다",
-        "마시지 않는다",
-    };
-
-    // 마시지 않으면: 이 대사 뒤에 목말라서 기절 (하트 1개 감소) → 거실 도착 장면부터 다시
-    public static List<DialogueLine> PotionRefuse() => new List<DialogueLine>
-    {
-        Think("…아니야. 그녀가 둔 걸 함부로 마실 순 없지."),
-        Think("그런데… 목이 너무 타들어 간다. 눈앞이 흐려져…"),
-    };
-
-    public static List<DialogueLine> PotionAfterThirstFaint() => new List<DialogueLine>
-    {
-        Think("…으, 머리야. 목이 말라서 쓰러졌었나."),
-    };
-
-    // 마시면: 이 대사 뒤에 머릿속 연타 기믹 시작
+    // 거실 도착 대사 뒤에 바로 마시고, 이 대사 뒤에 머릿속 연타 기믹 시작
     public static List<DialogueLine> PotionDrink() => new List<DialogueLine>
     {
         Narrate("꿀꺽, 꿀꺽."),

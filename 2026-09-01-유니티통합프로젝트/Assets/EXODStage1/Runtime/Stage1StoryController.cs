@@ -187,27 +187,12 @@ public sealed class Stage1StoryController : MonoBehaviour
         }
     }
 
-    // 거실 도착 → 테이블 위의 이상한 물약 선택지
+    // 거실 도착 → 목이 말라 테이블 위의 이상한 물약을 마심 → 머릿속 연타 기믹
     private void PlayLivingRoomArrival()
     {
-        PlayChoiceCutscene(
-            Stage1Dialogues.LivingRoomArrival(),
-            Stage1Dialogues.PotionChoices,
-            OnPotionChosen);
-    }
-
-    // 마시면 머릿속 연타 기믹, 마시지 않으면 목이 말라 기절(하트 -1)한 뒤 거실 도착 장면부터 다시 합니다.
-    private void OnPotionChosen(int choice)
-    {
-        if (choice != 0)
-        {
-            PlayCutscene(Stage1Dialogues.PotionRefuse(), () =>
-                Stage1Room.Faint(() =>
-                    PlayCutscene(Stage1Dialogues.PotionAfterThirstFaint(), PlayLivingRoomArrival)));
-            return;
-        }
-
-        PlayCutscene(Stage1Dialogues.PotionDrink(), StartPotionGimmick);
+        List<DialogueLine> lines = Stage1Dialogues.LivingRoomArrival();
+        lines.AddRange(Stage1Dialogues.PotionDrink());
+        PlayCutscene(lines, StartPotionGimmick);
     }
 
     private void StartPotionGimmick()

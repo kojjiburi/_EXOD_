@@ -26,6 +26,7 @@ public sealed class PlayerSystemsSceneBridge : MonoBehaviour
     private WorldItemPickup drawerDisplayedPickup;
     private GameObject drawerDisplayedItem;
     private GameObject drawerDropZone;
+    private bool keyInsideDrawer;  // 돌려놓은 열쇠가 서랍 안에 들어가 있는 상태
 
     public void Configure(GameObject canvasObject, ItemData keyItem)
     {
@@ -51,6 +52,7 @@ public sealed class PlayerSystemsSceneBridge : MonoBehaviour
             return;
 
         goldenKeyWasAdded = false;
+        keyInsideDrawer = false;
         DestroyDrawerReturnVisual();
         drawerPositionManager = null;
         drawerPositionAnchor = null;
@@ -243,6 +245,9 @@ public sealed class PlayerSystemsSceneBridge : MonoBehaviour
         return true;
     }
 
+    // 돌려놓은 열쇠는 서랍장 밖에 따로 그리지 않고, 처음 있던 서랍 안으로 되돌립니다.
+    // (서랍 확대 화면에 열쇠가 든 서랍 그림이 나오고, 다시 누르면 처음처럼 주울 수 있음)
+    // 제자리 검사용 자리는 차 있는 상태로 두고, 열쇠를 다시 주우면 비웁니다.
     private void SyncDrawerReturnVisual()
     {
         if (drawerPositionManager == null ||
@@ -255,44 +260,34 @@ public sealed class PlayerSystemsSceneBridge : MonoBehaviour
         ItemPositionRecord record = drawerPositionManager.PositionRecords
             .FirstOrDefault(position => position.SlotId == drawerPositionSlotId);
         WorldItemPickup pickup = record == null ? null : record.CurrentPickup;
-
-        if (pickup == drawerDisplayedPickup && drawerDisplayedItem != null)
+        if (pickup == null)
             return;
 
-        DestroyDrawerReturnVisual();
-        if (pickup == null || pickup.ItemData == null || pickup.ItemData.Icon == null)
+        PasswordDrawer drawer = FindFirstObjectByType<PasswordDrawer>(FindObjectsInactive.Include);
+        if (drawer == null)
             return;
 
+        if (keyInsideDrawer)
+        {
+            // 서랍에서 열쇠를 다시 꺼냄 → 자리를 비웁니다.
+            if (drawer.IsKeyCollected)
+            {
+                keyInsideDrawer = false;
+                drawerPositionManager.NotifyPickedUp(pickup);
+                Destroy(pickup.gameObject);
+            }
+
+            return;
+        }
+
+        // 열쇠가 자리에 놓임(돌려놓기 또는 일차 초기화) → 서랍 안으로
         SpriteRenderer worldRenderer = pickup.GetComponent<SpriteRenderer>();
         if (worldRenderer != null)
             worldRenderer.enabled = false;
 
-        drawerDisplayedPickup = pickup;
-        drawerDisplayedItem = new GameObject(
-            $"DrawerReturnedItem_{pickup.ItemData.ItemId}",
-            typeof(RectTransform),
-            typeof(CanvasRenderer),
-            typeof(UnityEngine.UI.Image),
-            typeof(DrawerReturnedItemUi));
-        drawerDisplayedItem.layer = drawerPositionAnchor.gameObject.layer;
-
-        RectTransform rect = drawerDisplayedItem.GetComponent<RectTransform>();
-        rect.SetParent(drawerPositionAnchor, false);
-        rect.anchorMin = new Vector2(0.5f, 0.5f);
-        rect.anchorMax = new Vector2(0.5f, 0.5f);
-        rect.pivot = new Vector2(0.5f, 0.5f);
-        rect.anchoredPosition = drawerReturnedItemOffset;
-        float size = Mathf.Max(32f, drawerReturnedItemSize);
-        rect.sizeDelta = new Vector2(size, size);
-
-        UnityEngine.UI.Image image =
-            drawerDisplayedItem.GetComponent<UnityEngine.UI.Image>();
-        image.sprite = pickup.ItemData.Icon;
-        image.preserveAspect = true;
-        image.raycastTarget = true;
-
-        drawerDisplayedItem.GetComponent<DrawerReturnedItemUi>()
-            .Configure(pickup);
+        keyInsideDrawer = true;
+        goldenKeyWasAdded = false;  // 다시 꺼내면 퀵슬롯에 다시 넣습니다.
+        drawer.ReturnKey();
     }
 
     // ═══════════════════════════════════════════════════

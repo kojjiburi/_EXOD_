@@ -18,6 +18,8 @@ public sealed class Stage1FridgeGimmick : MonoBehaviour
 
     private bool isOpened;
 
+    public bool IsOpened => isOpened;
+
     private IEnumerator Start()
     {
         // SliderManager가 방 배경 화면들을 만든 뒤에 찾습니다.

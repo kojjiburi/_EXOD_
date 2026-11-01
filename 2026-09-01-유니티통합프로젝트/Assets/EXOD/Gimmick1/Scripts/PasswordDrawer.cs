@@ -185,6 +185,23 @@ public class PasswordDrawer : MonoBehaviour
         InspectionManager.Instance.SetCurrentDetailSprite(sprite);
     }
 
+    /// <summary>
+    /// 돌려놓은 열쇠를 서랍 안에 다시 넣습니다. (퀵슬롯에서 돌려놓기 또는 일차 초기화)
+    /// 서랍은 열린 채로 열쇠가 든 그림이 되고, 다시 누르면 처음처럼 주울 수 있습니다.
+    /// </summary>
+    public void ReturnKey()
+    {
+        if (!isKeyCollected)
+            return;
+
+        isKeyCollected = false;
+        if (InspectionManager.Instance != null && InspectionManager.Instance.IsOpen &&
+            InspectionManager.Instance.CurrentItemId == "bedroom_drawer")
+        {
+            ApplyPersistentVisual();
+        }
+    }
+
     private void CollectKey()
     {
         isKeyCollected = true;

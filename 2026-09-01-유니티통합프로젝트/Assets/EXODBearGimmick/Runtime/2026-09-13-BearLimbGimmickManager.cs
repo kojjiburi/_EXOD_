@@ -55,6 +55,10 @@ internal sealed class BearLimbGimmickManager : MonoBehaviour
     private ItemData rewardItem;
     private bool completed;
 
+    internal bool IsCompleted => completed;
+    internal int CollectedCount => collected.Count;
+    internal static int LimbCount => Limbs.Length;
+
     // 시작 화면을 거쳐 들어오거나 [다시하기]로 씬을 다시 불러와도 동작하도록 씬이 열릴 때마다 확인합니다.
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
     private static void RegisterSceneHandler()

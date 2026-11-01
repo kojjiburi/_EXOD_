@@ -15,9 +15,8 @@ using UnityEngine.UI;
 /// </summary>
 public sealed class StartScreen : MonoBehaviour
 {
-    // 제목 첫 줄 "Nemo"는 크게, 둘째 줄은 작게 표시합니다.
-    private const string GameTitle = "Nemo\n<size=46%>: No Exit My Love</size>";
-    private const string Subtitle = "Exit or Die";
+    private const string GameTitle = "Exit or Die";
+    private const string Subtitle = "Nemo : No Exit My Love";
     private const string TeamName = "TEAM EXOD";
     private const string StartSceneName = "StartScenes";
     private const string FirstStageSceneName = "SampleScene";
@@ -291,8 +290,8 @@ public sealed class StartScreen : MonoBehaviour
 
     private void BuildTitle()
     {
-        Vector2 anchor = new Vector2(0.79f, 0.70f);
-        Vector2 size = new Vector2(900f, 240f);
+        Vector2 anchor = new Vector2(0.79f, 0.68f);
+        Vector2 size = new Vector2(900f, 200f);
 
         titleGhostCyan = CreateText("제목 잔상(푸른)", canvasRoot, GameTitle, 110f, new Color(0.2f, 0.7f, 0.75f, 0f));
         Place(titleGhostCyan.rectTransform, anchor, size, Vector2.zero);
@@ -302,8 +301,8 @@ public sealed class StartScreen : MonoBehaviour
         Place(title.rectTransform, anchor, size, Vector2.zero);
 
         TextMeshProUGUI subtitle = CreateText("부제", canvasRoot, Subtitle, 34f, new Color(0.62f, 0.58f, 0.60f, 1f));
-        Place(subtitle.rectTransform, new Vector2(0.79f, 0.555f), new Vector2(700f, 50f), Vector2.zero);
-        subtitle.characterSpacing = 12f;
+        Place(subtitle.rectTransform, new Vector2(0.79f, 0.575f), new Vector2(760f, 50f), Vector2.zero);
+        subtitle.characterSpacing = 4f;
     }
 
     private void BuildMenu()

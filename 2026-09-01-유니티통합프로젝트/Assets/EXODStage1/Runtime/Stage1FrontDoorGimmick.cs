@@ -26,6 +26,8 @@ public sealed class Stage1FrontDoorGimmick : MonoBehaviour
     private bool isPasswordSolved;
     private bool isCleared;
 
+    public bool IsPasswordSolved => isPasswordSolved;
+
     private IEnumerator Start()
     {
         // SliderManager가 방 배경 화면들을 만든 뒤에 찾습니다.

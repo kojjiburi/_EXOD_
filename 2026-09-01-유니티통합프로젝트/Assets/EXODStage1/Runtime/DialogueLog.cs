@@ -149,7 +149,7 @@ public sealed class DialogueLog : MonoBehaviour
         RectTransform rect = go.GetComponent<RectTransform>();
         rect.anchorMin = rect.anchorMax = new Vector2(1f, 1f);
         rect.pivot = new Vector2(1f, 1f);
-        rect.anchoredPosition = new Vector2(-190f, -142f);
+        rect.anchoredPosition = new Vector2(-190f, -162f);
         rect.sizeDelta = new Vector2(190f, 44f);
 
         go.GetComponent<Image>().color = Color.white;
