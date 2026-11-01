@@ -46,8 +46,10 @@ namespace EXOD.Walk
         [Header("뒤돌기 전 말풍선 (2SWW)")]
         [Tooltip("1920x1080 화면 크기 그림. 비워 두면 Resources/Walk_2SWW")]
         [SerializeField] Sprite turnWarningSprite;
-        [Tooltip("뒤돌기 몇 초 전부터 말풍선을 보여줄지 (다시 앞을 볼 때까지 유지)")]
-        [SerializeField] float turnWarningLead = 0.5f;
+        [Tooltip("뒤돌기 몇 초 전부터 말풍선을 보여줄지: 0.1초 × (1~5 중 무작위) = 0.1/0.2/0.3/0.4/0.5초. 다시 앞을 볼 때까지 유지")]
+        [SerializeField] int turnWarningLeadMinTenths = 1;
+        [SerializeField] int turnWarningLeadMaxTenths = 5;
+        float turnWarningLead = 0.5f;
 
         [Header("양 끝에서 좌우 반전 (같이 걷지 않을 때)")]
         [Tooltip("화면이 오른쪽 끝에 도착하면 그림을 좌우 반전, 왼쪽 끝에 도착하면 다시 반전")]
@@ -93,6 +95,15 @@ namespace EXOD.Walk
                 transform.position = p;
             }
             timer = Mathf.Max(firstTurnMinDelay, RandomIn(awayDuration));
+            PickTurnWarningLead();
+        }
+
+        // 다음 뒤돌기 전에 말풍선을 띄울 시간: 0.1, 0.2, 0.3, 0.4, 0.5초 중 하나
+        void PickTurnWarningLead()
+        {
+            int min = Mathf.Max(1, Mathf.Min(turnWarningLeadMinTenths, turnWarningLeadMaxTenths));
+            int max = Mathf.Max(min, Mathf.Max(turnWarningLeadMinTenths, turnWarningLeadMaxTenths));
+            turnWarningLead = Random.Range(min, max + 1) / 10f;
         }
 
         public void Stop()
@@ -130,6 +141,7 @@ namespace EXOD.Walk
             {
                 SetState(YandereState.Away);
                 timer = RandomIn(awayDuration);
+                PickTurnWarningLead();
                 onStopWatching.Invoke();
             }
         }
