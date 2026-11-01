@@ -18,6 +18,10 @@ namespace EXOD.Walk
         [SerializeField] float moveSpeed = 5f;
         [Tooltip("켜면 키를 누르지 않아도 끝에서 끝까지 저절로 왕복한다 (대화창이 떠 있는 동안은 멈춤)")]
         [SerializeField] bool autoMove = true;
+        [Tooltip("[통합] 켜면 자동 이동 속도를 2스테이지 시간(DayClock, 1분)에 맞춰서, 시간이 끝날 즈음 정해진 왕복을 마치게 합니다. (moveSpeed 무시)")]
+        [SerializeField] bool matchDayClockDuration = true;
+        [Tooltip("시간이 끝나기 몇 초 전에 왕복을 마칠지")]
+        [SerializeField] float finishSecondsEarly = 0.5f;
 
         [Header("화면 이동 모드")]
         [Tooltip("켜면 플레이어를 숨기고 화면을 좌우로 움직인다 (화면 왕복)")]
@@ -140,7 +144,7 @@ namespace EXOD.Walk
             float h = autoMove ? (HeadingRight ? 1f : -1f) : WalkInput.Horizontal();
             if (h != 0f)
             {
-                SetX(Mathf.Clamp(CurrentX + h * moveSpeed * Time.deltaTime, minX, maxX));
+                SetX(Mathf.Clamp(CurrentX + h * CurrentSpeed() * Time.deltaTime, minX, maxX));
                 if (spriteToFlip != null) spriteToFlip.flipX = spriteFacesRight ? h < 0f : h > 0f;
             }
 
@@ -157,6 +161,18 @@ namespace EXOD.Walk
                 HeadingRight = true;
                 onLegCompleted.Invoke(LegsCompleted);
             }
+        }
+
+        // 자동 이동일 때 2스테이지 시간(1분) 안에 정해진 왕복(기본 2번 = 4구간)을 마치는 속도
+        float CurrentSpeed()
+        {
+            if (!autoMove || !matchDayClockDuration || DayClock.Instance == null)
+                return moveSpeed;
+
+            int legs = WalkGameManager.Current != null ? WalkGameManager.Current.RoundTripsRequired * 2 : 4;
+            float seconds = Mathf.Max(1f, DayClock.Instance.DayLength - finishSecondsEarly);
+            float distance = Mathf.Max(0.01f, maxX - minX) * legs;
+            return distance / seconds;
         }
 
         void OnDrawGizmosSelected()

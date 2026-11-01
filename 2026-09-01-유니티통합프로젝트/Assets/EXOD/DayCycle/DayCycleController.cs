@@ -351,6 +351,10 @@ public sealed class DayCycleController : MonoBehaviour
     // 대화·컷신·기절/게임 오버 연출 중에는 시간이 흐르지 않습니다.
     private static bool IsTimePaused()
     {
+        // 산책(2스테이지) 중에는 3분 타이머가 멈추고, 복귀할 때 1분을 한 번에 뺍니다.
+        if (Stage2HouseLink.IsInStage2)
+            return true;
+
         if (DialogueManager.Instance != null && DialogueManager.Instance.IsDialogueOpen)
             return true;
 

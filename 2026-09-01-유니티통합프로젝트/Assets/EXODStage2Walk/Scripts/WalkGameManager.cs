@@ -205,9 +205,9 @@ namespace EXOD.Walk
             yandere.Paused = false;
             yandere.SetCaught();
 
-            // 잠금을 먼저 걸고 시간을 뺀다. 시간 차감으로 날이 넘어가면 잠금은 자동으로 풀린다.
+            // 잠금을 먼저 건다. 1스테이지 시간 차감(1분)은 성공/실패 상관없이
+            // 복귀할 때 Stage2HouseLink에서 한 번만 합니다.
             clock.LockFrontDoorForToday();
-            clock.ConsumeTime(caughtPenaltySeconds);
 
             onCaught.Invoke();
             StartCoroutine(Finish(caughtLines, returnDelayAfterCaught));

@@ -7,7 +7,7 @@ using UnityEngine.SceneManagement;
 /// <summary>
 /// 1스테이지(집) ↔ 2스테이지(산책) 연결
 /// - 1스테이지 현관문을 나서면 컷신(지금은 테스트 문구, 친구가 만들 예정) 뒤에 2스테이지 산책 씬을 집 씬 위에 추가로(Additive) 엽니다.
-///   1스테이지 씬은 그대로 남아 있으므로 진행 상황·3분 타이머(DayCycleController)가 초기화되지 않고 계속 흐릅니다.
+///   1스테이지 씬은 그대로 남아 있으므로 진행 상황이 유지됩니다. 산책 중에는 3분 타이머(DayCycleController)가 멈추고, 복귀 시 성공/실패 상관없이 1분을 뺍니다.
 /// - 2스테이지 대사는 1스테이지와 같은 DialogueManager 대화창으로, 산책에서 주운 아이템은 팀 퀵슬롯으로 들어갑니다.
 /// - 산책이 끝나면(2스테이지 1분 끝, 왕복 완료, Esc로 그만둠, 들킴, 1스테이지 일차 넘어감) 산책 씬을 닫고 복도로 돌아옵니다.
 /// - 산책 결과로 현관문이 잠긴 날(DayClock 기준)에는 다시 나갈 수 없습니다.
@@ -39,6 +39,8 @@ public sealed class Stage2HouseLink : MonoBehaviour
     private readonly List<GameObject> hiddenObjects = new();
     private Camera hiddenCamera;
     private string savedRoomLabel;
+
+    public const float WalkTimeCostSeconds = 60f;
 
     public static bool IsInStage2 => Instance != null && Instance.inStage2;
 
@@ -174,6 +176,10 @@ public sealed class Stage2HouseLink : MonoBehaviour
 
         RestoreStage1();
         inStage2 = false;
+
+        // 산책은 성공이든 실패든 1스테이지 하루(3분)에서 1분을 씁니다.
+        if (DayCycleController.Instance != null)
+            DayCycleController.Instance.ConsumeTime(WalkTimeCostSeconds);
 
         yield return WalkFade.FadeIn();
         isTransitioning = false;
