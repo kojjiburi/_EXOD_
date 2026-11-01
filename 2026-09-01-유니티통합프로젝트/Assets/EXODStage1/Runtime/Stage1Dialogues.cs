@@ -17,9 +17,13 @@ public static class Stage1Dialogues
     public const string GameOverLine = "우리는 평생 함께야... ♡";
     public const string FaintText = "플레이어가 기절했다.";
 
-    // 곰인형 보상 아이템 (냉장고 자물쇠를 여는 쪽지)
+    // 곰인형 보상 아이템 (냉장고 키패드 비밀번호가 적힌 쪽지)
     public const string FridgeNoteItemId = "fridge_lock_note";
-    public const string FridgeNoteItemName = "냉장고 자물쇠 비밀번호";
+    public const string FridgeNoteItemName = "냉장고 비밀번호 쪽지";
+    public const string FridgePassword = "0214";
+
+    // 현관 도어락 비밀번호: 냉장고 과일 개수를 메모의 글자 수 순서(감, 사과, 복숭아, 파인애플)로 → 5 2 3 1
+    public const string FrontDoorPassword = "5231";
 
     // ─── 줄 만들기 도우미 ─────────────────────────────────
 
@@ -164,7 +168,7 @@ public static class Stage1Dialogues
         Say(Bear, "와아… 정말 다 찾아줬구나! 이 은혜를 어떻게 갚지?"),
         Say(Bear, "(주머니를 뒤적뒤적) …이거 받아! 그녀가 흘리고 간 쪽지야."),
         Say(Player, "오, 아싸~!"),
-        Narrate("쪽지를 펼쳐 보니 숫자가 적혀 있다."),
+        Narrate("쪽지를 펼쳐 보니 숫자가 적혀 있다. 「" + FridgePassword + "」"),
         Think("…어디에 쓰는 번호지? 자물쇠 같은 데 쓰는 건가?"),
     };
 
@@ -180,7 +184,7 @@ public static class Stage1Dialogues
 
     public static List<DialogueLine> FridgeLocked() => new List<DialogueLine>
     {
-        Narrate("냉장고에 자물쇠가 채워져 있다."),
+        Narrate("냉장고 문에 숫자 키패드 잠금장치가 달려 있다."),
         Think("…냉장고를 대체 왜 잠가 놓은 거지?"),
     };
 
@@ -193,6 +197,13 @@ public static class Stage1Dialogues
         Narrate("봉지 안에는 복숭아 3개, 감 5개, 사과 2개, 파인애플 1개가 들어 있다."),
         Say(Player, "…휴, 과일이잖아. 간 떨어질 뻔했네."),
         Think("근데 개수를 딱딱 맞춰서 넣어 놨네… 뭔가 의미가 있는 걸까?"),
+    };
+
+    // 이미 연 냉장고를 다시 눌렀을 때
+    public static List<DialogueLine> FridgeAlreadyOpen() => new List<DialogueLine>
+    {
+        Think("봉지 안에는 복숭아 3개, 감 5개, 사과 2개, 파인애플 1개."),
+        Think("개수에 무슨 의미가 있을 것 같은데…"),
     };
 
     // ═══════════════════════════════════════════════════

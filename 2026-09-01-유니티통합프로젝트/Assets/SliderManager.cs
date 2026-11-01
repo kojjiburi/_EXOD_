@@ -280,6 +280,19 @@ public class SliderManager : MonoBehaviour
             rightButton.interactable = hasMultipleRooms;
     }
 
+    /// <summary>해금된 방으로 바로 이동합니다. (이야기 진행용)</summary>
+    public void GoToRoom(string roomName)
+    {
+        UpdateSlider();
+        int index = _unlockedRooms.IndexOf(roomName);
+        if (index < 0)
+            return;
+
+        _currentIndex = index;
+        RefreshUI();
+        MoveToRoom();
+    }
+
     private void MoveToRoom()
     {
         if (_unlockedRooms.Count == 0)
