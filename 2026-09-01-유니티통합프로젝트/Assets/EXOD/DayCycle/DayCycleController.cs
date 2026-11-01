@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
@@ -6,6 +7,7 @@ using UnityEngine.UI;
 /// <summary>
 /// 일차 진행
 /// - 일차는 3분이 지나면 넘어갑니다. (대화·컷신·기절 연출 중에는 시간이 멈춤)
+/// - 오른쪽 위 장소 이름 아래에 이번 일차의 남은 시간(m:ss)을 표시합니다.
 /// - 침실 침대를 클릭하면 "다음 일차로 넘어갈까?"를 묻고, [넘어간다]를 고르면 바로 다음 일차로 넘어갑니다.
 /// - 일차가 넘어가면 GManager.NextDay()가 호출되어 DAY 표시가 오르고,
 ///   ItemPositionManager가 제자리 검사(틀리면 하트 감소) 및 초기화를 합니다.
@@ -53,6 +55,8 @@ public sealed class DayCycleController : MonoBehaviour
     private bool firstWarningShown;
     private bool secondWarningShown;
     private GameObject bedButton;
+    private TextMeshProUGUI timerText;
+    private int lastShownSeconds = -1;
     private float nextRefreshTime;
 
     public float RemainingSeconds => Mathf.Max(0f, DayLengthSeconds - elapsed);
@@ -92,9 +96,13 @@ public sealed class DayCycleController : MonoBehaviour
             nextRefreshTime = Time.unscaledTime + 0.5f;
             if (bedButton == null)
                 CreateBedButton();
+            if (timerText == null)
+                CreateTimerText();
             if (!keyObtained)
                 keyObtained = HasGoldenKey();
         }
+
+        UpdateTimerText();
 
         if (IsTimePaused())
             return;
@@ -183,6 +191,61 @@ public sealed class DayCycleController : MonoBehaviour
                 if (chosen == 0)
                     AdvanceDay();
             });
+    }
+
+    // ═══════════════════════════════════════════════════
+    //  남은 시간 표시 (장소 이름 아래)
+    // ═══════════════════════════════════════════════════
+
+    private void CreateTimerText()
+    {
+        TextMeshProUGUI roomText = SliderManager.Instance != null ? SliderManager.Instance.roomNameText : null;
+        if (roomText == null)
+            return;
+
+        GameObject go = new GameObject("일차 남은 시간", typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
+        go.transform.SetParent(roomText.transform, false);
+
+        timerText = go.GetComponent<TextMeshProUGUI>();
+        timerText.font = roomText.font;
+        timerText.fontSize = roomText.fontSize * 0.7f;
+        timerText.fontStyle = FontStyles.Normal;
+        timerText.color = roomText.color;
+        timerText.alignment = roomText.alignment;
+        timerText.raycastTarget = false;
+        timerText.textWrappingMode = TextWrappingModes.NoWrap;
+
+        lastShownSeconds = -1;
+        UpdateTimerText();
+    }
+
+    private void UpdateTimerText()
+    {
+        if (timerText == null)
+            return;
+
+        int seconds = Mathf.CeilToInt(RemainingSeconds);
+        if (seconds != lastShownSeconds)
+        {
+            lastShownSeconds = seconds;
+            timerText.text = $"{seconds / 60}:{seconds % 60:00}";
+        }
+
+        // 장소 이름 글자 바로 아래에 둡니다. (방 이름 길이가 바뀌어도 같은 줄 맞춤)
+        TMP_Text roomText = timerText.transform.parent != null
+            ? timerText.transform.parent.GetComponent<TMP_Text>()
+            : null;
+        if (roomText == null)
+            return;
+
+        RectTransform parentRect = roomText.rectTransform;
+        RectTransform rect = timerText.rectTransform;
+        rect.anchorMin = rect.anchorMax = parentRect.pivot;
+        rect.pivot = new Vector2(parentRect.pivot.x, 1f);
+        rect.sizeDelta = new Vector2(parentRect.rect.width, timerText.fontSize * 1.3f);
+
+        float textBottom = string.IsNullOrEmpty(roomText.text) ? 0f : roomText.textBounds.min.y;
+        rect.anchoredPosition = new Vector2(0f, textBottom - 2f);
     }
 
     // ═══════════════════════════════════════════════════
