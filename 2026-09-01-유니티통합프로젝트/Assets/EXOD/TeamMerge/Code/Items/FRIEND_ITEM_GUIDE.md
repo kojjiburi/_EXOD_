@@ -33,3 +33,14 @@ WorldItemPickup의 `Item Data`에 위에서 만든 에셋을 연결합니다.
 - `On Item Rejected`: 잘못된 아이템일 때 실행할 기능
 
 특수한 동작이 필요한 경우 친구는 문 열기, 식물 성장 같은 효과 컴포넌트만 작성하고 `On Item Accepted`에 연결합니다.
+
+## 4. 일차 끝 점검(제자리 정리) — 꼭 확인
+
+일차가 끝나면 `ItemPositionManager.CheckItemsOnDayEnd()`가 모든 아이템이 제자리인지 점검합니다.
+퀵슬롯에 들고 있는 아이템도 제자리가 아닌 것으로 셉니다. 틀리면 하트가 줄고 전부 초기화됩니다.
+
+- 기믹을 진행해서 얻는 아이템, 사용하면 사라지는 아이템은 **점검하지 않습니다.**
+  → `ItemPositionManager.cs`의 `AlwaysAllowedInInventoryItemIds`에 아이템 ID를 추가하세요.
+- 그 밖의 아이템은 맵에 `WorldItemPickup`으로 놓아 처음 자리가 등록되게 하세요.
+- 새 아이템을 만들 때는 이 아이템이 점검 예외인지 먼저 정하세요. (자세한 내용은 저장소 맨 위 `CLAUDE.md`)
+

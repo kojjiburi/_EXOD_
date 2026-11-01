@@ -6,13 +6,14 @@ using UnityEngine.UI;
 /// <summary>
 /// 일차 진행
 /// - 일차는 3분이 지나면 넘어갑니다. (대화·컷신·기절 연출 중에는 시간이 멈춤)
-/// - 침실 침대를 클릭하면 바로 다음 일차로 넘어갑니다.
+/// - 침실 침대를 클릭하면 "다음 일차로 넘어갈까?"를 묻고, [넘어간다]를 고르면 바로 다음 일차로 넘어갑니다.
 /// - 일차가 넘어가면 GManager.NextDay()가 호출되어 DAY 표시가 오르고,
 ///   ItemPositionManager가 제자리 검사(틀리면 하트 감소) 및 초기화를 합니다.
 /// - 황금 열쇠를 얻은 뒤 처음 맞는 일차 끝에 안내 대사를 한 번만 띄웁니다.
 ///   · 넘어가기 1분 전: "지금까지 얻은 모든 물건들을 제자리에 돌려놔야 할 것 같다." → "내가 나왔다는 증거가 남아있으면 안 된다."
 ///   · 넘어가기 30초 전: "내 방 열쇠 또한 제자리로 돌려놔야 할 것 같다."
-///   · 그 전에 침대를 클릭하면 남은 대사를 바로 보여 주고, 그때(처음 한 번)만 일차 넘김을 막습니다.
+///   · 그 전에 침대를 클릭하면 남은 대사만 바로 보여 주고 일차는 넘기지 않습니다. (처음 한 번)
+///     하트·아이템도 그대로이며, 그다음 침대 클릭부터는 평소처럼 넘어갈지 묻습니다.
 /// 실행할 때 SliderManager가 있는 씬에 자동으로 붙습니다.
 /// </summary>
 [DefaultExecutionOrder(215)]
@@ -38,6 +39,9 @@ public sealed class DayCycleController : MonoBehaviour
         "지금까지 얻은 모든 물건들을 제자리에 돌려놔야 할 것 같다.",
         "내가 나왔다는 증거가 남아있으면 안 된다.",
     };
+
+    private const string AskNextDayText = "다음 일차로 넘어갈까?";
+    private static readonly string[] AskNextDayChoices = { "넘어간다", "아직 아니다" };
 
     private static readonly string[] SecondWarningLines =
     {
@@ -163,7 +167,22 @@ public sealed class DayCycleController : MonoBehaviour
             return;
         }
 
-        AdvanceDay();
+        // 넘어가기 전에 한 번 묻습니다.
+        DialogueManager dialogue = DialogueManager.Instance;
+        if (dialogue == null)
+        {
+            AdvanceDay();
+            return;
+        }
+
+        dialogue.StartChoiceDialogue(
+            Stage1Dialogues.Thought(AskNextDayText),
+            AskNextDayChoices,
+            chosen =>
+            {
+                if (chosen == 0)
+                    AdvanceDay();
+            });
     }
 
     // ═══════════════════════════════════════════════════
