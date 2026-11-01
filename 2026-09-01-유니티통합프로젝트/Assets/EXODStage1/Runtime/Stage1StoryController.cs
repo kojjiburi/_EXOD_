@@ -174,27 +174,60 @@ public sealed class Stage1StoryController : MonoBehaviour
         if (roomName == "거실" && !hasVisitedLivingRoom)
         {
             hasVisitedLivingRoom = true;
-            PlayChoiceCutscene(
-                Stage1Dialogues.LivingRoomArrival(),
-                Stage1Dialogues.WaterChoices,
-                OnWaterChosen);
+            PlayLivingRoomArrival();
         }
     }
 
-    // 물을 마시면 기절해서 하트가 1개 줄고, 마시지 않으면 그냥 탐색을 이어갑니다.
-    private void OnWaterChosen(int choice)
+    // 거실 도착 → 테이블 위의 이상한 물약 선택지
+    private void PlayLivingRoomArrival()
+    {
+        PlayChoiceCutscene(
+            Stage1Dialogues.LivingRoomArrival(),
+            Stage1Dialogues.PotionChoices,
+            OnPotionChosen);
+    }
+
+    // 마시면 머릿속 연타 기믹, 마시지 않으면 목이 말라 기절(하트 -1)한 뒤 거실 도착 장면부터 다시 합니다.
+    private void OnPotionChosen(int choice)
     {
         if (choice != 0)
         {
-            PlayCutscene(Stage1Dialogues.WaterRefuse());
+            PlayCutscene(Stage1Dialogues.PotionRefuse(), () =>
+                Stage1Room.Faint(() =>
+                    PlayCutscene(Stage1Dialogues.PotionAfterThirstFaint(), PlayLivingRoomArrival)));
             return;
         }
 
-        PlayCutscene(Stage1Dialogues.WaterDrink(), () =>
+        PlayCutscene(Stage1Dialogues.PotionDrink(), StartPotionGimmick);
+    }
+
+    private void StartPotionGimmick()
+    {
+        StrangePotionGimmick.GetOrCreate().Begin(OnPotionGimmickFinished);
+    }
+
+    private void OnPotionGimmickFinished(bool isCleared)
+    {
+        if (isCleared)
         {
-            PlayerFaintController faint = PlayerFaintController.Instance;
-            if (faint != null)
-                faint.Faint(() => PlayCutscene(Stage1Dialogues.WaterAfterFaint()));
+            PlayCutscene(Stage1Dialogues.PotionSuccess());
+            return;
+        }
+
+        // 실패: "그냥 이렇게 살자" → 하트 -1 → (하트가 남아 있으면) 다시 도전
+        // 하트가 0이 되면 PlayerFaintController가 게임 오버를 띄웁니다.
+        PlayCutscene(Stage1Dialogues.PotionFail(), () =>
+        {
+            HeartManager hearts = FindFirstObjectByType<HeartManager>(FindObjectsInactive.Include);
+            if (hearts != null)
+            {
+                EXODSound.Play("hp_lost");
+                hearts.HPM();
+                if (hearts.HP <= 0)
+                    return;
+            }
+
+            PlayCutscene(Stage1Dialogues.PotionRetry(), StartPotionGimmick);
         });
     }
 
