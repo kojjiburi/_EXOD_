@@ -40,6 +40,12 @@ namespace EXOD.Walk
         /// </summary>
         public static System.Func<string, string, bool> ScreenOverride;
 
+        /// <summary>
+        /// [통합] 엔딩 직전 대사를 대신 보여 주는 쪽 (끝나면 받은 콜백을 부른다). true를 돌려주면 endingLines는 쓰지 않는다.
+        /// 통합 프로젝트에서는 Stage2HouseLink가 팀 컷신(Stage1Dialogues.EscapeCutscene)으로 연결한다.
+        /// </summary>
+        public static System.Func<System.Action, bool> CutsceneOverride;
+
         public static System.Action RestartAction;
         public static System.Action LobbyAction;
         const string LobbySceneName = "StartScenes";
@@ -49,6 +55,7 @@ namespace EXOD.Walk
         {
             instance = null;
             ScreenOverride = null;
+            CutsceneOverride = null;
             RestartAction = null;
             LobbyAction = null;
         }
@@ -121,7 +128,15 @@ namespace EXOD.Walk
             if (DayClock.Instance != null) DayClock.Instance.Paused = true;
             Debug.Log("[PhoneBooth] 탈출 엔딩 시작");
 
-            yield return WalkDialogue.ShowAndWait(lines);
+            bool cutsceneDone = false;
+            if (CutsceneOverride != null && CutsceneOverride(() => cutsceneDone = true))
+            {
+                while (!cutsceneDone) yield return null;
+            }
+            else
+            {
+                yield return WalkDialogue.ShowAndWait(lines);
+            }
             yield return WalkFade.FadeOut(1f);
 
             if (ScreenOverride != null && ScreenOverride(title, subtitle))

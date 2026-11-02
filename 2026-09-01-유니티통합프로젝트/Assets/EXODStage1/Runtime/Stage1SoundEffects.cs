@@ -17,6 +17,7 @@ public sealed class Stage1SoundEffects : MonoBehaviour
     private static readonly string[,] NarrationSounds =
     {
         { "똑", "knock" },
+        { "딩동", "doorbell" },
         { "꿀꺽", "gulp" },
         { "삐용", "alarm" },
         { "삐리릭", "doorlock_beep" },

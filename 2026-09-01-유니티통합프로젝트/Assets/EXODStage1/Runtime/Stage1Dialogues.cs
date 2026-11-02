@@ -470,6 +470,31 @@ public static class Stage1Dialogues
     public const string ProposalEndingSubtitle = "우리는 오래오래 행복하게 살았습니다. …아마도.";
 
     // ═══════════════════════════════════════════════════
+    //  탈출 엔딩 (전화 부스 신고 → 다음 날 아침 경찰 도착) — 사용자 확인 2026-11-02
+    //  이 대사 뒤 암전 → 여자친구 마지막 대사(대화창 위) → 엔딩 화면 (경찰차 불빛)
+    // ═══════════════════════════════════════════════════
+
+    public static List<DialogueLine> EscapeCutscene() => new List<DialogueLine>
+    {
+        Narrate("(딩동— 아침 일찍 초인종이 울렸다.)"),
+        Say(Girlfriend, "…이 시간에 누구지?"),
+        Say("경찰", "경찰입니다! 신고 받고 출동했습니다. 문 열어 주세요!"),
+        Say(Girlfriend, "경찰…?"),
+        Say(Girlfriend, "……"),
+        Say(Girlfriend, "…자기야. 너야? 네가 부른 거야?"),
+        Say(Player, "……"),
+        Narrate("(대답 대신 고개를 숙였다.)"),
+        Say(Girlfriend, "…그렇구나."),
+        Say(Girlfriend, "괜찮아. 화 안 났어. 진짜야."),
+        Narrate("(끼익— 문이 열리고, 경찰이 그녀의 손목에 수갑을 채웠다.)"),
+        Narrate("(끌려 나가던 그녀가 문 앞에서 멈춰 돌아봤다.)"),
+    };
+
+    public const string EscapeEndingLine = "금방 돌아올게. 기다려 줘, 자기야 ♡";
+    public const string EscapeEndingTitle = "탈출 엔딩 : 문 밖의 아침";
+    public const string EscapeEndingSubtitle = "드디어 그 집을 나왔다. …그런데 왜, 뒤를 돌아보게 되는 걸까.";
+
+    // ═══════════════════════════════════════════════════
     //  12. 침실 단서 (BedroomClueStory) — 서랍 비밀번호 724 = 기념일 7일 · 사진 속 2 · 사랑해의 '사'
     // ═══════════════════════════════════════════════════
 
