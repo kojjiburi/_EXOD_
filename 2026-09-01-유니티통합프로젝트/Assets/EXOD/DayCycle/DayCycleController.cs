@@ -176,6 +176,9 @@ public sealed class DayCycleController : MonoBehaviour
             return;
         }
 
+        // 점검·초기화 전에 제자리에 없는 물건을 적어 두고, 화면이 밝아지면 여자친구가 말해 줌 (DayEndReport 컷신)
+        DayEndReport.Prepare();
+
         dayManager.NextDay();
         Debug.Log($"[DayCycle] 다음 일차: DAY {dayManager.Day}", this);
     }
