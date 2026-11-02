@@ -197,6 +197,16 @@ public static class Stage1Dialogues
         Say(Bear, "꼭 은혜를 갚을게요!"),
     };
 
+    // [이지] 팔다리를 돌려준 그 자리에서 바로 보답 (BearReturn 뒤에 이어짐) — 이 대사 뒤 냉장고 비밀번호 쪽지가 퀵슬롯에 들어옴
+    public static List<DialogueLine> BearSameDayGift() => new List<DialogueLine>
+    {
+        Say(Bear, "아, 그리고 이거! 그녀가 몰래 숨겨 둔 쪽지예요."),
+        Say(Bear, "어딘가의 비밀번호 같아요."),
+        Say(Player, "오, 고마워."),
+        Narrate("쪽지를 펼쳐 보니 숫자가 적혀 있다. 「" + FridgePassword + "」"),
+        Think("…어디에 쓰는 번호지? 자물쇠 같은 데 쓰는 건가?"),
+    };
+
     // 다음 날 아침 컷신 끝에 이어짐 (DayEndReport) — 이 대사 뒤 냉장고 비밀번호 쪽지가 퀵슬롯에 들어옴
     public static List<DialogueLine> BearMorningGift() => new List<DialogueLine>
     {
@@ -498,7 +508,7 @@ public static class Stage1Dialogues
 
     public static List<DialogueLine> EscapeCutscene() => new List<DialogueLine>
     {
-        Narrate("(딩동— 아침 일찍 초인종이 울렸다.)"),
+        Narrate(GameDifficulty.IsEasy ? "(딩동— 초인종이 울렸다.)" : "(딩동— 아침 일찍 초인종이 울렸다.)"),
         Say(Girlfriend, "…이 시간에 누구지?"),
         Say("경찰", "경찰입니다! 신고 받고 출동했습니다. 문 열어 주세요!"),
         Say(Girlfriend, "경찰…?"),

@@ -276,6 +276,14 @@ public sealed class Stage2HouseLink : MonoBehaviour
             }
         }
 
+        // [이지] 신고에 성공했으면 다음 날을 기다리지 않고 바로 경찰 도착 → 탈출 엔딩
+        if (GameDifficulty.IsEasy && PhoneBoothProgress.Reported && !PhoneBoothProgress.EndingShown)
+        {
+            WalkSession.LastResult = WalkResult.None;
+            PhoneBoothEnding.TriggerNow();
+            yield break;
+        }
+
         string message = WalkGameManager.ResultLabel(result);
         WalkSession.LastResult = WalkResult.None;
         if (!string.IsNullOrEmpty(message))
@@ -423,6 +431,15 @@ public sealed class Stage2HouseLink : MonoBehaviour
         {
             if (item == null)
                 return false;
+
+            // [이지] 산책 길에는 종이 A만, 절연 테이프는 이미 감겨 있으므로 안 나옴 (GameDifficulty)
+            if (GameDifficulty.IsEasy)
+            {
+                if (item.ItemId.StartsWith("paper_") && item.ItemId != "paper_a")
+                    return true;
+                if (item.ItemId == "stage2_insulating_tape")
+                    return true;
+            }
 
             ItemPositionManager positions = ItemPositionManager.Instance;
             if (positions != null && positions.ArePapersRemovedPermanently && positions.IsPaperItem(item.ItemId))

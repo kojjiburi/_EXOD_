@@ -113,7 +113,14 @@ public sealed class Stage1MirrorBoothKey : MonoBehaviour
         MirrorMazeGimmick.RewardObtained += OnRewardObtained;
         opened = true;
         // 우리 부스 열쇠(아이콘 = 사용자 그림)를 그대로 주도록 넘겨 줌
-        MirrorMazeGimmick.Open(rewardItemAsset: boothKey);
+        MirrorMazeGimmick maze = MirrorMazeGimmick.Open(rewardItemAsset: boothKey);
+        // [이지] 미로 작게, 부딪힘 6번까지 (Start에서 미로를 만들기 전에 바꿈)
+        if (GameDifficulty.IsEasy && maze != null)
+        {
+            maze.mazeWidth = 7;
+            maze.mazeHeight = 5;
+            maze.maxBumps = 6;
+        }
     }
 
     private bool solvedCounted;

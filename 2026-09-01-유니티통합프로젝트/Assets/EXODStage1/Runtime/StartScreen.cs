@@ -79,6 +79,8 @@ public sealed class StartScreen : MonoBehaviour
             CloseSettings();
         if (endingsPanel != null && endingsPanel.activeSelf && Input.GetKeyDown(KeyCode.Escape))
             CloseEndings();
+        if (difficultyPanel != null && difficultyPanel.activeSelf && Input.GetKeyDown(KeyCode.Escape))
+            CloseDifficulty();
     }
 
     // ═══════════════════════════════════════════════════
@@ -90,8 +92,94 @@ public sealed class StartScreen : MonoBehaviour
         if (isStarting)
             return;
 
+        // 난이도부터 고름 (이지 / 하드)
+        difficultyPanel.SetActive(true);
+        menuGroup.interactable = false;
+    }
+
+    private void StartWithDifficulty(bool easy)
+    {
+        if (isStarting)
+            return;
+
+        GameDifficulty.IsEasy = easy;
+        difficultyPanel.SetActive(false);
         isStarting = true;
         StartCoroutine(StartGameRoutine());
+    }
+
+    private void CloseDifficulty()
+    {
+        difficultyPanel.SetActive(false);
+        menuGroup.interactable = true;
+    }
+
+    // ─── 난이도 고르기 창 ───────────────────────────────
+
+    private GameObject difficultyPanel;
+
+    private void BuildDifficultyPanel()
+    {
+        Image dim = CreateImage("난이도", canvasRoot, new Color(0f, 0f, 0f, 0.8f));
+        Stretch(dim.rectTransform);
+        dim.raycastTarget = true;
+        difficultyPanel = dim.gameObject;
+
+        Image window = CreateImage("난이도 창", dim.rectTransform, new Color(0.07f, 0.04f, 0.05f, 1f));
+        Place(window.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(1200f, 600f), Vector2.zero);
+        Outline outline = window.gameObject.AddComponent<Outline>();
+        outline.effectColor = new Color(0.45f, 0.06f, 0.1f, 1f);
+        outline.effectDistance = new Vector2(3f, -3f);
+
+        TextMeshProUGUI heading = CreateText("제목", window.rectTransform, "난이도 선택", 52f, TitleColor);
+        Place(heading.rectTransform, new Vector2(0.5f, 1f), new Vector2(800f, 90f), new Vector2(0f, -70f));
+
+        CreateDifficultyCard(window.rectTransform, new Vector2(-270f, -10f), "이지",
+            "처음 하는 사람용\n짧게 끝낼 수 있어요", new Color(0.55f, 0.85f, 0.65f, 1f), () => StartWithDifficulty(true));
+        CreateDifficultyCard(window.rectTransform, new Vector2(270f, -10f), "하드",
+            "원래 난이도\n모든 단서를 직접 찾아야 해요", new Color(0.88f, 0.12f, 0.18f, 1f), () => StartWithDifficulty(false));
+
+        Image close = CreateImage("닫기", window.rectTransform, Color.white);
+        Place(close.rectTransform, new Vector2(0.5f, 0f), new Vector2(200f, 64f), new Vector2(0f, 60f));
+        Button closeButton = close.gameObject.AddComponent<Button>();
+        ColorBlock colors = closeButton.colors;
+        colors.normalColor = new Color(0.20f, 0.14f, 0.14f, 1f);
+        colors.highlightedColor = new Color(0.45f, 0.16f, 0.20f, 1f);
+        colors.pressedColor = new Color(0.62f, 0.20f, 0.26f, 1f);
+        colors.selectedColor = colors.normalColor;
+        closeButton.colors = colors;
+        closeButton.onClick.AddListener(CloseDifficulty);
+        EXODSound.AttachUiSounds(close.gameObject);
+        TextMeshProUGUI closeText = CreateText("글자", close.rectTransform, "뒤로", 30f, Color.white);
+        Stretch(closeText.rectTransform);
+
+        difficultyPanel.SetActive(false);
+    }
+
+    private void CreateDifficultyCard(RectTransform parent, Vector2 position, string name, string desc, Color accent,
+        UnityEngine.Events.UnityAction onClick)
+    {
+        Image card = CreateImage(name, parent, new Color(0.13f, 0.08f, 0.10f, 1f));
+        Place(card.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(460f, 260f), position);
+        Outline outline = card.gameObject.AddComponent<Outline>();
+        outline.effectColor = accent;
+        outline.effectDistance = new Vector2(3f, -3f);
+
+        Button button = card.gameObject.AddComponent<Button>();
+        ColorBlock colors = button.colors;
+        colors.normalColor = Color.white;
+        colors.highlightedColor = new Color(1.6f, 1.3f, 1.4f, 1f);
+        colors.pressedColor = new Color(0.8f, 0.8f, 0.8f, 1f);
+        colors.selectedColor = colors.normalColor;
+        colors.colorMultiplier = 2f;
+        button.colors = colors;
+        button.onClick.AddListener(onClick);
+        EXODSound.AttachUiSounds(card.gameObject);
+
+        TextMeshProUGUI title = CreateText("이름", card.rectTransform, name, 64f, accent);
+        Place(title.rectTransform, new Vector2(0.5f, 1f), new Vector2(420f, 100f), new Vector2(0f, -70f));
+        TextMeshProUGUI description = CreateText("설명", card.rectTransform, desc, 28f, TextColor);
+        Place(description.rectTransform, new Vector2(0.5f, 0f), new Vector2(420f, 110f), new Vector2(0f, 75f));
     }
 
     private IEnumerator StartGameRoutine()
@@ -269,6 +357,7 @@ public sealed class StartScreen : MonoBehaviour
 
         BuildSettingsPanel();
         BuildEndingsPanel();
+        BuildDifficultyPanel();
 
         blackout = CreateImage("암전", canvasRoot, Color.black);
         Stretch(blackout.rectTransform);

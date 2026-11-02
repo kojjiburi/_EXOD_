@@ -118,6 +118,9 @@ public sealed class StrangePotionGimmick : MonoBehaviour
             return;
 
         this.onFinished = onFinished;
+        // [이지] 생각 8개 → 4개 (GameDifficulty)
+        if (GameDifficulty.IsEasy)
+            totalThoughts = Mathf.Min(totalThoughts, 4);
         BuildUi();
 
         thoughts.Clear();

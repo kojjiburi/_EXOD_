@@ -134,7 +134,12 @@ public sealed class FlashlightGimmick : MonoBehaviour
             isSelectingTarget = false;
 
             if (LightImageByPaperId.TryGetValue(itemId, out string imageName))
+            {
+                // [이지] 종이 A만 나오고, 비추면 A~E 그림을 합친 한 장을 한 번에 보여 줌 (GameDifficulty, 2026-11-03)
+                if (GameDifficulty.IsEasy && itemId == "paper_a")
+                    imageName = "ABCDElight";
                 ShowLightImage(imageName);
+            }
             else
                 Think(WrongTargetText);
 

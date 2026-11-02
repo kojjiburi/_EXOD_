@@ -199,10 +199,22 @@ internal sealed class BearLimbGimmickManager : MonoBehaviour
 
         // 대사: Stage1Dialogues.BearReturn
         List<DialogueLine> lines = Stage1Dialogues.BearReturn();
+
+        // [이지] 보답 쪽지를 다음 날이 아니라 그 자리에서 바로 줌 (GameDifficulty, 2026-11-03)
+        System.Action afterLines = null;
+        if (GameDifficulty.IsEasy && rewardPending)
+        {
+            lines.AddRange(Stage1Dialogues.BearSameDayGift());
+            afterLines = () => GiveRewardNote();
+        }
+
         if (Stage1StoryController.Instance != null)
-            Stage1StoryController.Instance.PlayCutscene(lines);
+            Stage1StoryController.Instance.PlayCutscene(lines, afterLines);
         else
+        {
             DialogueManager.Instance?.StartDialogue(lines);
+            afterLines?.Invoke();
+        }
     }
 
     /// <summary>보답 쪽지를 퀵슬롯에 넣습니다. 넣었으면 true (자리가 없으면 곰인형이 말하고 false).</summary>

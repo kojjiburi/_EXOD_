@@ -211,8 +211,9 @@ public sealed class Stage1HelpBar : MonoBehaviour
 
         if (!warningShown)
         {
-            string title = fold ? Title + "  <size=70%><color=#9A8F93>[Shift] 펼치기</color></size>"
-                                : Title + "  <size=70%><color=#9A8F93>[Shift] 접기</color></size>";
+            string mode = GameDifficulty.IsEasy ? " <size=70%><color=#8CD9A6>(이지)</color></size>" : "";
+            string title = fold ? Title + mode + "  <size=70%><color=#9A8F93>[Shift] 펼치기</color></size>"
+                                : Title + mode + "  <size=70%><color=#9A8F93>[Shift] 접기</color></size>";
             if (titleText.text != title)
                 titleText.text = title;
         }
