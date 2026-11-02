@@ -106,7 +106,8 @@ public static class Stage1Dialogues
     // ═══════════════════════════════════════════════════
     //  3. 거실 시작 → 테이블 위의 이상한 물약 (바로 마시고 연타 기믹)
     //     - 목이 말라 물약을 마시면 '탈출 하지 말까' 생각 지우기 연타 기믹 (StrangePotionGimmick)
-    //       실패: "그냥 이렇게 살자" → 하트 -1 → 다시 도전 / 성공: "내가 무슨 생각을! 얼른 탈출하자"
+    //       실패: 탈출을 포기하고 그녀 곁에 남음 → 순응 엔딩 : 따뜻한 감옥 (하트 감소 없음)
+    //       성공: "내가 무슨 생각을! 얼른 탈출하자"
     // ═══════════════════════════════════════════════════
 
     public static List<DialogueLine> LivingRoomArrival() => new List<DialogueLine>
@@ -129,16 +130,27 @@ public static class Stage1Dialogues
     // 연타 기믹 화면에 떠다니는 생각
     public const string PotionThought = "탈출 하지 말까";
 
-    // 기믹 실패: 이 대사 뒤에 하트 1개 감소 → 다시 도전
+    // 기믹 실패: 이 대사 뒤에 암전 → 순응 엔딩 (2026-11-02 사용자 확정)
     public static List<DialogueLine> PotionFail() => new List<DialogueLine>
     {
-        Say(Player, "그냥 이렇게 살자"),
+        Say(Player, "그냥 이렇게 살자…"),
+        Think("…앗."),
+        Think("근데… 생각해 보면, 나쁠 것도 없잖아?"),
+        Think("예쁘고, 날 이렇게까지 사랑해 주는 여자친구."),
+        Think("따뜻한 집, 꼬박꼬박 챙겨 주는 밥."),
+        Think("여기서 오순도순 사는 것도… 행복한 거 아닌가?"),
+        Narrate("철컥. 문이 열리고, 그녀가 들어왔다."),
+        Say(Girlfriend, "어머, 자기야. 표정이 왜 그렇게 편안해?"),
+        Say(Player, "…있잖아. 나, 그냥 여기서 너랑 살래."),
+        Say(Girlfriend, "…정말?"),
+        Say(Girlfriend, "잘 생각했어~ ♡"),
+        Say(Girlfriend, "이제 아무 데도 안 가는 거지? 여기서, 영원히, 나랑만."),
     };
 
-    public static List<DialogueLine> PotionRetry() => new List<DialogueLine>
-    {
-        Think("…아니, 정신 차려! 다시 떨쳐내자."),
-    };
+    // 순응 엔딩 화면 (암전 뒤 여자친구 마지막 대사 → 제목·설명)
+    public const string PotionEndingLine = "우린 이제 평생 함께야 ♡";
+    public const string PotionEndingTitle = "순응 엔딩 : 따뜻한 감옥";
+    public const string PotionEndingSubtitle = "탈출을 포기하고, 그녀의 곁에 남았다.";
 
     // 기믹 성공
     public static List<DialogueLine> PotionSuccess() => new List<DialogueLine>

@@ -38,6 +38,8 @@ public sealed class PlayerFaintController : MonoBehaviour
     private CanvasGroup gameOverLineGroup;
     private Image gameOverPortrait;
     private TextMeshProUGUI gameOverLineText;
+    private TextMeshProUGUI gameOverTitle;
+    private TextMeshProUGUI gameOverSubtitle;
     private bool isFainting;
     private bool isGameOver;
 
@@ -128,6 +130,31 @@ public sealed class PlayerFaintController : MonoBehaviour
 
     private void ShowGameOver()
     {
+        ShowEndScreen(Stage1Dialogues.GameOverLine, "GAME OVER", string.Empty);
+    }
+
+    /// <summary>
+    /// 엔딩 화면을 띄웁니다. (게임 오버와 같은 연출: 암전 → 여자친구 마지막 대사 → 제목·설명 + [다시하기]/[로비로 돌아가기])
+    /// 예: 거실 물약 기믹 실패 → 순응 엔딩
+    /// </summary>
+    public void ShowEnding(string girlfriendLine, string title, string subtitle)
+    {
+        if (isGameOver)
+            return;
+
+        ShowEndScreen(girlfriendLine, title, subtitle);
+    }
+
+    private void ShowEndScreen(string line, string title, string subtitle)
+    {
+        isFainting = false;
+        gameOverTitle.text = title;
+        bool hasSubtitle = !string.IsNullOrEmpty(subtitle);
+        gameOverTitle.fontSize = hasSubtitle ? 88f : 120f;
+        gameOverTitle.rectTransform.anchoredPosition = new Vector2(0f, hasSubtitle ? 150f : 110f);
+        gameOverSubtitle.text = subtitle ?? string.Empty;
+        gameOverSubtitle.gameObject.SetActive(hasSubtitle);
+
         isGameOver = true;
         StopAllCoroutines();
         CloseOtherUi();
@@ -136,14 +163,14 @@ public sealed class PlayerFaintController : MonoBehaviour
         faintText.gameObject.SetActive(false);
         SetAlpha(blackout, 1f);
         gameOverPanel.SetActive(false);
-        StartCoroutine(GameOverRoutine());
+        StartCoroutine(GameOverRoutine(line));
     }
 
     // 여자친구의 마지막 대사를 보여준 뒤 GAME OVER 창을 띄웁니다. (도중에 넘길 수 없음)
-    private IEnumerator GameOverRoutine()
+    private IEnumerator GameOverRoutine(string line)
     {
         gameOverLineRoot.SetActive(true);
-        gameOverLineText.text = Stage1Dialogues.GameOverLine;
+        gameOverLineText.text = line;
         gameOverLineText.maxVisibleCharacters = 0;
 
         EXODSound.StopAmbience(1f);
@@ -318,12 +345,21 @@ public sealed class PlayerFaintController : MonoBehaviour
         Stretch(gameOverPanel.GetComponent<RectTransform>());
         gameOverGroup = gameOverPanel.GetComponent<CanvasGroup>();
 
-        TextMeshProUGUI title = CreateText("게임 오버 제목", gameOverPanel.transform, "GAME OVER", 120f,
+        gameOverTitle = CreateText("게임 오버 제목", gameOverPanel.transform, "GAME OVER", 120f,
             new Color(0.72f, 0.08f, 0.12f, 1f));
-        RectTransform titleRect = title.rectTransform;
+        RectTransform titleRect = gameOverTitle.rectTransform;
         titleRect.anchorMin = titleRect.anchorMax = new Vector2(0.5f, 0.5f);
-        titleRect.sizeDelta = new Vector2(1200f, 180f);
+        titleRect.sizeDelta = new Vector2(1700f, 180f);
         titleRect.anchoredPosition = new Vector2(0f, 110f);
+
+        // 엔딩 설명 (게임 오버일 때는 숨김)
+        gameOverSubtitle = CreateText("엔딩 설명", gameOverPanel.transform, string.Empty, 40f,
+            new Color(0.85f, 0.82f, 0.84f, 1f));
+        RectTransform subtitleRect = gameOverSubtitle.rectTransform;
+        subtitleRect.anchorMin = subtitleRect.anchorMax = new Vector2(0.5f, 0.5f);
+        subtitleRect.sizeDelta = new Vector2(1600f, 70f);
+        subtitleRect.anchoredPosition = new Vector2(0f, 40f);
+        gameOverSubtitle.gameObject.SetActive(false);
 
         CreateButton("다시하기", new Vector2(-190f, -110f), Restart);
         CreateButton("로비로 돌아가기", new Vector2(190f, -110f), BackToLobby);
