@@ -17,6 +17,34 @@ public sealed class DialoguePortrait : MonoBehaviour
     private const string PortraitResourcePath = "EXODStage1/Girlfriend_Portrait";
     private const string BearTornResourcePath = "EXODStage1/Bear_Portrait_Torn";
     private const string BearResourcePath = "EXODStage1/Bear_Portrait";
+    private const string SweetResourcePath = "EXODStage1/Girlfriend_Portrait_Sweet";   // 볼 빨간 웃는 얼굴 (사용자 그림)
+
+    // ── 한 장면만 다른 그림·위치로 (방에 잘 있을 때 방문, 청혼 엔딩) ──
+    private static bool sweetRequested;      // 다음 대화부터 쓰도록 요청됨
+    private static bool sweetActive;         // 지금 대화에 쓰는 중
+    private static bool centerRequested;
+
+    /// <summary>
+    /// 다음 대화(한 번) 동안 여자친구 그림을 볼 빨간 웃는 얼굴로 바꿉니다. centered면 대화창 가운데 위에 둡니다.
+    /// 대화가 끝나면 원래대로 돌아갑니다. (Stage1Dialogues.VisitSafe / ProposalCutscene에서 부름)
+    /// </summary>
+    public static void UseSweetForNextDialogue(bool centered)
+    {
+        sweetRequested = true;
+        sweetActive = false;
+        centerRequested = centered;
+    }
+
+    /// <summary>볼 빨간 웃는 얼굴 그림 (청혼 엔딩 마지막 대사에서도 사용)</summary>
+    internal static Sprite LoadSweetPortrait() => LoadSprite(SweetResourcePath);
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetStatics()
+    {
+        sweetRequested = false;
+        sweetActive = false;
+        centerRequested = false;
+    }
 
     [Header("=== 배치 (Canvas 기준 크기) ===")]
     [SerializeField] private float girlfriendHeight = 780f;      // 여자친구 그림 전체 높이
@@ -38,6 +66,7 @@ public sealed class DialoguePortrait : MonoBehaviour
     private Sprite girlfriendSprite;
     private Sprite bearTornSprite;
     private Sprite bearSprite;
+    private Sprite sweetSprite;
 
     /// <summary>켜 두면 여자친구 대사여도 초상화를 띄우지 않습니다. (들켰을 때 컷신 — ScreenAberration이 켬)</summary>
     public static bool HideGirlfriend { get; set; }
@@ -54,11 +83,23 @@ public sealed class DialoguePortrait : MonoBehaviour
         girlfriendSprite = LoadPortrait();
         bearTornSprite = LoadSprite(BearTornResourcePath);
         bearSprite = LoadSprite(BearResourcePath);
+        sweetSprite = LoadSprite(SweetResourcePath);
 
         CreatePortrait(dm.DialoguePanelRect.parent);
 
         dm.LineShown += OnLineShown;
         dm.onDialogueEnd.AddListener(Hide);
+        dm.onDialogueEnd.AddListener(ClearSweetAfterDialogue);
+    }
+
+    // 요청한 장면의 대화가 끝나면 원래 그림·위치로
+    private static void ClearSweetAfterDialogue()
+    {
+        if (!sweetActive)
+            return;
+        sweetActive = false;
+        sweetRequested = false;
+        centerRequested = false;
     }
 
     private void OnDestroy()
@@ -69,6 +110,7 @@ public sealed class DialoguePortrait : MonoBehaviour
 
         dm.LineShown -= OnLineShown;
         dm.onDialogueEnd.RemoveListener(Hide);
+        dm.onDialogueEnd.RemoveListener(ClearSweetAfterDialogue);
     }
 
     private void LateUpdate()
@@ -83,6 +125,8 @@ public sealed class DialoguePortrait : MonoBehaviour
     private void OnLineShown(DialogueLine line)
     {
         string speaker = line.speakerName != null ? line.speakerName.Trim() : string.Empty;
+        if (sweetRequested)
+            sweetActive = true;
 
         bool isGirlfriend = speaker == Stage1Dialogues.Unknown || speaker == Stage1Dialogues.Girlfriend || speaker == "얀데레" || speaker == "여주";
         if (isGirlfriend && HideGirlfriend)
@@ -90,7 +134,7 @@ public sealed class DialoguePortrait : MonoBehaviour
         else if (speaker == Stage1Dialogues.Unknown)
             Show(girlfriendSprite, silhouetteColor, girlfriendHeight, girlfriendHiddenBelow);
         else if (speaker == Stage1Dialogues.Girlfriend || speaker == "얀데레" || speaker == "여주")
-            Show(girlfriendSprite, Color.white, girlfriendHeight, girlfriendHiddenBelow);
+            Show(sweetActive && sweetSprite != null ? sweetSprite : girlfriendSprite, Color.white, girlfriendHeight, girlfriendHiddenBelow);
         else if (speaker == Stage1Dialogues.BearUnknown)
             Show(bearTornSprite, Color.white, bearHeight, bearHiddenBelow);
         else if (speaker == Stage1Dialogues.Bear)
@@ -189,8 +233,17 @@ public sealed class DialoguePortrait : MonoBehaviour
             (0.5f - parent.pivot.x) * parent.rect.width,
             (0.5f - parent.pivot.y) * parent.rect.height);
 
-        portrait.rectTransform.anchoredPosition =
-            topLeft - parentPivotOffset + new Vector2(leftInset, -hiddenBelow);
+        Vector2 position = topLeft - parentPivotOffset + new Vector2(leftInset, -hiddenBelow);
+
+        // 방에 찾아왔을 때: 대화창 가운데 위
+        if (sweetActive && centerRequested)
+        {
+            Vector2 topRight = parent.InverseTransformPoint(corners[2]);
+            float centerX = (topLeft.x + topRight.x) * 0.5f - parentPivotOffset.x;
+            position.x = centerX - portrait.rectTransform.sizeDelta.x * 0.5f;
+        }
+
+        portrait.rectTransform.anchoredPosition = position;
     }
 
     private void CreatePortrait(Transform parent)
