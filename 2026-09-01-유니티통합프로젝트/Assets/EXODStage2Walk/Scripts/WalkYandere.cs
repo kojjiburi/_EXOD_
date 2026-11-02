@@ -29,6 +29,8 @@ namespace EXOD.Walk
         [SerializeField] Vector2 watchingDuration = new Vector2(1f, 2.5f);
         [Tooltip("산책 시작 직후 최소 이 시간 동안은 뒤돌아보지 않음")]
         [SerializeField] float firstTurnMinDelay = 2f;
+        [Tooltip("뒤돌아봤다가 다시 앞을 본 뒤, 앞을 보는 시간에 더해지는 쿨타임 (최소~최대 무작위)")]
+        [SerializeField] Vector2 turnCooldown = new Vector2(1f, 2f);
 
         [Header("같이 걷기")]
         [Tooltip("비워 두면 같이 걷지 않음")]
@@ -142,7 +144,8 @@ namespace EXOD.Walk
             else
             {
                 SetState(YandereState.Away);
-                timer = RandomIn(awayDuration);
+                // 쿨타임: 방금 뒤돌아봤으면 1~2초 동안은 다시 안 돌아봄 (그 뒤에 원래 앞을 보는 시간)
+                timer = RandomIn(turnCooldown) + RandomIn(awayDuration);
                 PickTurnWarningLead();
                 onStopWatching.Invoke();
             }
