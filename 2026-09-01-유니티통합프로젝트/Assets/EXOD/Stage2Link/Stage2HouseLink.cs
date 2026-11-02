@@ -79,12 +79,24 @@ public sealed class Stage2HouseLink : MonoBehaviour
         // 전화 부스 탈출 엔딩의 [다시 시작]/[로비로]도 팀 게임 오버 화면과 같은 동작 (퀵슬롯·진행 상황 초기화)
         PhoneBoothEnding.RestartAction = () => PlayerFaintController.Instance?.Restart();
         PhoneBoothEnding.LobbyAction = () => PlayerFaintController.Instance?.BackToLobby();
-        // 탈출 엔딩 화면도 다른 엔딩과 같은 화려한 화면으로 (경찰차 불빛 분위기)
+        // 탈출 엔딩: 경찰 도착 장면은 팀 대화창 컷신으로 (여자친구 초상화·효과음)
+        PhoneBoothEnding.CutsceneOverride = onDone =>
+        {
+            if (DialogueManager.Instance == null)
+                return false;
+            Stage1Room.PlayCutscene(Stage1Dialogues.EscapeCutscene(), onDone);
+            return true;
+        };
+        // 탈출 엔딩 화면도 다른 엔딩과 같은 화려한 화면으로 (여자친구 마지막 대사 → 경찰차 불빛)
         PhoneBoothEnding.ScreenOverride = (title, subtitle) =>
         {
             if (PlayerFaintController.Instance == null)
                 return false;
-            PlayerFaintController.Instance.ShowEnding(null, title, subtitle, EndingStyle.Escape);
+            PlayerFaintController.Instance.ShowEnding(
+                Stage1Dialogues.EscapeEndingLine,
+                Stage1Dialogues.EscapeEndingTitle,
+                Stage1Dialogues.EscapeEndingSubtitle,
+                EndingStyle.Escape);
             return true;
         };
     }
