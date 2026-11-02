@@ -19,7 +19,7 @@ using UnityEngine.SceneManagement;
 ///  - 1일차에는 오르지 않음 (대신 튜토리얼)
 ///
 /// [여자친구 등장]
-///  - 65 이상: 구두 발소리 (10초마다 다시 들림). 발소리가 들릴 때 침실에 들어가면 바로 등장 (방 안이라 안전)
+///  - 65 이상: 구두 발소리 (2.5초마다 다시 들림). 발소리가 들릴 때 침실에 들어가면 바로 등장 (방 안이라 안전)
 ///  - 76 이상: 위험도가 오를 때마다 5초 간격으로 10% 확률 판정
 ///  - 100: 바로 등장 (위 확률 판정과 같이 돌아감)
 ///  - 등장했을 때 침실에 없으면 걸림 → 하트 -1 → 침실로 끌려가 방문이 다시 잠기고 황금 열쇠는 서랍 안으로
@@ -56,7 +56,7 @@ public sealed class DangerLevel : MonoBehaviour
     private const int EmptyClickBurstCount = 5;
     private const float EmptyClickBurstSeconds = 2f;
     private const int FootstepThreshold = 65;   // 발소리, 이때 침실에 들어가면 등장
-    private const float FootstepRepeatSeconds = 10f;
+    private const float FootstepRepeatSeconds = 2.5f;
     private const int HighThreshold = 76;       // 확률 판정 시작
     private const float RollCooldown = 5f;
     private const float RollChance = 0.1f;
@@ -218,7 +218,7 @@ public sealed class DangerLevel : MonoBehaviour
 
         CheckEmptyClick();
 
-        // 발소리가 들리는 동안 10초마다 다시
+        // 발소리가 들리는 동안 2.5초마다 다시
         if (value >= FootstepThreshold && Time.time >= nextFootstepTime)
             PlayFootsteps();
 
