@@ -73,13 +73,21 @@ public sealed class GameMenu : MonoBehaviour
         if (buttonGroup == null)
             return;
 
-        // 버튼은 상단 UI를 Tab으로 숨겼을 때·메뉴가 열려 있을 때·일차 넘김 페이드 중에는 숨깁니다.
-        bool showButton = !HudToggle.IsStatusHidden && !IsOpen && !DayController.IsTransitioning;
+        // 버튼은 상단 UI를 Tab으로 숨겼을 때·메뉴가 열려 있을 때·일차 넘김 페이드 중·엔딩(게임 오버·기절 포함) 화면에서는 숨깁니다.
+        bool showButton = !HudToggle.IsStatusHidden && !IsOpen && !DayController.IsTransitioning && !IsEndingShown();
         buttonGroup.alpha = showButton ? 1f : 0f;
         buttonGroup.blocksRaycasts = showButton;
 
         if (IsOpen && Input.GetKeyDown(KeyCode.Escape))
             Close();
+    }
+
+    // 엔딩·게임 오버 화면에는 자체 [다시 시작]/[로비로]/[게임 종료] 버튼이 있어서 위쪽 [종료] 버튼은 숨깁니다.
+    private static bool IsEndingShown()
+    {
+        if (PlayerFaintController.Instance != null && PlayerFaintController.Instance.IsBusy)
+            return true;
+        return EXOD.Walk.PhoneBoothEnding.IsShowing;
     }
 
     // ═══════════════════════════════════════════════════

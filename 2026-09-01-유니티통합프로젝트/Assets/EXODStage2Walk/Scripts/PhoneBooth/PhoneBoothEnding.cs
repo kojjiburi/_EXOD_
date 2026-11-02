@@ -31,6 +31,15 @@ namespace EXOD.Walk
         /// [통합] 엔딩 화면 버튼 동작. 비워 두면 기본 동작(지금 씬 다시 불러오기 / 시작 화면)을 쓴다.
         /// 통합 프로젝트에서는 Stage2HouseLink가 팀 게임 오버 화면과 같은 동작(진행 상황 초기화 포함)으로 연결한다.
         /// </summary>
+        /// <summary>탈출 엔딩 연출·화면이 나오는 중인지 (팀 [종료] 버튼 숨김용)</summary>
+        public static bool IsShowing => instance != null && instance.playing;
+
+        /// <summary>
+        /// [통합] 엔딩 화면을 대신 띄우는 쪽 (제목, 설명). true를 돌려주면 이 스크립트의 기본 화면은 만들지 않는다.
+        /// 통합 프로젝트에서는 Stage2HouseLink가 팀 공용 엔딩 화면(EndingScreen)으로 연결한다.
+        /// </summary>
+        public static System.Func<string, string, bool> ScreenOverride;
+
         public static System.Action RestartAction;
         public static System.Action LobbyAction;
         const string LobbySceneName = "StartScenes";
@@ -39,6 +48,7 @@ namespace EXOD.Walk
         static void ResetStatics()
         {
             instance = null;
+            ScreenOverride = null;
             RestartAction = null;
             LobbyAction = null;
         }
@@ -114,7 +124,16 @@ namespace EXOD.Walk
             yield return WalkDialogue.ShowAndWait(lines);
             yield return WalkFade.FadeOut(1f);
 
-            ShowEndingScreen();
+            if (ScreenOverride != null && ScreenOverride(title, subtitle))
+            {
+                // 팀 엔딩 화면이 대신 나옴 → 산책용 암전은 걷어 낸다
+                yield return WalkFade.FadeIn(0.05f);
+                playing = false;
+            }
+            else
+            {
+                ShowEndingScreen();
+            }
             PhoneBoothProgress.RaiseEnding();
 
             if (!string.IsNullOrEmpty(sceneName))

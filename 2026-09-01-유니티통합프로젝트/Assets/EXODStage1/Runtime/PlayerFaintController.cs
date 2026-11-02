@@ -32,14 +32,17 @@ public sealed class PlayerFaintController : MonoBehaviour
     private GameObject overlayRoot;
     private Image blackout;
     private TextMeshProUGUI faintText;
-    private GameObject gameOverPanel;
-    private CanvasGroup gameOverGroup;
+    private EndingScreen endingScreen;
     private GameObject gameOverLineRoot;
     private CanvasGroup gameOverLineGroup;
     private Image gameOverPortrait;
     private TextMeshProUGUI gameOverLineText;
-    private TextMeshProUGUI gameOverTitle;
-    private TextMeshProUGUI gameOverSubtitle;
+    private TextMeshProUGUI gameOverNameText;
+    private Image gameOverLineBox;
+    private Image gameOverNameBox;
+    private string pendingTitle;
+    private string pendingSubtitle;
+    private EndingStyle pendingStyle;
     private bool isFainting;
     private bool isGameOver;
 
@@ -94,7 +97,7 @@ public sealed class PlayerFaintController : MonoBehaviour
         CloseOtherUi();
 
         overlayRoot.SetActive(true);
-        gameOverPanel.SetActive(false);
+        endingScreen.Hide();
         faintText.gameObject.SetActive(true);
         faintText.text = Stage1Dialogues.FaintText;
         SetAlpha(faintText, 0f);
@@ -130,30 +133,28 @@ public sealed class PlayerFaintController : MonoBehaviour
 
     private void ShowGameOver()
     {
-        ShowEndScreen(Stage1Dialogues.GameOverLine, "GAME OVER", string.Empty);
+        ShowEndScreen(Stage1Dialogues.GameOverLine, "GAME OVER", string.Empty, EndingStyle.GameOver);
     }
 
     /// <summary>
     /// 엔딩 화면을 띄웁니다. (게임 오버와 같은 연출: 암전 → 여자친구 마지막 대사 → 제목·설명 + [다시 시작]/[로비로]/[게임 종료])
     /// 예: 거실 물약 기믹 실패 → 순응 엔딩
     /// </summary>
-    public void ShowEnding(string girlfriendLine, string title, string subtitle)
+    /// girlfriendLine이 비어 있으면 대사 없이 바로 엔딩 화면이 나옵니다. (전화 부스 탈출 엔딩)
+    public void ShowEnding(string girlfriendLine, string title, string subtitle, EndingStyle style = EndingStyle.Submission)
     {
         if (isGameOver)
             return;
 
-        ShowEndScreen(girlfriendLine, title, subtitle);
+        ShowEndScreen(girlfriendLine, title, subtitle, style);
     }
 
-    private void ShowEndScreen(string line, string title, string subtitle)
+    private void ShowEndScreen(string line, string title, string subtitle, EndingStyle style)
     {
         isFainting = false;
-        gameOverTitle.text = title;
-        bool hasSubtitle = !string.IsNullOrEmpty(subtitle);
-        gameOverTitle.fontSize = hasSubtitle ? 88f : 120f;
-        gameOverTitle.rectTransform.anchoredPosition = new Vector2(0f, hasSubtitle ? 150f : 110f);
-        gameOverSubtitle.text = subtitle ?? string.Empty;
-        gameOverSubtitle.gameObject.SetActive(hasSubtitle);
+        pendingTitle = title;
+        pendingSubtitle = subtitle;
+        pendingStyle = style;
 
         isGameOver = true;
         StopAllCoroutines();
@@ -162,14 +163,22 @@ public sealed class PlayerFaintController : MonoBehaviour
         overlayRoot.SetActive(true);
         faintText.gameObject.SetActive(false);
         SetAlpha(blackout, 1f);
-        gameOverPanel.SetActive(false);
+        endingScreen.Hide();
         StartCoroutine(GameOverRoutine(line));
     }
 
     // 여자친구의 마지막 대사를 보여준 뒤 GAME OVER 창을 띄웁니다. (도중에 넘길 수 없음)
     private IEnumerator GameOverRoutine(string line)
     {
+        EXODSound.StopAmbience(1f);
+        if (string.IsNullOrEmpty(line))
+        {
+            endingScreen.Show(pendingTitle, pendingSubtitle, pendingStyle);
+            yield break;
+        }
+
         gameOverLineRoot.SetActive(true);
+        MatchTeamDialogueBox();
         gameOverLineText.text = line;
         gameOverLineText.maxVisibleCharacters = 0;
 
@@ -212,9 +221,7 @@ public sealed class PlayerFaintController : MonoBehaviour
             portraitRect.anchoredPosition = portraitEnd;
 
         EXODSound.StopHeartbeat(0.3f);
-        EXODSound.Play("gameover_boom");
-        gameOverPanel.SetActive(true);
-        yield return FadeGroup(gameOverGroup, 0f, 1f, 0.6f);
+        endingScreen.Show(pendingTitle, pendingSubtitle, pendingStyle);
     }
 
     public void Restart()
@@ -331,75 +338,37 @@ public sealed class PlayerFaintController : MonoBehaviour
         shadeRect.sizeDelta = new Vector2(0f, 420f);
         shadeRect.anchoredPosition = Vector2.zero;
 
-        TextMeshProUGUI name = CreateText("이름", gameOverLineRoot.transform, Stage1Dialogues.Girlfriend, 40f,
-            new Color(0.86f, 0.30f, 0.40f, 1f));
-        RectTransform nameRect = name.rectTransform;
-        nameRect.anchorMin = nameRect.anchorMax = new Vector2(0.5f, 0f);
-        nameRect.sizeDelta = new Vector2(1200f, 60f);
-        nameRect.anchoredPosition = new Vector2(0f, 210f);
+        // 게임 대화창과 같은 상자 (그림·위치는 띄울 때 MatchTeamDialogueBox가 실제 대화창에 맞춤)
+        gameOverLineBox = CreateImage("대화창", gameOverLineRoot.transform, new Color(0.95f, 0.93f, 0.92f, 1f));
+        gameOverLineBox.raycastTarget = false;
+        RectTransform boxRect = gameOverLineBox.rectTransform;
+        boxRect.anchorMin = boxRect.anchorMax = new Vector2(0.5f, 0f);
+        boxRect.sizeDelta = new Vector2(1500f, 240f);
+        boxRect.anchoredPosition = new Vector2(0f, 150f);
 
-        gameOverLineText = CreateText("대사", gameOverLineRoot.transform, Stage1Dialogues.GameOverLine, 60f,
-            new Color(0.92f, 0.88f, 0.90f, 1f));
-        RectTransform lineRect = gameOverLineText.rectTransform;
-        lineRect.anchorMin = lineRect.anchorMax = new Vector2(0.5f, 0f);
-        lineRect.sizeDelta = new Vector2(1600f, 100f);
-        lineRect.anchoredPosition = new Vector2(0f, 120f);
+        gameOverNameBox = CreateImage("이름표", gameOverLineRoot.transform, new Color(0.95f, 0.93f, 0.92f, 1f));
+        gameOverNameBox.raycastTarget = false;
+        RectTransform nameBoxRect = gameOverNameBox.rectTransform;
+        nameBoxRect.anchorMin = nameBoxRect.anchorMax = new Vector2(0.5f, 0f);
+        nameBoxRect.sizeDelta = new Vector2(260f, 72f);
+        nameBoxRect.anchoredPosition = new Vector2(-600f, 290f);
+
+        gameOverNameText = CreateText("이름", gameOverNameBox.transform, Stage1Dialogues.Girlfriend, 38f,
+            new Color(1f, 0f, 0f, 1f));
+        Stretch(gameOverNameText.rectTransform);
+
+        gameOverLineText = CreateText("대사", gameOverLineBox.transform, Stage1Dialogues.GameOverLine, 52f,
+            new Color(0.47f, 0.18f, 0.18f, 1f));
+        Stretch(gameOverLineText.rectTransform);
+        gameOverLineText.margin = new Vector4(70f, 30f, 70f, 30f);
 
         gameOverLineRoot.SetActive(false);
     }
 
     private void BuildGameOverPanel()
     {
-        gameOverPanel = new GameObject("게임 오버", typeof(RectTransform), typeof(CanvasGroup));
-        gameOverPanel.transform.SetParent(overlayRoot.transform, false);
-        Stretch(gameOverPanel.GetComponent<RectTransform>());
-        gameOverGroup = gameOverPanel.GetComponent<CanvasGroup>();
-
-        gameOverTitle = CreateText("게임 오버 제목", gameOverPanel.transform, "GAME OVER", 120f,
-            new Color(0.72f, 0.08f, 0.12f, 1f));
-        RectTransform titleRect = gameOverTitle.rectTransform;
-        titleRect.anchorMin = titleRect.anchorMax = new Vector2(0.5f, 0.5f);
-        titleRect.sizeDelta = new Vector2(1700f, 180f);
-        titleRect.anchoredPosition = new Vector2(0f, 110f);
-
-        // 엔딩 설명 (게임 오버일 때는 숨김)
-        gameOverSubtitle = CreateText("엔딩 설명", gameOverPanel.transform, string.Empty, 40f,
-            new Color(0.85f, 0.82f, 0.84f, 1f));
-        RectTransform subtitleRect = gameOverSubtitle.rectTransform;
-        subtitleRect.anchorMin = subtitleRect.anchorMax = new Vector2(0.5f, 0.5f);
-        subtitleRect.sizeDelta = new Vector2(1600f, 70f);
-        subtitleRect.anchoredPosition = new Vector2(0f, 40f);
-        gameOverSubtitle.gameObject.SetActive(false);
-
-        // 모든 엔딩·게임 오버 화면 공통 버튼 (전화 부스 탈출 엔딩도 같은 세 버튼)
-        CreateButton("다시 시작", new Vector2(-380f, -110f), Restart);
-        CreateButton("로비로", new Vector2(0f, -110f), BackToLobby);
-        CreateButton("게임 종료", new Vector2(380f, -110f), QuitGame);
-
-        gameOverPanel.SetActive(false);
-    }
-
-    private void CreateButton(string label, Vector2 position, UnityEngine.Events.UnityAction onClick)
-    {
-        Image image = CreateImage(label, gameOverPanel.transform, Color.white);
-        RectTransform rect = image.rectTransform;
-        rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
-        rect.sizeDelta = new Vector2(340f, 84f);
-        rect.anchoredPosition = position;
-
-        Button button = image.gameObject.AddComponent<Button>();
-        ColorBlock colors = button.colors;
-        colors.normalColor = new Color(0.20f, 0.14f, 0.14f, 1f);
-        colors.highlightedColor = new Color(0.45f, 0.16f, 0.20f, 1f);
-        colors.pressedColor = new Color(0.62f, 0.20f, 0.26f, 1f);
-        colors.selectedColor = colors.normalColor;
-        button.colors = colors;
-        button.onClick.AddListener(onClick);
-        EXODSound.AttachUiSounds(image.gameObject);
-
-        TextMeshProUGUI text = CreateText("글자", image.transform, label, 34f, Color.white);
-        Stretch(text.rectTransform);
-        text.raycastTarget = false;
+        // 화려한 엔딩 화면 (EndingScreen.cs): 제목·설명·[다시 시작]/[로비로]/[게임 종료]
+        endingScreen = EndingScreen.Create(overlayRoot.transform, Restart, BackToLobby, QuitGame);
     }
 
     private static Image CreateImage(string name, Transform parent, Color color)
@@ -409,6 +378,61 @@ public sealed class PlayerFaintController : MonoBehaviour
         Image image = go.GetComponent<Image>();
         image.color = color;
         return image;
+    }
+
+    // 실제 게임 대화창(DialogueManager)의 그림·위치·글자색을 그대로 가져옵니다. 없으면 기본 모양을 씁니다.
+    private void MatchTeamDialogueBox()
+    {
+        DialogueManager dialogue = DialogueManager.Instance;
+        if (dialogue == null)
+            return;
+
+        CopyBox(dialogue.DialoguePanelRect, gameOverLineBox);
+        CopyBox(dialogue.NamePanelRect, gameOverNameBox);
+
+        System.Reflection.BindingFlags flags = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;
+        TextMeshProUGUI teamLine = typeof(DialogueManager).GetField("dialogueText", flags)?.GetValue(dialogue) as TextMeshProUGUI;
+        TextMeshProUGUI teamName = typeof(DialogueManager).GetField("nameText", flags)?.GetValue(dialogue) as TextMeshProUGUI;
+        if (teamLine != null)
+        {
+            gameOverLineText.color = teamLine.color;
+            gameOverLineText.font = teamLine.font;
+        }
+        if (teamName != null)
+        {
+            gameOverNameText.color = teamName.color;
+            gameOverNameText.font = teamName.font;
+        }
+    }
+
+    private static void CopyBox(RectTransform source, Image target)
+    {
+        if (source == null || target == null)
+            return;
+
+        Image sourceImage = source.GetComponent<Image>();
+        if (sourceImage != null && sourceImage.sprite != null)
+        {
+            target.sprite = sourceImage.sprite;
+            target.type = sourceImage.type;
+            target.color = new Color(sourceImage.color.r, sourceImage.color.g, sourceImage.color.b, 1f);
+            target.preserveAspect = sourceImage.preserveAspect;
+        }
+
+        // 같은 화면 자리에 놓기 (두 캔버스 모두 화면 덮개 방식)
+        Vector3[] corners = new Vector3[4];
+        source.GetWorldCorners(corners);
+        RectTransform parent = (RectTransform)target.rectTransform.parent;
+        RectTransformUtility.ScreenPointToLocalPointInRectangle(parent, corners[0], null, out Vector2 min);
+        RectTransformUtility.ScreenPointToLocalPointInRectangle(parent, corners[2], null, out Vector2 max);
+        if ((max - min).sqrMagnitude < 1f)
+            return;
+
+        RectTransform rect = target.rectTransform;
+        rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
+        rect.pivot = new Vector2(0.5f, 0.5f);
+        rect.anchoredPosition = (min + max) * 0.5f - parent.rect.center;
+        rect.sizeDelta = max - min;
     }
 
     private static TextMeshProUGUI CreateText(string name, Transform parent, string value, float size, Color color)
