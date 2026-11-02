@@ -180,14 +180,29 @@ public static class Stage1Dialogues
         Say(Player, "됐다, 다 모았어! 얼른 곰인형한테 가져다주자."),
     };
 
+    // 팔다리를 다 돌려줬을 때 (보답은 다음 날 아침 컷신에서 — 2026-11-02 사용자 결정)
     public static List<DialogueLine> BearReturn() => new List<DialogueLine>
     {
         Say(Player, "자, 여기! 네 팔다리."),
-        Say(Bear, "와아… 정말 다 찾아줬구나! 이 은혜를 어떻게 갚지?"),
-        Say(Bear, "(주머니를 뒤적뒤적) …이거 받아! 그녀가 흘리고 간 쪽지야."),
-        Say(Player, "오, 아싸~!"),
+        Say(Bear, "와아… 정말 다 찾아주셨네요!"),
+        Say(Bear, "꼭 은혜를 갚을게요!"),
+    };
+
+    // 다음 날 아침 컷신 끝에 이어짐 (DayEndReport) — 이 대사 뒤 냉장고 비밀번호 쪽지가 퀵슬롯에 들어옴
+    public static List<DialogueLine> BearMorningGift() => new List<DialogueLine>
+    {
+        Narrate("…그녀가 나가자, 침대 밑에서 무언가 꼼지락거렸다."),
+        Say(Bear, "저기요! 밤새 집 안을 뒤졌는데… 제가 이걸 찾았어요!"),
+        Say(Bear, "그녀가 몰래 숨겨 둔 쪽지예요. 어딘가의 비밀번호 같아요."),
+        Say(Player, "오, 고마워."),
         Narrate("쪽지를 펼쳐 보니 숫자가 적혀 있다. 「" + FridgePassword + "」"),
         Think("…어디에 쓰는 번호지? 자물쇠 같은 데 쓰는 건가?"),
+    };
+
+    // 보답을 받기 전에 거실 곰인형을 다시 눌렀을 때
+    public static List<DialogueLine> BearRewardWaiting() => new List<DialogueLine>
+    {
+        Say(Bear, "꼭 은혜를 갚을게요!"),
     };
 
     // ═══════════════════════════════════════════════════
@@ -367,5 +382,35 @@ public static class Stage1Dialogues
         Narrate("아침이 밝았다."),
         Say(Girlfriend, "좋은 아침, 자기야~ 오늘도 얌전히 있었네? ♡"),
         Think("오늘은 무사히 넘긴 것 같다."),
+    };
+
+    // ═══════════════════════════════════════════════════
+    //  10. 화장실 손거울 → 거울 미로 → 전화 부스 열쇠 (Stage1MirrorBoothKey) — 2026-11-02
+    // ═══════════════════════════════════════════════════
+
+    public const string BoothKeyItemId = "stage2_booth_key";
+    public const string BoothKeyItemName = "부스 열쇠";
+
+    // 미로 출구에 도착했을 때 (이 대사 뒤 부스 열쇠가 퀵슬롯에 들어옴)
+    public static List<DialogueLine> MirrorKeyFound() => new List<DialogueLine>
+    {
+        Narrate("미로 끝에 다다르자, 손거울이 덜컥 흔들렸다."),
+        Narrate("거울 뒷면에 작은 열쇠가 테이프로 붙어 있다…"),
+        Narrate("열쇠고리에 'TELEPHONE'이라고 적혀 있다."),
+        Think("전화…? 밖에 있는 빨간 전화 부스 열쇠인가?"),
+        Narrate("[부스 열쇠]를 얻었다."),
+    };
+
+    // 벽에 너무 많이 부딪혀 닫혔을 때
+    public static List<DialogueLine> MirrorFailed() => new List<DialogueLine>
+    {
+        Think("…눈이 핑 돈다. 거울 속 미로가 자꾸 뒤틀려 보여."),
+        Think("조금 쉬었다가 다시 해 보자."),
+    };
+
+    // 이미 열쇠를 얻은 뒤 다시 눌렀을 때
+    public static List<DialogueLine> MirrorEmpty() => new List<DialogueLine>
+    {
+        Think("거울 뒷면엔 테이프 자국만 남아 있다."),
     };
 }

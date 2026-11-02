@@ -58,6 +58,7 @@ internal sealed class BearLimbGimmickManager : MonoBehaviour
     private Sprite givingBearSprite;
     private ItemData rewardItem;
     private bool completed;
+    private bool rewardPending;
 
     internal bool IsCompleted => completed;
     internal int CollectedCount => collected.Count;
@@ -128,11 +129,24 @@ internal sealed class BearLimbGimmickManager : MonoBehaviour
         RefreshVisibility();
     }
 
+    /// <summary>팔다리는 다 돌려줬지만 보답 쪽지는 아직 못 받음 (다음 날 아침 컷신에서 받음)</summary>
+    internal bool IsRewardPending => completed && rewardPending;
+
     public void ReturnLimbs()
     {
         if (completed)
         {
-            Say(Stage1Dialogues.Bear, "정말 고마워!");
+            // 아침 컷신 때 퀵슬롯이 꽉 차서 못 받았으면 여기서 받기
+            if (rewardPending && DayEndReport.BearGiftDelivered)
+            {
+                GiveRewardNote();
+                return;
+            }
+
+            if (rewardPending)
+                DialogueManager.Instance?.StartDialogue(Stage1Dialogues.BearRewardWaiting());
+            else
+                Say(Stage1Dialogues.Bear, "정말 고마워!");
             return;
         }
 
@@ -153,30 +167,40 @@ internal sealed class BearLimbGimmickManager : MonoBehaviour
                 inventory.TryRemove(entry);
         }
 
-        bool alreadyHasReward = FindEntry(inventory, Stage1Dialogues.FridgeNoteItemId) != null;
-        if (!alreadyHasReward && !inventory.TryAdd(rewardItem))
-        {
-            Say(Stage1Dialogues.Bear, "보답할 게 있는데… 받을 자리가 없네. 퀵슬롯을 조금 비워 줄래?");
-            return;
-        }
-
+        // 보답(냉장고 비밀번호 쪽지)은 다음 날 아침 컷신에서 줌 (DayEndReport → GiveRewardNote)
         completed = true;
+        rewardPending = FindEntry(inventory, Stage1Dialogues.FridgeNoteItemId) == null;
         EXODSound.Play("music_box", 0.8f);
         DangerLevel.GimmickSolved();
-        // 보답 대사 동안에는 쪽지를 내미는 곰, 끝나면 완성된 곰으로 바꿉니다.
-        SetBearSprite(givingBearSprite != null ? givingBearSprite : completeBearSprite);
+        SetBearSprite(completeBearSprite);
 
         // 대사: Stage1Dialogues.BearReturn
         List<DialogueLine> lines = Stage1Dialogues.BearReturn();
         if (Stage1StoryController.Instance != null)
-        {
-            Stage1StoryController.Instance.PlayCutscene(lines, () => SetBearSprite(completeBearSprite));
-        }
+            Stage1StoryController.Instance.PlayCutscene(lines);
         else
-        {
-            SetBearSprite(completeBearSprite);
             DialogueManager.Instance?.StartDialogue(lines);
+    }
+
+    /// <summary>보답 쪽지를 퀵슬롯에 넣습니다. 넣었으면 true (자리가 없으면 곰인형이 말하고 false).</summary>
+    internal bool GiveRewardNote()
+    {
+        if (!rewardPending)
+            return true;
+
+        QuickSlotInventory inventory = QuickSlotInventory.Instance ?? FindFirstObjectByType<QuickSlotInventory>();
+        if (inventory == null)
+            return false;
+
+        if (FindEntry(inventory, Stage1Dialogues.FridgeNoteItemId) == null && !inventory.TryAdd(rewardItem))
+        {
+            Say(Stage1Dialogues.Bear, "보답할 게 있는데… 받을 자리가 없네요. 퀵슬롯을 조금 비우고 거실의 저를 눌러 주세요.");
+            return false;
         }
+
+        rewardPending = false;
+        EXODSound.Play("item_pickup");
+        return true;
     }
 
     private void SetBearSprite(Sprite sprite)

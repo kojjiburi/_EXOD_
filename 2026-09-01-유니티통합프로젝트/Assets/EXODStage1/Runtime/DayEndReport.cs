@@ -17,8 +17,15 @@ public sealed class DayEndReport : MonoBehaviour
 {
     private static string pendingReport;   // null: 없음, "": 다 제자리, 그 외: 물건 이름들
 
+    /// <summary>곰돌이 보답 컷신이 한 번 나왔는지 (그때 퀵슬롯이 꽉 차서 못 받았으면 거실 곰인형을 눌러 받음)</summary>
+    public static bool BearGiftDelivered { get; private set; }
+
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-    private static void ResetStatics() => pendingReport = null;
+    private static void ResetStatics()
+    {
+        pendingReport = null;
+        BearGiftDelivered = false;
+    }
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
     private static void RegisterSceneHandler()
@@ -33,6 +40,7 @@ public sealed class DayEndReport : MonoBehaviour
             return;
 
         pendingReport = null;
+        BearGiftDelivered = false;
         SliderManager slider = FindFirstObjectByType<SliderManager>();
         if (slider != null && slider.GetComponent<DayEndReport>() == null)
             slider.gameObject.AddComponent<DayEndReport>();
@@ -130,8 +138,20 @@ public sealed class DayEndReport : MonoBehaviour
 
         string report = pendingReport;
         pendingReport = null;
-        Stage1Room.PlayCutscene(report.Length > 0
+        List<DialogueLine> lines = report.Length > 0
             ? Stage1Dialogues.DayReportMissing(report)
-            : Stage1Dialogues.DayReportClean());
+            : Stage1Dialogues.DayReportClean();
+
+        // 전날 팔다리를 다 돌려줬으면, 그녀가 나간 뒤 곰돌이가 보답(냉장고 비밀번호 쪽지)을 줌
+        BearLimbGimmickManager bear = FindFirstObjectByType<BearLimbGimmickManager>();
+        if (bear != null && bear.IsRewardPending && !BearGiftDelivered)
+        {
+            lines.AddRange(Stage1Dialogues.BearMorningGift());
+            BearGiftDelivered = true;
+            Stage1Room.PlayCutscene(lines, () => bear.GiveRewardNote());
+            return;
+        }
+
+        Stage1Room.PlayCutscene(lines);
     }
 }
