@@ -22,8 +22,8 @@ public static class Stage1Dialogues
     public const string FridgeNoteItemName = "냉장고 비밀번호 쪽지";
     public const string FridgePassword = "0214";
 
-    // 현관 도어락 비밀번호: 냉장고 과일 개수를 메모에 적힌 순서(복숭아, 감, 사과, 파인애플)대로 → 3 5 2 1
-    public const string FrontDoorPassword = "3521";
+    // 현관 도어락 비밀번호: 냉장고 과일 개수를 메모에 적힌 순서(감, 사과, 복숭아, 파인애플)대로 → 5 2 3 1
+    public const string FrontDoorPassword = "5231";
 
     // ─── 줄 만들기 도우미 ─────────────────────────────────
 
@@ -184,7 +184,7 @@ public static class Stage1Dialogues
 
     public static List<DialogueLine> FridgeMemo() => new List<DialogueLine>
     {
-        Narrate("냉장고에 메모가 붙어 있다. 「복숭아, 감, 사과, 파인애플」"),
+        Narrate("냉장고에 메모가 붙어 있다. 「감, 사과, 복숭아, 파인애플」"),
         Think("…장 볼 목록인가?"),
     };
 
