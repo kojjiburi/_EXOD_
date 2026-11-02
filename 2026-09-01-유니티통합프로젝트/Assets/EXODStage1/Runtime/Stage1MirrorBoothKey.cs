@@ -8,11 +8,13 @@ using UnityEngine.UI;
 /// <summary>
 /// 화장실 선반의 손거울 → 거울 미로(MirrorMazeGimmick, 친구 main 기믹) → 전화 부스 열쇠 (2026-11-02 사용자 결정)
 /// - 화장실 선반 오른쪽 칸(금고 왼쪽)에 분홍 손거울 그림을 세워 두고, 누르면 거울 미로가 열립니다.
-/// - 출구에 도착하면 "거울 뒷면에 작은 열쇠가… 'TELEPHONE'" → 부스 열쇠(stage2_booth_key)가 퀵슬롯에 들어옵니다.
+/// - 출구에 도착하면 미로 화면 안 선반 위로 전화부스 열쇠가 떨어지고, 클릭해서 주우면 퀵슬롯에 들어옵니다.
+///   (main "미로기믹 수정본" 방식, MirrorMazeGimmick/MirrorMazeReward — 2026-11-02 사용자 결정으로 이 방식만 씀)
+///   열쇠 ItemData는 여기서 만든 것(stage2_booth_key, BoothKeyIcon)을 넘겨 줍니다.
 ///   (일차 끝 점검 예외 아이템: ItemPositionManager.AlwaysAllowedInInventoryItemIds)
 /// - 벽에 3번 부딪히면 닫히고 다시 도전할 수 있습니다.
 /// - 친구 위험도 규칙: 열기 전 WarnBeforeGimmick·UiOpened, 성공 GimmickSolved(+5), 실패 GimmickFailed(+10)
-/// 대사: Stage1Dialogues.MirrorKeyFound / MirrorFailed / MirrorEmpty
+/// 대사: Stage1Dialogues.MirrorFailed / MirrorEmpty (MirrorKeyFound는 지금 안 씀)
 /// 실행할 때 SliderManager가 있는 씬에 자동으로 붙습니다.
 /// </summary>
 [DefaultExecutionOrder(230)]
@@ -23,7 +25,7 @@ public sealed class Stage1MirrorBoothKey : MonoBehaviour
     private const string MirrorImagePath = "EXODStage1/HandMirror";
     private const string KeyIconPath = "EXODStage1/BoothKeyIcon";
 
-    private bool keyGiven;
+    private bool solvedCounted;   // 위험도 '기믹 성공'은 한 번만
     private bool opened;
     private ItemData boothKey;
 
@@ -78,6 +80,17 @@ public sealed class Stage1MirrorBoothKey : MonoBehaviour
         button.onClick.AddListener(OnMirrorClicked);
 
         boothKey = CreateBoothKey();
+
+        // 새 판이면 지난 판의 '미로 깸 / 열쇠 주움' 기록을 지움 (정적 값이라 다시 시작해도 남아 있음)
+        SetStaticProperty(nameof(MirrorMazeGimmick.IsSolved), false);
+        SetStaticProperty(nameof(MirrorMazeGimmick.RewardTaken), false);
+    }
+
+    private static void SetStaticProperty(string name, bool value)
+    {
+        PropertyInfo property = typeof(MirrorMazeGimmick).GetProperty(name, BindingFlags.Public | BindingFlags.Static);
+        MethodInfo setter = property != null ? property.GetSetMethod(true) : null;
+        setter?.Invoke(null, new object[] { value });
     }
 
     private void OnDestroy()
@@ -90,7 +103,7 @@ public sealed class Stage1MirrorBoothKey : MonoBehaviour
         if (Stage1Room.IsBlocked() || MirrorMazeGimmick.IsOpen || Time.frameCount == MirrorMazeGimmick.LastClosedFrame)
             return;
 
-        if (keyGiven)
+        if (MirrorMazeGimmick.RewardTaken)
         {
             Stage1Room.PlayCutscene(Stage1Dialogues.MirrorEmpty());
             return;
@@ -100,64 +113,23 @@ public sealed class Stage1MirrorBoothKey : MonoBehaviour
             return;
         DangerLevel.UiOpened();
 
-        // 지난 판(다시 시작/로비)에 미로를 깬 기록이 남아 있으면, 열자마자 '클리어 화면'만 나오고 열쇠를 못 받음 → 기록을 지우고 다시 풀게 함
-        if (MirrorMazeGimmick.IsSolved)
-        {
-            System.Reflection.PropertyInfo solved = typeof(MirrorMazeGimmick).GetProperty(nameof(MirrorMazeGimmick.IsSolved));
-            if (solved != null && solved.GetSetMethod(true) != null)
-                solved.GetSetMethod(true).Invoke(null, new object[] { false });
-        }
-
         Unsubscribe();
         MirrorMazeGimmick.Solved += OnSolved;
         MirrorMazeGimmick.Failed += OnFailed;
         MirrorMazeGimmick.Closed += OnClosed;
         opened = true;
-        MirrorMazeGimmick.Open();
+        // 미로를 깼는데 퀵슬롯이 꽉 차서 못 주웠으면, 다시 열 때 선반 위 열쇠를 바로 주울 수 있음
+        MirrorMazeGimmick.Open(rewardItemAsset: boothKey);
     }
 
+    // 열쇠는 미로 화면 안에서 직접 주움 (MirrorMazeGimmick.TakeKey). 여기서는 위험도 '기믹 성공'만
     private void OnSolved(string clue)
     {
-        if (keyGiven)
+        if (solvedCounted)
             return;
 
-        // 기믹 창이 닫힌 뒤 대사와 함께 열쇠를 줌
-        StartCoroutine(GiveKeyAfterClose());
-    }
-
-    private IEnumerator GiveKeyAfterClose()
-    {
-        keyGiven = true;
+        solvedCounted = true;
         DangerLevel.GimmickSolved();
-        EXODSound.Play("key_unlock");
-
-        while (MirrorMazeGimmick.IsOpen)
-            yield return null;
-        yield return null;
-
-        Stage1Room.PlayCutscene(Stage1Dialogues.MirrorKeyFound(), GiveKey);
-    }
-
-    private void GiveKey()
-    {
-        QuickSlotInventory inventory = QuickSlotInventory.Instance;
-        if (inventory == null || boothKey == null)
-            return;
-
-        bool alreadyHas = inventory.Entries.Any(e => e != null && e.ItemData != null && e.ItemData.ItemId == Stage1Dialogues.BoothKeyItemId);
-        if (alreadyHas)
-            return;
-
-        if (inventory.TryAdd(boothKey))
-        {
-            EXODSound.Play("item_pickup");
-        }
-        else
-        {
-            // 자리가 없으면 다음에 손거울을 다시 눌러 받을 수 있게
-            keyGiven = false;
-            DialogueManager.Instance?.StartDialogue(Stage1Dialogues.Thought("퀵슬롯이 가득 차서 열쇠를 챙길 수 없어. 자리를 비우고 다시 보자."));
-        }
     }
 
     private void OnFailed()

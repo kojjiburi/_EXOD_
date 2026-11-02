@@ -62,6 +62,10 @@
 - 이미 있는 코드와 **내용이나 실행 결과가 겹쳐 보이면** 올리기 전에 사용자에게 보고하고 결정을 받습니다.
 - 대답은 한국어로 합니다.
 
+## 화장실 거울 미로 → 전화부스 열쇠
+- main "미로기믹 수정본"(안녕하세요) 방식: 미로를 빠져나오면 미로 화면 안 선반에 열쇠가 떨어지고 클릭해서 주우면 퀵슬롯 (`Assets/Gimmicks/MirrorMaze/MirrorMazeGimmick.cs`, `MirrorMazeReward.cs`).
+- `Stage1MirrorBoothKey`(nicezzomaru): 손거울 버튼·위험도·실패 처리(벽 3번 → +10, 대사)만 함. 열쇠 주는 컷신은 뺌 (2026-11-02 사용자 결정). 미로 안 F9 바로 클리어는 삭제.
+
 ## 엔딩 연결 자리
 - **청혼 엔딩**: 화장실 금고(RRSafe_block이 치워진 뒤) 안의 청혼반지를 주우면 `ProposalEnding.Trigger()`가 호출됩니다 (`Assets/EXOD/Endings/ProposalEnding.cs`).
   - 엔딩 연출은 nicezzomaru 담당: `ProposalEnding.Requested` 이벤트에 연출을 연결하세요. 연결 전에는 임시 대사만 나옵니다.

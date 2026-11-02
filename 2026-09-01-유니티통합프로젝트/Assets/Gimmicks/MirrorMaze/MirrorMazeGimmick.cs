@@ -31,15 +31,20 @@ public class MirrorMazeGimmick : MonoBehaviour
     public static event Action Closed;
     /// <summary>벽에 너무 많이 부딪혀 실패했을 때 (Closed 보다 먼저 호출)</summary>
     public static event Action Failed;
+    /// <summary>보상(전화부스 열쇠)을 주웠는지 (다시 열어도 유지)</summary>
+    public static bool RewardTaken { get; private set; }
+    /// <summary>보상을 주웠을 때 (아이템 ID 전달)</summary>
+    public static event Action<string> RewardObtained;
     /// <summary>마지막으로 닫힌 프레임 (같은 클릭으로 바로 다시 열리는 것 방지용)</summary>
     public static int LastClosedFrame { get; private set; } = -1;
 
     /// <summary>기믹을 연다. 이미 열려 있으면 그걸 돌려준다.</summary>
-    public static MirrorMazeGimmick Open(string clueCode = null, int? seed = null, bool? invertHorizontal = null)
+    public static MirrorMazeGimmick Open(string clueCode = null, int? seed = null, bool? invertHorizontal = null, UnityEngine.Object rewardItemAsset = null)
     {
         if (Current != null) return Current;
         var go = new GameObject("MirrorMazeGimmick (Runtime)");
         var g = go.AddComponent<MirrorMazeGimmick>();
+        if (rewardItemAsset != null) g.rewardItemAsset = rewardItemAsset;
         if (!string.IsNullOrEmpty(clueCode)) g.clueCode = clueCode;
         if (seed.HasValue) g.seed = seed.Value;
         if (invertHorizontal.HasValue) g.invertHorizontalControls = invertHorizontal.Value;
@@ -47,7 +52,7 @@ public class MirrorMazeGimmick : MonoBehaviour
     }
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-    static void ResetStatics() { Current = null; IsSolved = false; LastClue = null; Solved = null; Closed = null; Failed = null; LastClosedFrame = -1; }
+    static void ResetStatics() { Current = null; IsSolved = false; LastClue = null; Solved = null; Closed = null; Failed = null; LastClosedFrame = -1; RewardTaken = false; RewardObtained = null; }
 
     // =========================================================
     //  인스펙터 설정
@@ -69,6 +74,13 @@ public class MirrorMazeGimmick : MonoBehaviour
     [Tooltip("화면에는 표시되지 않음. 클리어 이벤트(onSolved/Solved)로만 전달되는 값")] public string clueCode = "0427";
     [Tooltip("이미 푼 상태로 다시 열면 클리어 화면을 바로 보여준다")] public bool keepSolvedState = true;
 
+    [Header("보상: 전화부스 열쇠 (스테이지2)")]
+    [Tooltip("팀 ItemData 의 Item Id. 스테이지2 전화부스가 이 ID의 열쇠로 열린다")] public string rewardItemId = "stage2_booth_key";
+    [Tooltip("아이템 이름 (퀵슬롯·획득 문구)")] public string rewardName = "전화부스 열쇠";
+    [Tooltip("통합 프로젝트에서 스테이지2의 열쇠 ItemData 에셋(PhoneBooth_Key)을 넣으면 그걸 그대로 준다. 비워도 됨")]
+    public UnityEngine.Object rewardItemAsset;
+    [Tooltip("비워두면 Resources/MirrorMaze_BoothKey 사용")] public Sprite rewardIcon;
+
     [Header("화면")]
     [Tooltip("비워두면 Resources/MirrorMaze_ShelfBG 사용")] public Sprite backgroundSprite;
     [Tooltip("기믹을 그릴 월드 위치 (스테이지와 겹치지 않는 먼 곳)")] public Vector2 worldOffset = new Vector2(1000f, 0f);
@@ -85,13 +97,15 @@ public class MirrorMazeGimmick : MonoBehaviour
     [Header("이벤트")]
     public UnityEvent<string> onSolved = new UnityEvent<string>();
     public UnityEvent onClosed = new UnityEvent();
+    [Tooltip("전화부스 열쇠를 주웠을 때 (아이템 ID 전달)")]
+    public UnityEvent<string> onRewardObtained = new UnityEvent<string>();
     [Tooltip("벽에 maxBumps번 부딪혀 실패했을 때 (onClosed 보다 먼저 호출)")]
     public UnityEvent onFailed = new UnityEvent();
 
     // =========================================================
     //  내부
     // =========================================================
-    const int OrderBg = -100, OrderRimBack = 8, OrderGlass = 10, OrderTiles = 11, OrderTrail = 13, OrderWalls = 14,
+    const int OrderKey = 40, OrderBg = -100, OrderRimBack = 8, OrderGlass = 10, OrderTiles = 11, OrderTrail = 13, OrderWalls = 14,
               OrderGoal = 15, OrderPlayer = 16, OrderEyes = 17, OrderShine = 25,
               OrderHandle = 28, OrderRim = 30;
     static readonly Color TileNavy = new Color(0.16f, 0.18f, 0.39f), Grout = new Color(0.52f, 0.55f, 0.70f, 0.6f),
@@ -114,6 +128,11 @@ public class MirrorMazeGimmick : MonoBehaviour
     Text popupText;
     GameObject popupPanel, canvasGo;
     RectTransform closeButton;
+    SpriteRenderer keySr, keyGlintSr;
+    Sprite keySprite;
+    Image popupIcon;
+    float keyDropT = -1f, keyTakeT = -1f;
+    Vector2 keyRestLocal = new Vector2(-0.05f, -1.56f);
 
     Vector2 Origin => worldOffset;
 
@@ -412,6 +431,16 @@ public class MirrorMazeGimmick : MonoBehaviour
         img.color = new Color(0.06f, 0.06f, 0.09f, 0.9f);
         img.raycastTarget = false;
         popupText = MakeText(popupPanel.transform, "PopupText", "", new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(880, 160), 38, new Color(0.95f, 0.95f, 0.97f));
+        var iconGo = new GameObject("PopupIcon");
+        iconGo.transform.SetParent(popupPanel.transform, false);
+        var icrt = iconGo.AddComponent<RectTransform>();
+        icrt.anchorMin = icrt.anchorMax = new Vector2(0f, 0.5f);
+        icrt.anchoredPosition = new Vector2(95, 0);
+        icrt.sizeDelta = new Vector2(130, 130);
+        popupIcon = iconGo.AddComponent<Image>();
+        popupIcon.raycastTarget = false;
+        popupIcon.preserveAspect = true;
+        iconGo.SetActive(false);
         popupPanel.SetActive(false);
     }
 
@@ -471,6 +500,8 @@ public class MirrorMazeGimmick : MonoBehaviour
         if (pressed && RectTransformUtility.RectangleContainsScreenPoint(closeButton, screen, null)) { Close(); return; }
 
         Vector2 world = cam.ScreenToWorldPoint(new Vector3(screen.x, screen.y, 10f));
+        if (pressed && keySr != null && keySr.gameObject.activeSelf && keyTakeT < 0f &&
+            Vector2.Distance(world, keySr.transform.position) <= 0.75f) { TakeKey(); return; }
         Vector2 mp = mirrorRoot.position;
         if (pressed)
         {
@@ -544,7 +575,14 @@ public class MirrorMazeGimmick : MonoBehaviour
         playerCell = goalCell;
         goalSr.gameObject.SetActive(false);
         popupPanel.SetActive(true);
-        popupText.text = "거울 속 미로를 빠져나왔다…\n<size=24>ESC / X : 돌아가기</size>";
+
+        if (!RewardTaken)
+        {
+            // 미로를 빠져나오면 선반 위로 전화부스 열쇠가 떨어진다
+            SpawnKey(drop: fireEvents);
+            ShowPopup("거울 속 미로를 빠져나왔다…\n<size=28>선반 위에 무언가 떨어졌다</size>", null);
+        }
+        else ShowPopup("거울 속 미로를 빠져나왔다…\n<size=24>ESC / X : 돌아가기</size>", null);
 
         if (!fireEvents) return;
         IsSolved = true;
@@ -554,8 +592,105 @@ public class MirrorMazeGimmick : MonoBehaviour
         Debug.Log("[MirrorMazeGimmick] 클리어!");
     }
 
+    void ShowPopup(string text, Sprite icon)
+    {
+        popupPanel.SetActive(true);
+        popupText.text = text;
+        var prt = popupText.rectTransform;
+        if (icon != null)
+        {
+            popupIcon.sprite = icon;
+            popupIcon.gameObject.SetActive(true);
+            prt.anchoredPosition = new Vector2(70, 0);
+        }
+        else
+        {
+            popupIcon.gameObject.SetActive(false);
+            prt.anchoredPosition = Vector2.zero;
+        }
+    }
+
+    Sprite GetKeySprite()
+    {
+        if (keySprite != null) return keySprite;
+        if (rewardIcon != null) return keySprite = rewardIcon;
+        var tex = Resources.Load<Texture2D>("MirrorMaze_BoothKey");
+        if (tex != null) keySprite = Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), new Vector2(0.5f, 0.5f), tex.height / 1.6f); // 화면에서 높이 1.6 유닛
+        return keySprite;
+    }
+
+    void SpawnKey(bool drop)
+    {
+        if (keySr != null) return;
+        var go = new GameObject("BoothKey (보상)");
+        go.transform.SetParent(transform, false);
+        keySr = go.AddComponent<SpriteRenderer>();
+        keySr.sprite = GetKeySprite();
+        if (keySr.sprite == null) { keySr.sprite = circleSprite; keySr.color = new Color(0.75f, 0.75f, 0.78f); go.transform.localScale = Vector3.one * 0.5f; }
+        keySr.sortingOrder = OrderKey;
+        // 반짝임 (줍기 전까지)
+        var glint = new GameObject("Glint");
+        glint.transform.SetParent(go.transform, false);
+        glint.transform.localPosition = new Vector3(-0.12f, 0.28f, 0);
+        keyGlintSr = glint.AddComponent<SpriteRenderer>();
+        keyGlintSr.sprite = circleSprite;
+        keyGlintSr.sortingOrder = OrderKey + 1;
+        keyDropT = drop ? 0f : -1f;
+        go.transform.localPosition = drop ? new Vector3(keyRestLocal.x, 1.2f, 0) : (Vector3)keyRestLocal;
+    }
+
+    void TakeKey()
+    {
+        var result = MirrorMazeReward.Give(rewardItemId, rewardName, GetKeySprite(), rewardItemAsset);
+        if (result == MirrorMazeReward.Result.InventoryFull)
+        {
+            ShowPopup("가방이 가득 찼다…\n<size=28>퀵슬롯을 비우고 다시 줍자</size>", GetKeySprite());
+            return;
+        }
+        RewardTaken = true;
+        keyTakeT = 0f;
+        ShowPopup($"<color=#ff5a66>{rewardName}</color>을(를) 얻었다.\n<size=24>ESC / X : 돌아가기</size>", GetKeySprite());
+        onRewardObtained?.Invoke(rewardItemId);
+        RewardObtained?.Invoke(rewardItemId);
+    }
+
+    void AnimateKey()
+    {
+        if (keySr == null) return;
+        var tr = keySr.transform;
+        if (keyDropT >= 0f)
+        {
+            // 위에서 떨어져 한 번 튕기고 멈춤
+            keyDropT += Time.deltaTime;
+            float t = keyDropT, y;
+            if (t < 0.45f) y = Mathf.Lerp(1.2f, keyRestLocal.y, (t / 0.45f) * (t / 0.45f));
+            else if (t < 0.7f) { float u = (t - 0.45f) / 0.25f; y = keyRestLocal.y + Mathf.Sin(u * Mathf.PI) * 0.25f; }
+            else { y = keyRestLocal.y; keyDropT = -1f; }
+            tr.localPosition = new Vector3(keyRestLocal.x, y, 0);
+            tr.localRotation = Quaternion.Euler(0, 0, Mathf.Sin(t * 20f) * 8f * Mathf.Clamp01(1f - t / 0.7f));
+        }
+        if (keyTakeT >= 0f)
+        {
+            // 주우면 살짝 떠오르며 사라짐
+            keyTakeT += Time.deltaTime;
+            float u = Mathf.Clamp01(keyTakeT / 0.4f);
+            tr.localPosition = (Vector3)keyRestLocal + new Vector3(0, u * 0.6f, 0);
+            tr.localScale = Vector3.one * (1f + u * 0.3f);
+            keySr.color = new Color(1, 1, 1, 1f - u);
+            keyGlintSr.color = new Color(1, 1, 1, 0);
+            if (u >= 1f) { keySr.gameObject.SetActive(false); keyTakeT = -1f; }
+            return;
+        }
+        // 반짝임
+        float g = Mathf.Repeat(Time.time, 1.6f) / 1.6f;
+        float a = g < 0.25f ? Mathf.Sin(g / 0.25f * Mathf.PI) : 0f;
+        keyGlintSr.color = new Color(1, 1, 1, a * 0.9f);
+        keyGlintSr.transform.localScale = Vector3.one * (0.08f + a * 0.12f);
+    }
+
     void HandleEffects()
     {
+        AnimateKey();
         float t = Time.time;
         if (goalSr != null && goalSr.gameObject.activeSelf)
             goalSr.transform.localScale = Vector3.one * cellSize * (0.5f + 0.08f * Mathf.Sin(t * 5f));
