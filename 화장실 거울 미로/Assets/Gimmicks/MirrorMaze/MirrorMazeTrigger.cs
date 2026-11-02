@@ -20,6 +20,10 @@ public class MirrorMazeTrigger : MonoBehaviour, IPointerClickHandler
     [Tooltip("같은 시드 = 항상 같은 미로")] public int seed = 1027;
     [Tooltip("켜면 좌우 조작이 거울처럼 반대")] public bool invertHorizontalControls = false;
 
+    [Header("보상: 전화부스 열쇠")]
+    [Tooltip("통합 프로젝트에서 스테이지2의 전화부스 열쇠 ItemData 에셋(Item Id: stage2_booth_key)을 넣는다. 비워 두면 같은 ID로 즉석에서 만들어 준다")]
+    public UnityEngine.Object rewardItemAsset;
+
     [Header("기믹이 열려 있는 동안 숨길 오브젝트 (선택)")]
     [Tooltip("예: 스테이지 좌우 화살표, 대사창 등")] public GameObject[] hideWhileOpen;
 
@@ -29,6 +33,8 @@ public class MirrorMazeTrigger : MonoBehaviour, IPointerClickHandler
     public UnityEvent onClosed = new UnityEvent();
     [Tooltip("벽에 3번 부딪혀 실패했을 때 (예: 하트 감소)")]
     public UnityEvent onFailed = new UnityEvent();
+    [Tooltip("미로 보상(전화부스 열쇠)을 주웠을 때 (아이템 ID 전달)")]
+    public UnityEvent<string> onRewardObtained = new UnityEvent<string>();
 
     Collider2D col;
     bool openedByMe;
@@ -40,6 +46,7 @@ public class MirrorMazeTrigger : MonoBehaviour, IPointerClickHandler
         MirrorMazeGimmick.Solved += HandleSolved;
         MirrorMazeGimmick.Closed += HandleClosed;
         MirrorMazeGimmick.Failed += HandleFailed;
+        MirrorMazeGimmick.RewardObtained += HandleReward;
     }
 
     void OnDisable()
@@ -47,6 +54,7 @@ public class MirrorMazeTrigger : MonoBehaviour, IPointerClickHandler
         MirrorMazeGimmick.Solved -= HandleSolved;
         MirrorMazeGimmick.Closed -= HandleClosed;
         MirrorMazeGimmick.Failed -= HandleFailed;
+        MirrorMazeGimmick.RewardObtained -= HandleReward;
     }
 
     void Update()
@@ -69,7 +77,7 @@ public class MirrorMazeTrigger : MonoBehaviour, IPointerClickHandler
     {
         if (MirrorMazeGimmick.IsOpen) return;
         if (MirrorMazeGimmick.LastClosedFrame == Time.frameCount) return; // 닫는 클릭으로 바로 다시 열리는 것 방지
-        MirrorMazeGimmick.Open(clueCode, seed, invertHorizontalControls);
+        MirrorMazeGimmick.Open(clueCode, seed, invertHorizontalControls, rewardItemAsset);
         openedByMe = true;
         SetHidden(true);
         onOpened?.Invoke();
@@ -78,6 +86,11 @@ public class MirrorMazeTrigger : MonoBehaviour, IPointerClickHandler
     void HandleSolved(string code)
     {
         if (openedByMe) onSolved?.Invoke(code);
+    }
+
+    void HandleReward(string itemId)
+    {
+        if (openedByMe) onRewardObtained?.Invoke(itemId);
     }
 
     void HandleFailed()

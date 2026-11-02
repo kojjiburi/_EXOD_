@@ -2,6 +2,7 @@
 // 실제 게임에서는 이 스크립트 대신, 스테이지1의 거울 오브젝트에 MirrorMazeTrigger 만 붙이면 된다.
 
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
 public class MirrorMazeTestRoom : MonoBehaviour
@@ -79,10 +80,19 @@ public class MirrorMazeTestRoom : MonoBehaviour
         status.color = Color.white;
         status.raycastTarget = false;
         status.horizontalOverflow = HorizontalWrapMode.Overflow;
-        status.text = "[테스트] 선반 위 손거울을 클릭하세요";
+        status.text = "[테스트] 선반 위 손거울을 클릭하세요 (기믹 안에서 F9 = 바로 클리어)";
         var sh = tgo.AddComponent<Shadow>(); sh.effectColor = new Color(0, 0, 0, 0.9f); sh.effectDistance = new Vector2(2, -2);
         trigger.onFailed.AddListener(() => { if (status != null) status.text = "[테스트] 벽에 3번 부딪혀 실패! 거울을 다시 클릭해 보세요"; });
+        trigger.onRewardObtained.AddListener(id => { if (status != null) status.text = $"[테스트] 전화부스 열쇠 획득 ({id}) — 통합 프로젝트에서는 팀 퀵슬롯에 들어감"; });
         trigger.hideWhileOpen = new[] { tgo }; // 기믹이 열려 있는 동안 테스트 문구 숨김
+    }
+
+    void Update()
+    {
+        // 테스트 전용 단축키: 기믹이 열려 있을 때 F9 = 미로 바로 클리어
+        var kb = Keyboard.current;
+        if (kb != null && kb.f9Key.wasPressedThisFrame && MirrorMazeGimmick.Current != null)
+            MirrorMazeGimmick.Current.DebugSolve();
     }
 
     static SpriteRenderer Add(Transform parent, string name, Sprite sprite, Vector2 pos, Vector2 size, Color color, int order)
