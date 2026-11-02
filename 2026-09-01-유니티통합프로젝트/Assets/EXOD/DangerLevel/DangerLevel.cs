@@ -16,7 +16,7 @@ using UnityEngine.SceneManagement;
 ///  - 눌러서 열리는 화면(조사 화면·키패드·비밀번호 창·메모 확대·손전등 화면)이 열릴 때 +1
 ///  - 상호작용이 안 되는 곳을 클릭할 때 +1 (2초 안에 5번이면 "소리가 많이 나는 것 같은데, 괜찮을까?")
 ///  - 현관문 비밀번호를 처음 푼 뒤부터 방 이동을 뺀 나머지는 2배
-///  - 1일차에는 오르지 않음 (대신 튜토리얼)
+///  - 첫 등장 이벤트(튜토리얼)가 끝나기 전에는 오르지 않음
 ///
 /// [여자친구 등장]
 ///  - 65 이상: 구두 발소리 (10초마다 다시 들림). 발소리가 들릴 때 침실에 들어가면 바로 등장 (방 안이라 안전)
@@ -33,8 +33,9 @@ using UnityEngine.SceneManagement;
 ///  - 방 이동·기믹으로 위험도가 100이 될 상황이면 "지금 이 행동을 하면 위험할 것 같다. 방으로 돌아갈까?"
 ///    (기믹은 실패 +10 기준) 이 대사 뒤로는 방 이동으로 위험도가 오르지 않음
 ///
-/// [1일차 튜토리얼]
-///  - 남은 시간 1분에 발소리 + "방으로 들어가 있자" → 침실에 들어가면 여자친구 등장(안전)
+/// [첫 등장 이벤트(튜토리얼)] (2026-11-02 사용자 결정: 1일차 남은 1분 → 방 밖에 처음 나간 뒤 20초)
+///  - 침실 밖에 처음 나간 뒤 게임 타이머(멈춘 시간 빼고)로 20초가 지나면 발소리 + "방으로 들어가 있자"
+///    → 침실에 들어가면 여자친구 등장(안전). 이 이벤트가 끝나기 전에는 위험도가 오르지 않음
 ///  - 그 뒤로 행동 요령 띠에 "여자친구가 올 것 같으면 방에 들어가 있자" 표시 (HideHintUnlocked)
 ///
 /// 1스테이지 씬(SliderManager가 있는 씬)에 자동으로 붙습니다.
@@ -61,7 +62,7 @@ public sealed class DangerLevel : MonoBehaviour
     private const float RollCooldown = 5f;
     private const float RollChance = 0.1f;
     private const float PostWalkGraceSeconds = 15f;
-    private const float TutorialRemainingSeconds = 60f;   // 남은 시간 1분에 여자친구 방문 (2026-11-02: 1분 30초 → 1분, 1일차가 1분 30초로 줄어서)
+    private const float TutorialDelayAfterLeavingSeconds = 20f;   // 침실 밖에 처음 나간 뒤 게임 타이머 20초에 첫 등장 이벤트
 
     public const string BedroomName = "침실";
     private const string FootstepSound = "footsteps_heels";
@@ -81,7 +82,7 @@ public sealed class DangerLevel : MonoBehaviour
     // ── 상태 ─────────────────────────────────────────────
     public static DangerLevel Instance { get; private set; }
 
-    /// <summary>1일차 튜토리얼을 본 뒤 true (행동 요령 띠에 "방에 들어가 있자" 표시)</summary>
+    /// <summary>첫 등장 이벤트(튜토리얼)를 본 뒤 true. 그 전에는 위험도가 오르지 않음 (행동 요령 띠에 "방에 들어가 있자" 표시)</summary>
     public static bool HideHintUnlocked { get; private set; }
 
     public static int Value => Instance != null ? Instance.value : 0;
@@ -98,6 +99,8 @@ public sealed class DangerLevel : MonoBehaviour
     private bool appearing;
     private bool tutorialShown;
     private bool tutorialWaitingForRoom;
+    private bool leftBedroomOnce;          // 침실 밖에 한 번이라도 나갔는지
+    private float timeSinceLeftBedroom;    // 그 뒤 흐른 게임 시간 (시간이 멈춘 동안은 안 셈)
     private float nextFootstepTime;
     private readonly List<float> emptyClickTimes = new List<float>();
 
@@ -217,7 +220,8 @@ public sealed class DangerLevel : MonoBehaviour
         if (appearing || DayController.IsTransitioning)
             return;
 
-        if (day <= 1)
+        // 첫 등장 이벤트가 끝나기 전에는 위험도 무효
+        if (!HideHintUnlocked)
         {
             UpdateTutorial();
             SyncKnownEntries();
@@ -253,7 +257,7 @@ public sealed class DangerLevel : MonoBehaviour
 
     private void LateUpdate()
     {
-        // 1일차 튜토리얼: 대사가 끝난 뒤 침실에 있으면 여자친구 등장
+        // 첫 등장 이벤트: 대사가 끝난 뒤 침실에 있으면 여자친구 등장
         if (tutorialWaitingForRoom && !appearing && !DayCycleController.IsTimePaused() &&
             slider != null && slider.CurrentRoom == BedroomName)
         {
@@ -305,8 +309,7 @@ public sealed class DangerLevel : MonoBehaviour
 
     private bool CountsNow()
     {
-        int day = GManager.Instance != null ? GManager.Instance.Day : 1;
-        return day > 1 && !Stage2HouseLink.IsInStage2 && !appearing && !DayController.IsTransitioning;
+        return HideHintUnlocked && !Stage2HouseLink.IsInStage2 && !appearing && !DayController.IsTransitioning;
     }
 
     private void Add(int amount)
@@ -339,6 +342,9 @@ public sealed class DangerLevel : MonoBehaviour
 
     private void OnRoomChanged(string roomName)
     {
+        if (roomName != BedroomName)
+            leftBedroomOnce = true;
+
         if (appearing || Stage2HouseLink.IsInStage2)
             return;
 
@@ -719,15 +725,16 @@ public sealed class DangerLevel : MonoBehaviour
         return false;
     }
 
-    // ── 1일차 튜토리얼 ───────────────────────────────────
+    // ── 첫 등장 이벤트(튜토리얼) ───────────────────────────────────
 
     private void UpdateTutorial()
     {
-        if (tutorialShown || DayCycleController.IsTimePaused())
+        if (tutorialShown || !leftBedroomOnce || DayCycleController.IsTimePaused())
             return;
 
-        DayCycleController cycle = DayCycleController.Instance;
-        if (cycle == null || cycle.RemainingSeconds > TutorialRemainingSeconds)
+        // 침실 밖에 처음 나간 뒤 게임 시간으로 20초
+        timeSinceLeftBedroom += Time.deltaTime;
+        if (timeSinceLeftBedroom < TutorialDelayAfterLeavingSeconds)
             return;
 
         tutorialShown = true;
