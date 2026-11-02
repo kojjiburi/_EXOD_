@@ -54,7 +54,7 @@ public class SliderManager : MonoBehaviour
     public event System.Action<string> RoomChanged;
 
     private readonly string[] _allRooms =
-        { "침실", "거실", "주방", "복도", "화장실", "야외" };
+        { "침실", "거실", "주방", "화장실", "복도", "야외" };   // 화장실↔복도 순서 바꿈 (사용자 요청 2026-11-02)
     private readonly List<string> _unlockedRooms = new();
     private readonly Dictionary<string, GameObject> _roomViews = new();
     private int _currentIndex;
