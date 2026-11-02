@@ -58,16 +58,39 @@ public sealed class Stage2HouseLink : MonoBehaviour
             slider.gameObject.AddComponent<Stage2HouseLink>();
     }
 
+    private GManager subscribedDayManager;
+
     private void Awake()
     {
         Instance = this;
     }
 
+    private void Start()
+    {
+        // 전화 부스 탈출 엔딩은 산책이 끝난 뒤 집에서 나오므로, 산책 대사 연결(팀 대화창)은 집에서도 유지합니다.
+        WalkDialogue.ExternalShow = ShowWithTeamDialogue;
+        WalkDialogue.ExternalIsOpen = () => DialogueManager.Instance != null && DialogueManager.Instance.IsDialogueOpen;
+
+        // 집에 있는 동안에는 산책 시계(DayClock)가 없으므로, 일차가 넘어간 것을 전화 부스 엔딩에 직접 알려 줍니다.
+        subscribedDayManager = GManager.Instance != null ? GManager.Instance : FindFirstObjectByType<GManager>(FindObjectsInactive.Include);
+        if (subscribedDayManager != null)
+            subscribedDayManager.onDayChanged += OnTeamDayChanged;
+    }
+
     private void OnDestroy()
     {
+        if (subscribedDayManager != null)
+            subscribedDayManager.onDayChanged -= OnTeamDayChanged;
         UnhookStage2();
+        WalkDialogue.ExternalShow = null;
+        WalkDialogue.ExternalIsOpen = null;
         if (Instance == this)
             Instance = null;
+    }
+
+    private static void OnTeamDayChanged(int day)
+    {
+        PhoneBoothEnding.NotifyDayAdvanced(day);
     }
 
     // ═══════════════════════════════════════════════════
@@ -305,6 +328,9 @@ public sealed class Stage2HouseLink : MonoBehaviour
 
     private void HookStage2()
     {
+        // 퀵슬롯 칸에 '끌어다 놓기 → 산책 기믹' 연결을 붙입니다 (전화 부스 아이템 사용)
+        WalkQuickSlotDropBridge.AttachToAllSlots();
+
         WalkSession.Additive = true;
         WalkSession.ReturnSceneName = gameObject.scene.name;
         WalkSession.LastResult = WalkResult.None;
@@ -324,6 +350,15 @@ public sealed class Stage2HouseLink : MonoBehaviour
             return inventory != null && inventory.TryAdd(item);
         };
 
+        // 전화 부스 기믹: 퀵슬롯 아이템은 끌어다 놓아서 쓴다 (WalkQuickSlotDropBridge → WalkGameManager.HandleItemDrop)
+        WalkItems.SelectedProvider = () => WalkGameManager.DroppedItem;
+        WalkItems.HasProvider = item => FindQuickSlotEntry(item) != null;
+        WalkItems.RemoveProvider = item =>
+        {
+            QuickSlotEntry entry = FindQuickSlotEntry(item);
+            return entry != null && QuickSlotInventory.Instance != null && QuickSlotInventory.Instance.TryRemove(entry);
+        };
+
         // 산책 길의 아이템(종이 A~E)이 다시 나오는지:
         //  - 퀵슬롯에 이미 있으면 안 나옴
         //  - 화장실 금고를 열어 종이가 영구히 없어졌으면 안 나옴
@@ -337,6 +372,14 @@ public sealed class Stage2HouseLink : MonoBehaviour
             if (positions != null && positions.ArePapersRemovedPermanently && positions.IsPaperItem(item.ItemId))
                 return true;
 
+            // 종이가 아닌 산책 아이템(전화 부스 부품 등)은 한 번 얻으면 다시 안 나옴
+            // (통화 중에 들키면 PhoneBooth가 WalkItemPickup.Forget으로 테이프를 다시 나오게 함)
+            if (positions == null || !positions.IsPaperItem(item.ItemId))
+            {
+                if (WalkItemPickup.HasPicked(item))
+                    return true;
+            }
+
             QuickSlotInventory inventory = QuickSlotInventory.Instance != null
                 ? QuickSlotInventory.Instance
                 : FindFirstObjectByType<QuickSlotInventory>();
@@ -349,10 +392,22 @@ public sealed class Stage2HouseLink : MonoBehaviour
     {
         WalkSession.Finished -= OnWalkFinished;
         WalkSession.Additive = false;
-        WalkDialogue.ExternalShow = null;
-        WalkDialogue.ExternalIsOpen = null;
         WalkItemPickup.Giver = null;
         WalkItemPickup.IsUnavailable = null;
+        WalkItems.SelectedProvider = null;
+        WalkItems.HasProvider = null;
+        WalkItems.RemoveProvider = null;
+    }
+
+    private static QuickSlotEntry FindQuickSlotEntry(ItemData item)
+    {
+        QuickSlotInventory inventory = QuickSlotInventory.Instance != null
+            ? QuickSlotInventory.Instance
+            : FindFirstObjectByType<QuickSlotInventory>();
+        if (inventory == null || item == null)
+            return null;
+
+        return inventory.Entries.FirstOrDefault(entry => entry != null && WalkItems.Same(entry.ItemData, item));
     }
 
     private static bool ShowWithTeamDialogue(IReadOnlyList<WalkLine> walkLines)

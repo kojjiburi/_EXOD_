@@ -88,6 +88,12 @@ public sealed class ItemPositionManager : MonoBehaviour
         "bear_left_leg",
         "bear_right_leg",
         "fridge_lock_note",
+        // 2스테이지 전화 부스 기믹 아이템 (산책에서 얻고, 부스에 쓰면 사라짐 / 주소지는 신고용으로 남음)
+        "stage2_booth_key",
+        "stage2_insulating_tape",
+        "stage2_dial_button_1",
+        "stage2_dial_button_2",
+        "stage2_address_note",
     };
 
     private const string GoldenKeyItemId = "golden_key";

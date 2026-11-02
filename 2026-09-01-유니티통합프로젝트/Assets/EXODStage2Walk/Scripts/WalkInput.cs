@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using UnityEngine.EventSystems;
 #if ENABLE_INPUT_SYSTEM
@@ -11,6 +12,15 @@ namespace EXOD.Walk
     /// </summary>
     public static class WalkInput
     {
+        /// <summary>
+        /// EventSystem 없이 직접 그린 화면 요소(단독 프로젝트의 퀵슬롯 미리보기 등) 위에 마우스가 있는지 알려 주는 쪽.
+        /// true를 돌려주면 그 클릭은 산책 화면 클릭으로 치지 않는다.
+        /// </summary>
+        public static Func<bool> ExtraPointerOverUi;
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetStatics() => ExtraPointerOverUi = null;
+
         /// <summary>A/D 또는 ←/→ : -1 ~ 1</summary>
         public static float Horizontal()
         {
@@ -27,8 +37,22 @@ namespace EXOD.Walk
             return h;
         }
 
-        /// <summary>이번 프레임에 마우스 왼쪽 버튼을 눌렀는지</summary>
+        /// <summary>
+        /// 이번 프레임에 산책 화면(물체·문 등)을 클릭했는지.
+        /// 대화창이 떠 있거나 이번 프레임에 대화창을 클릭해서 닫았으면 false (대사를 넘기는 클릭이 물체 클릭으로 새지 않게).
+        /// </summary>
         public static bool ClickDown(out Vector2 screenPosition)
+        {
+            if (WalkDialogue.BlocksWorldClick)
+            {
+                screenPosition = default;
+                return false;
+            }
+            return ClickDownAny(out screenPosition);
+        }
+
+        /// <summary>이번 프레임에 마우스 왼쪽 버튼을 눌렀는지 (대화창 상태와 상관없이)</summary>
+        public static bool ClickDownAny(out Vector2 screenPosition)
         {
 #if ENABLE_INPUT_SYSTEM
             var mouse = Mouse.current;
@@ -84,6 +108,7 @@ namespace EXOD.Walk
         /// <summary>마우스가 UI(퀵슬롯 등) 위에 있는지</summary>
         public static bool IsPointerOverUI()
         {
+            if (ExtraPointerOverUi != null && ExtraPointerOverUi()) return true;
             var es = EventSystem.current;
             return es != null && es.IsPointerOverGameObject();
         }

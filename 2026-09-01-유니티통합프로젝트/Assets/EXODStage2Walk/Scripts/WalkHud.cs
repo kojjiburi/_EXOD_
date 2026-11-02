@@ -65,7 +65,7 @@ namespace EXOD.Walk
         {
             WalkInteractable target = null;
             Vector2 pointer = WalkInput.PointerScreenPosition();
-            if (running && !WalkDialogue.IsOpen && !WalkInput.IsPointerOverUI())
+            if (running && !WalkDialogue.IsOpen && WalkGameManager.Overlay == null && !WalkInput.IsPointerOverUI())
                 target = WalkInput.FindAtScreenPoint<WalkInteractable>(pointer, worldCamera);
 
             bool show = target != null;

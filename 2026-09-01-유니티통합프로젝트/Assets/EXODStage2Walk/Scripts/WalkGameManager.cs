@@ -1,4 +1,6 @@
+using System;
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.SceneManagement;
@@ -89,6 +91,20 @@ namespace EXOD.Walk
         public int RoundTripsRequired => roundTripsRequired;
         public WalkPlayerMover Player => player;
 
+        public bool AnyClickCountsAsInteraction => anyClickCountsAsInteraction;
+
+        /// <summary>
+        /// 산책 화면 위에 덮이는 창(전화 부스 안 등). 열려 있는 동안 화면 이동이 멈추고,
+        /// 클릭과 Esc를 이 창이 먼저 처리한다. 없으면 null.
+        /// </summary>
+        public static IWalkOverlay Overlay { get; set; }
+
+        /// <summary>
+        /// 산책이 끝나 마지막 대사가 나오기 직전에 호출된다 (인자: 결과, 나올 대사 목록).
+        /// 목록을 고치면 그대로 나온다 (전화 부스 기믹이 "전화가 끊겼다" 같은 줄을 끼워 넣을 때 사용).
+        /// </summary>
+        public static event Action<WalkResult, List<WalkLine>> FinishingLines;
+
         static bool firstIntroShown;
         DayClock clock;
         bool finishing;
@@ -96,7 +112,12 @@ namespace EXOD.Walk
         bool waitingAtGate;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        static void ResetStatics() => firstIntroShown = false;
+        static void ResetStatics()
+        {
+            firstIntroShown = false;
+            Overlay = null;
+            FinishingLines = null;
+        }
 
         void Awake()
         {
@@ -154,7 +175,7 @@ namespace EXOD.Walk
 
             // 대화창·컷신·기절 연출 중에는 멈춤 (1스테이지 DayCycleController와 같은 기준)
             bool paused = DayClock.IsTimePaused();
-            player.CanMove = !paused && !waitingAtGate;
+            player.CanMove = !paused && !waitingAtGate && Overlay == null;   // 부스 안 등 창이 열려 있으면 화면이 멈춘다
             yandere.Paused = paused;
             if (paused) return;
 
@@ -164,7 +185,11 @@ namespace EXOD.Walk
                 HandleClick(screenPos);
             if (!IsRunning) return;
 
-            if (allowQuitEarly && WalkInput.QuitWalkDown()) { EndWalk(WalkResult.QuitEarly); return; }
+            if (allowQuitEarly && WalkInput.QuitWalkDown())
+            {
+                // 창이 열려 있으면 Esc는 창을 닫는 데 먼저 쓴다
+                if (Overlay == null || !Overlay.HandleEscape()) { EndWalk(WalkResult.QuitEarly); return; }
+            }
             // 왕복을 마치면 바로 끝내지 않고, 대문 앞에 멈춰 서서 1분이 다 될 때까지 기다린다 (그 동안에도 그녀는 뒤돌아봄)
             if (!waitingAtGate && player.LegsCompleted >= roundTripsRequired * 2)
             {
@@ -180,8 +205,28 @@ namespace EXOD.Walk
             EndWalk(waitingAtGate ? WalkResult.Completed : WalkResult.TimeUp);
         }
 
+        /// <summary>
+        /// [통합] 퀵슬롯에서 끌어다 놓은 아이템. 놓은 순간에만 값이 있고, 그동안 WalkItems.Selected로 읽힌다.
+        /// </summary>
+        public static ItemData DroppedItem { get; private set; }
+
+        /// <summary>
+        /// [통합] 퀵슬롯 아이템을 산책 화면(부스·부스 안 등)에 끌어다 놓았을 때.
+        /// 그 자리를 "이 아이템을 들고 클릭"한 것으로 처리한다 (그녀가 뒤돌아봤으면 들킴 규칙 그대로).
+        /// </summary>
+        public bool HandleItemDrop(ItemData item, Vector2 screenPos)
+        {
+            if (!IsRunning || item == null || DayClock.IsTimePaused()) return false;
+
+            DroppedItem = item;
+            try { HandleClick(screenPos); }
+            finally { DroppedItem = null; }
+            return true;
+        }
+
         void HandleClick(Vector2 screenPos)
         {
+            if (Overlay != null && Overlay.HandleClick(screenPos)) return;
             var target = WalkInput.FindAtScreenPoint<WalkInteractable>(screenPos, worldCamera);
             if (target != null) TryInteract(target);
             else if (anyClickCountsAsInteraction) TryInteract(null);
@@ -262,6 +307,14 @@ namespace EXOD.Walk
 
             WalkSession.LastResult = Result;
             Debug.Log($"[Walk] 산책 종료: {Result}");
+
+            if (FinishingLines != null)
+            {
+                var list = new List<WalkLine>();
+                if (lines != null) list.AddRange(lines);
+                FinishingLines.Invoke(Result, list);
+                lines = list.ToArray();
+            }
 
             yield return new WaitForSeconds(delay);
             yield return WalkDialogue.ShowAndWait(lines);

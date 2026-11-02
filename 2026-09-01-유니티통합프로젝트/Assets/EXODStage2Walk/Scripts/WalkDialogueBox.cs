@@ -8,7 +8,7 @@ namespace EXOD.Walk
     /// <summary>
     /// 팀 DialogueManager가 없는 곳(스테이지2 단독 프로젝트)에서 쓰는 대화창.
     /// 팀 대화창과 같은 이미지·폰트·배치·글자색·타이핑 속도로 만들었다.
-    /// Space 또는 클릭으로 넘기고, 글자가 나오는 중이면 한 번에 다 보여준다.
+    /// Space 또는 마우스 클릭(화면 어디든)으로 넘기고, 글자가 나오는 중이면 한 번에 다 보여준다.
     /// </summary>
     public class WalkDialogueBox : MonoBehaviour
     {
@@ -17,6 +17,8 @@ namespace EXOD.Walk
         const float TypingSeconds = 0.05f;   // 팀 DialogueManager 기본값
 
         public bool IsOpen { get; private set; }
+        /// <summary>마지막으로 대화창이 닫힌 프레임 (그 프레임의 클릭은 산책 화면 클릭으로 치지 않는다)</summary>
+        public int ClosedFrame { get; private set; } = -1;
 
         GameObject root;
         GameObject namePanel;
@@ -27,6 +29,7 @@ namespace EXOD.Walk
         bool typing;
         Coroutine typingRoutine;
         int openedFrame;
+        int lastAdvanceFrame = -1;
 
         public static WalkDialogueBox Ensure()
         {
@@ -89,7 +92,8 @@ namespace EXOD.Walk
         void Update()
         {
             if (!IsOpen || Time.frameCount == openedFrame) return;
-            if (WalkInput.AdvanceDialogueDown()) Advance();
+            // EventSystem이 없어도 클릭으로 넘어가게 직접 읽는다 (Space와 같은 동작)
+            if (WalkInput.AdvanceDialogueDown() || WalkInput.ClickDownAny(out _)) Advance();
         }
 
         public void Show(IReadOnlyList<WalkLine> newLines)
@@ -137,6 +141,8 @@ namespace EXOD.Walk
         public void Advance()
         {
             if (!IsOpen || Time.frameCount == openedFrame) return;
+            if (lastAdvanceFrame == Time.frameCount) return;   // 버튼과 직접 읽기가 같은 클릭으로 두 번 넘기지 않게
+            lastAdvanceFrame = Time.frameCount;
 
             if (typing)
             {
@@ -153,6 +159,7 @@ namespace EXOD.Walk
 
         void Close()
         {
+            if (IsOpen) ClosedFrame = Time.frameCount;
             IsOpen = false;
             typing = false;
             if (typingRoutine != null) StopCoroutine(typingRoutine);

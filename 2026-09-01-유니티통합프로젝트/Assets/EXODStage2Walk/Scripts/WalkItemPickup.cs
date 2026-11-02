@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Events;
 
 namespace EXOD.Walk
 {
@@ -20,6 +21,10 @@ namespace EXOD.Walk
         [SerializeField] ItemData item;
         [Tooltip("얻은 뒤 이 오브젝트를 숨긴다")]
         [SerializeField] bool hideAfterPickup = true;
+        [Tooltip("얻었을 때 나올 대사 (비워 두면 대사 없이 얻는다)")]
+        [SerializeField] WalkLine[] pickupLines = new WalkLine[0];
+        [Tooltip("아이템을 얻었을 때 실행")]
+        public UnityEvent onPickedUp = new UnityEvent();
 
         /// <summary>
         /// 아이템을 실제로 넣어 주는 쪽 (통합 프로젝트의 퀵슬롯). 넣었으면 true, 자리가 없으면 false.
@@ -46,6 +51,22 @@ namespace EXOD.Walk
             IsUnavailable = null;
             PickedNames.Clear();
             pickedKeys.Clear();
+        }
+
+        /// <summary>이 아이템을 이미 얻었는지</summary>
+        public static bool HasPicked(ItemData item)
+        {
+            return item != null && pickedKeys.Contains(string.IsNullOrEmpty(item.ItemId) ? item.name : item.ItemId);
+        }
+
+        /// <summary>
+        /// 얻은 기록을 지워서 다음 산책에서 다시 나오게 한다 (전화 부스: 통화 중에 들키면 테이프가 한 번 더 생김).
+        /// 지금 열려 있는 산책 화면에는 바로 나타나지 않고, 다음에 산책 씬이 열릴 때 나온다.
+        /// </summary>
+        public static void Forget(ItemData item)
+        {
+            if (item == null) return;
+            pickedKeys.Remove(string.IsNullOrEmpty(item.ItemId) ? item.name : item.ItemId);
         }
 
         public ItemData Item => item;
@@ -84,7 +105,10 @@ namespace EXOD.Walk
 
             pickedKeys.Add(Key);
             PickedNames.Add(item.DisplayName);
+            WalkItems.NotePicked(item);
             Debug.Log($"[Walk] 아이템 획득: {item.DisplayName} ({item.ItemId})");
+            onPickedUp.Invoke();
+            if (pickupLines != null && pickupLines.Length > 0) WalkDialogue.Show(pickupLines);
             if (hideAfterPickup) gameObject.SetActive(false);
         }
     }

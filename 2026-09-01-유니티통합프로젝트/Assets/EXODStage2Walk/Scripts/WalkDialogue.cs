@@ -39,6 +39,17 @@ namespace EXOD.Walk
             ExternalIsOpen = null;
         }
 
+        /// <summary>대화창이 떠 있거나 이번 프레임에 닫혔으면 true (이때 클릭은 산책 화면 클릭으로 치지 않는다)</summary>
+        public static bool BlocksWorldClick
+        {
+            get
+            {
+                if (IsOpen) return true;
+                var box = WalkDialogueBox.Instance;
+                return box != null && box.ClosedFrame == UnityEngine.Time.frameCount;
+            }
+        }
+
         public static bool IsOpen
         {
             get
