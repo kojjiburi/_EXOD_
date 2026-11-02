@@ -43,7 +43,9 @@ public sealed class RestroomGimmick : MonoBehaviour
     private static readonly RectInt SafeRect = FromCorners(1318, 5, 1518, 184);
     private static readonly RectInt SafeBlockRect = FromCorners(1364, 25, 1518, 183);
     // 금고 안 청혼반지 (잠금판이 있던 자리 가운데)
-    private static readonly RectInt RingRect = FromCorners(1401, 64, 1481, 144);
+    // 반지는 금고 바닥의 반지함(RingBox) 쿠션 틈에 꽂혀 있음 (2026-11-02: 반지만 떠 있어 보이던 것 수정)
+    private static readonly RectInt RingBoxRect = FromCorners(1393, 92, 1489, 164);
+    private static readonly RectInt RingRect = FromCorners(1414, 94, 1468, 148);
     private static readonly RectInt ToiletButtonRect = FromCorners(490, 333, 534, 363);
 
     // 손전등과 그 밖의 물건은 수건 자리 가운데에 이 크기로 놓입니다.
@@ -721,15 +723,39 @@ public sealed class RestroomGimmick : MonoBehaviour
 
     private void CreateRingButton()
     {
+        // 반지함은 반지를 가져가도 금고 안에 남음
+        if (ringBox == null && roomViewTransform != null)
+            ringBox = CreateRoomImage(roomViewTransform, "반지함", LoadSprite("RingBox"), RingBoxRect, null, true);
+
         if (ringTaken || ringButton != null || roomViewTransform == null || ringItem == null)
             return;
 
         ringButton = CreateRoomImage(roomViewTransform, "청혼반지", ringItem.Icon, RingRect, TakeRing, true);
     }
 
+    // 반지를 누르면 먼저 [반지를 집는다]/[그냥 둔다]를 고릅니다. (대사: Stage1Dialogues.ProposalRing*)
+    private GameObject ringBox;
+
     private void TakeRing()
     {
         if (ringTaken || IsBusy())
+            return;
+
+        Stage1Room.PlayChoiceCutscene(
+            Stage1Dialogues.ProposalRingFound(),
+            Stage1Dialogues.ProposalRingChoices,
+            choice =>
+            {
+                if (choice == 0)
+                    TakeRingConfirmed();
+                else
+                    Stage1Room.PlayCutscene(Stage1Dialogues.ProposalRingLeave());
+            });
+    }
+
+    private void TakeRingConfirmed()
+    {
+        if (ringTaken)
             return;
 
         QuickSlotInventory inventory = GetInventory();
