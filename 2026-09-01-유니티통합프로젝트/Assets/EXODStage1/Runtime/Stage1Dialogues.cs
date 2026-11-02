@@ -413,4 +413,45 @@ public static class Stage1Dialogues
     {
         Think("거울 뒷면엔 테이프 자국만 남아 있다."),
     };
+
+    // ═══════════════════════════════════════════════════
+    //  11. 청혼 엔딩 (화장실 금고 안 청혼반지) — 2026-11-02 사용자 확정
+    //      반지를 누르면 [반지를 집는다]/[그냥 둔다] → 집으면 컷신 → 암전·마지막 대사 → 엔딩 화면
+    // ═══════════════════════════════════════════════════
+
+    // 반지를 눌렀을 때 (이 대사 끝에 선택지)
+    public static List<DialogueLine> ProposalRingFound() => new List<DialogueLine>
+    {
+        Narrate("금고 안에서 작은 반지 상자를 꺼냈다."),
+        Think("…반지? 왜 이런 게 금고에…"),
+    };
+
+    public static readonly string[] ProposalRingChoices =
+    {
+        "반지를 집는다",
+        "그냥 둔다",
+    };
+
+    public static List<DialogueLine> ProposalRingLeave() => new List<DialogueLine>
+    {
+        Think("…괜히 건드리지 말자. 왠지 불길해."),
+    };
+
+    // 반지를 집은 뒤 (이 대사 뒤 암전 → 마지막 대사 → 엔딩 화면)
+    public static List<DialogueLine> ProposalCutscene() => new List<DialogueLine>
+    {
+        Narrate("반지 안쪽에 글자가 새겨져 있다. 「영원히, 나만의 자기」"),
+        Narrate("등 뒤에서… 문이 열리는 소리가 났다."),
+        Say(Girlfriend, "…찾았네?"),
+        Say(Girlfriend, "원래는 더 예쁜 날 주려고 했는데. 뭐, 상관없어."),
+        Say(Girlfriend, "자기가 먼저 찾아 줬다는 건… 그런 뜻이지?"),
+        Say(Player, "아, 아니 그게…"),
+        Narrate("그녀가 내 손에서 반지를 가져가, 내 약지에 천천히 끼웠다."),
+        Say(Girlfriend, "이제 우리 진짜 가족이야. ♡"),
+        Think("…반지가, 빠지지 않는다."),
+    };
+
+    public const string ProposalEndingLine = "평생, 영원히… 내 거야 ♡";
+    public const string ProposalEndingTitle = "청혼 엔딩 : 해피 엔딩…?";
+    public const string ProposalEndingSubtitle = "우리는 오래오래 행복하게 살았습니다. …아마도.";
 }

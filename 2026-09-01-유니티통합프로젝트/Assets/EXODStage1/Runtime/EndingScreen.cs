@@ -12,6 +12,7 @@ public enum EndingStyle
     GameOver,   // 검붉은 배경, 떠오르는 불씨
     Submission, // 순응 엔딩: 짙은 분홍, 둥둥 떠다니는 빛 방울, 오르골
     Escape,     // 탈출 엔딩: 남색, 경찰차 빨강·파랑 불빛
+    Proposal,   // 청혼 엔딩: 결혼식 분위기, 흩날리는 분홍 꽃잎·하트, 리본, 오르골
 }
 
 /// <summary>
@@ -49,6 +50,9 @@ public sealed class EndingScreen : MonoBehaviour
     private Sprite dotSprite;
     private Sprite heartSprite;
     private Sprite brokenHeartSprite;
+    private Sprite petalSprite;
+    private Sprite bandAidSprite;
+    private Sprite ribbonSprite;
 
     private EndingStyle style;
     private Color baseColor;
@@ -100,6 +104,8 @@ public sealed class EndingScreen : MonoBehaviour
         dotSprite = RadialSprite(true);
         heartSprite = HeartSprite(false);
         brokenHeartSprite = HeartSprite(true);
+        petalSprite = PetalSprite();
+        ribbonSprite = RibbonSprite();
         for (int i = 0; i < ParticleCount; i++)
         {
             Image p = CreateImage("빛 " + i, particleRoot, Color.white);
@@ -157,6 +163,7 @@ public sealed class EndingScreen : MonoBehaviour
 
         // 제목 모서리에 비스듬히 붙은 반창고 스티커
         Sprite bandAid = BandAidSprite();
+        bandAidSprite = bandAid;
         bandAidA = CreateImage("반창고 1", transform, Color.white);
         bandAidB = CreateImage("반창고 2", transform, Color.white);
         foreach (Image b in new[] { bandAidA, bandAidB })
@@ -188,6 +195,12 @@ public sealed class EndingScreen : MonoBehaviour
                 particleColor = new Color(1f, 0.62f, 0.82f, 1f);
                 title.color = new Color(1f, 0.45f, 0.72f);
                 break;
+            case EndingStyle.Proposal:
+                baseColor = new Color(0.11f, 0.03f, 0.08f);
+                glowColor = new Color(1f, 0.70f, 0.86f, 0.40f);
+                particleColor = new Color(1f, 0.78f, 0.88f, 1f);
+                title.color = new Color(1f, 0.45f, 0.72f);
+                break;
             case EndingStyle.Escape:
                 baseColor = new Color(0.02f, 0.03f, 0.08f);
                 glowColor = new Color(0.55f, 0.70f, 1f, 0.45f);
@@ -208,15 +221,23 @@ public sealed class EndingScreen : MonoBehaviour
         bool hearts = style != EndingStyle.Escape;
         Sprite particleSprite = style == EndingStyle.GameOver ? brokenHeartSprite : (hearts ? heartSprite : dotSprite);
         for (int i = 0; i < particleImages.Count; i++)
-            particleImages[i].sprite = hearts && i % 3 == 2 ? dotSprite : particleSprite;
+        {
+            if (style == EndingStyle.Proposal)
+                particleImages[i].sprite = i % 3 == 2 ? heartSprite : petalSprite;   // 꽃잎 2 : 하트 1
+            else
+                particleImages[i].sprite = hearts && i % 3 == 2 ? dotSprite : particleSprite;
+        }
         heartLeft.sprite = heartRight.sprite = style == EndingStyle.GameOver ? brokenHeartSprite : heartSprite;
         heartLeft.gameObject.SetActive(hearts);
         heartRight.gameObject.SetActive(hearts);
         bandAidA.gameObject.SetActive(hearts);
-        bandAidB.gameObject.SetActive(style == EndingStyle.Submission);
+        bandAidB.gameObject.SetActive(style == EndingStyle.Submission || style == EndingStyle.Proposal);
+        // 청혼 엔딩은 반창고 대신 리본
+        bandAidA.sprite = bandAidB.sprite = style == EndingStyle.Proposal ? ribbonSprite : bandAidSprite;
         Color heartColor = style == EndingStyle.GameOver ? new Color(0.55f, 0.02f, 0.08f) : new Color(1f, 0.45f, 0.70f);
         heartLeft.color = heartRight.color = heartColor;
-        bandAidA.color = bandAidB.color = style == EndingStyle.GameOver ? new Color(0.85f, 0.72f, 0.65f) : new Color(1f, 0.82f, 0.88f);
+        bandAidA.color = bandAidB.color = style == EndingStyle.GameOver ? new Color(0.85f, 0.72f, 0.65f)
+            : style == EndingStyle.Proposal ? Color.white : new Color(1f, 0.82f, 0.88f);
         lineTop.color = lineBottom.color = new Color(title.color.r, title.color.g, title.color.b, 0.9f);
         flashLeft.gameObject.SetActive(style == EndingStyle.Escape);
         flashRight.gameObject.SetActive(style == EndingStyle.Escape);
@@ -232,10 +253,11 @@ public sealed class EndingScreen : MonoBehaviour
         float halfWidth = Mathf.Min(title.preferredWidth * 0.5f, 860f);
         Place(heartLeft.rectTransform, new Vector2(-halfWidth - 70f, 155f), new Vector2(84f, 84f));
         Place(heartRight.rectTransform, new Vector2(halfWidth + 70f, 155f), new Vector2(84f, 84f));
-        Place(bandAidA.rectTransform, new Vector2(-halfWidth + 40f, 215f), new Vector2(150f, 52f));
-        bandAidA.rectTransform.localEulerAngles = new Vector3(0f, 0f, 24f);
-        Place(bandAidB.rectTransform, new Vector2(halfWidth - 30f, 92f), new Vector2(130f, 46f));
-        bandAidB.rectTransform.localEulerAngles = new Vector3(0f, 0f, -18f);
+        bool ribbon = style == EndingStyle.Proposal;
+        Place(bandAidA.rectTransform, new Vector2(-halfWidth + 40f, 215f), ribbon ? new Vector2(120f, 80f) : new Vector2(150f, 52f));
+        bandAidA.rectTransform.localEulerAngles = new Vector3(0f, 0f, ribbon ? 12f : 24f);
+        Place(bandAidB.rectTransform, new Vector2(halfWidth - 30f, 92f), ribbon ? new Vector2(110f, 74f) : new Vector2(130f, 46f));
+        bandAidB.rectTransform.localEulerAngles = new Vector3(0f, 0f, ribbon ? -10f : -18f);
         subtitle.text = subtitleText ?? string.Empty;
         subtitle.gameObject.SetActive(!string.IsNullOrEmpty(subtitleText));
 
@@ -328,6 +350,7 @@ public sealed class EndingScreen : MonoBehaviour
         switch (style)
         {
             case EndingStyle.Submission:
+            case EndingStyle.Proposal:
                 EXODSound.PlayAmbience("music_box", 0.45f, 2f);
                 break;
             case EndingStyle.Escape:
@@ -415,11 +438,12 @@ public sealed class EndingScreen : MonoBehaviour
     private void ResetParticle(int i, bool anywhere)
     {
         RectTransform p = particles[i];
-        bool rising = style != EndingStyle.Submission || i % 2 == 0;
+        bool rising = style == EndingStyle.Proposal ? false : (style != EndingStyle.Submission || i % 2 == 0);
         float x = UnityEngine.Random.Range(-980f, 980f);
         float y = anywhere ? UnityEngine.Random.Range(-560f, 560f) : (rising ? -580f : 580f);
         p.anchoredPosition = new Vector2(x, y);
-        float size = style == EndingStyle.Submission ? UnityEngine.Random.Range(14f, 46f) : UnityEngine.Random.Range(6f, 22f);
+        float size = style == EndingStyle.Submission || style == EndingStyle.Proposal
+            ? UnityEngine.Random.Range(14f, 46f) : UnityEngine.Random.Range(6f, 22f);
         p.sizeDelta = new Vector2(size, size);
         float speed = UnityEngine.Random.Range(25f, 85f) * (style == EndingStyle.GameOver ? 1.4f : 1f);
         particleSpeed[i] = new Vector2(UnityEngine.Random.Range(-12f, 12f), rising ? speed : -speed * 0.6f);
@@ -641,6 +665,67 @@ public sealed class EndingScreen : MonoBehaviour
         }
         texture.Apply();
         return Sprite.Create(texture, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f));
+    }
+
+    // 꽃잎 (끝이 뾰족한 타원, 가운데가 조금 진함)
+    private static Sprite PetalSprite()
+    {
+        const int size = 96;
+        Texture2D texture = new Texture2D(size, size, TextureFormat.RGBA32, false);
+        texture.wrapMode = TextureWrapMode.Clamp;
+        for (int y = 0; y < size; y++)
+        {
+            for (int x = 0; x < size; x++)
+            {
+                float fx = (x - size * 0.5f) / (size * 0.5f);
+                float fy = (y - size * 0.5f) / (size * 0.5f);
+                // 위아래로 뾰족한 렌즈 모양
+                float width = 0.55f * Mathf.Sqrt(Mathf.Max(0f, 1f - fy * fy)) * (1f - 0.25f * Mathf.Abs(fy));
+                float d = Mathf.Abs(fx) - width;
+                float a = Mathf.Clamp01(-d * size * 0.25f + 0.5f) * (Mathf.Abs(fy) < 0.98f ? 1f : 0f);
+                float shade = 0.85f + 0.15f * (1f - Mathf.Abs(fx) / Mathf.Max(0.01f, width));
+                texture.SetPixel(x, y, new Color(shade, shade, shade, a));
+            }
+        }
+        texture.Apply();
+        return Sprite.Create(texture, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f));
+    }
+
+    // 리본 (양쪽 고리 + 가운데 매듭 + 늘어진 꼬리), 검은 테두리
+    private static Sprite RibbonSprite()
+    {
+        const int w = 180, h = 120;
+        Texture2D texture = new Texture2D(w, h, TextureFormat.RGBA32, false);
+        texture.wrapMode = TextureWrapMode.Clamp;
+        Color pink = new Color(1f, 0.55f, 0.75f, 1f);
+        Color dark = new Color(0.85f, 0.35f, 0.55f, 1f);
+        Color line = new Color(0.12f, 0.03f, 0.08f, 1f);
+        for (int y = 0; y < h; y++)
+        {
+            for (int x = 0; x < w; x++)
+            {
+                float fx = (x - w * 0.5f) / (h * 0.5f);   // 세로 기준 단위
+                float fy = (y - h * 0.58f) / (h * 0.5f);
+                // 양쪽 고리: 가운데로 갈수록 좁아지는 삼각형 모양 타원
+                float ax = Mathf.Abs(fx);
+                float loop = (ax > 0.15f && ax < 1.45f) ? (Mathf.Abs(fy) - (0.18f + 0.42f * Mathf.Sin(Mathf.Clamp01((ax - 0.15f) / 1.3f) * Mathf.PI * 0.85f))) : 1f;
+                // 꼬리 두 개
+                float tailL = Mathf.Abs((fx + 0.25f) + (fy + 0.15f) * 0.45f) - 0.12f;
+                float tailR = Mathf.Abs((fx - 0.25f) - (fy + 0.15f) * 0.45f) - 0.12f;
+                bool tailRange = fy < -0.1f && fy > -0.95f;
+                float tail = tailRange ? Mathf.Min(tailL, tailR) : 1f;
+                // 가운데 매듭
+                float knot = Mathf.Max(ax - 0.2f, Mathf.Abs(fy) - 0.24f);
+                float dist = Mathf.Min(Mathf.Min(loop, tail), knot);
+                Color c;
+                if (dist > 0.0f) c = new Color(0f, 0f, 0f, 0f);
+                else if (dist > -0.06f) c = line;
+                else c = knot <= 0f ? dark : pink;
+                texture.SetPixel(x, y, c);
+            }
+        }
+        texture.Apply();
+        return Sprite.Create(texture, new Rect(0, 0, w, h), new Vector2(0.5f, 0.5f));
     }
 
     // 반창고 (둥근 막대 + 가운데 패드 + 작은 구멍)
