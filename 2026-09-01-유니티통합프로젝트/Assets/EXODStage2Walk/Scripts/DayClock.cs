@@ -93,6 +93,8 @@ namespace EXOD.Walk
             }
 
             if (Expired || Paused || IsTimePaused()) return;
+            // 전화 부스 안(창)이 열려 있는 동안 산책 시간 멈춤 (사용자 요청 2026-11-02)
+            if (WalkGameManager.Overlay != null) return;
 
             Elapsed += Time.deltaTime;
             if (Elapsed >= dayLengthSeconds)
