@@ -668,7 +668,7 @@ public sealed class RestroomGimmick : MonoBehaviour
     internal void OnKeypadPressed(int number)
     {
         enteredNumbers.Add(number);
-        EXODSound.Play("keypad_press");
+        EXODSound.Play("safe_click");   // 금고 버튼 딸깍딸깍 (Resources/EXODStage1/Sfx/safe_click.wav)
 
         if (enteredNumbers.Count < Answer.Length)
             return;
@@ -679,8 +679,10 @@ public sealed class RestroomGimmick : MonoBehaviour
         }
         else
         {
+            // 9개를 다 눌렀는데 틀림 → 실패 판정 후 비밀번호 창 닫기
             EXODSound.Play("keypad_error");
             DangerLevel.GimmickFailed();
+            CloseKeypad();
         }
     }
 
