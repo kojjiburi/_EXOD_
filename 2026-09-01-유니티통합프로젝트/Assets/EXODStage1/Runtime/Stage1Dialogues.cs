@@ -399,13 +399,11 @@ public static class Stage1Dialogues
     public const string BoothKeyItemName = "부스 열쇠";
 
     // 미로 출구에 도착했을 때 (이 대사 뒤 부스 열쇠가 퀵슬롯에 들어옴)
+    // 미로 안에서 떨어진 열쇠를 주운 뒤 미로를 닫으면 (줍기·"얻었다" 문구는 친구 미로 기믹이 보여 줌, 2026-11-02)
     public static List<DialogueLine> MirrorKeyFound() => new List<DialogueLine>
     {
-        Narrate("미로 끝에 다다르자, 손거울이 덜컥 흔들렸다."),
-        Narrate("거울 뒷면에 작은 열쇠가 테이프로 붙어 있다…"),
         Narrate("열쇠고리에 'TELEPHONE'이라고 적혀 있다."),
         Think("전화…? 밖에 있는 빨간 전화 부스 열쇠인가?"),
-        Narrate("[부스 열쇠]를 얻었다."),
     };
 
     // 벽에 너무 많이 부딪혀 닫혔을 때
