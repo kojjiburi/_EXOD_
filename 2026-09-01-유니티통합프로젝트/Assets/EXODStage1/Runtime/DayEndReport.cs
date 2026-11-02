@@ -15,6 +15,7 @@ using UnityEngine.SceneManagement;
 /// </summary>
 public sealed class DayEndReport : MonoBehaviour
 {
+    private static bool healPending;
     private static string pendingReport;   // null: 없음, "": 다 제자리, 그 외: 물건 이름들
 
     /// <summary>곰돌이 보답 컷신이 한 번 나왔는지 (그때 퀵슬롯이 꽉 차서 못 받았으면 거실 곰인형을 눌러 받음)</summary>
@@ -25,6 +26,7 @@ public sealed class DayEndReport : MonoBehaviour
     {
         pendingReport = null;
         BearGiftDelivered = false;
+        healPending = false;
     }
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
@@ -49,6 +51,10 @@ public sealed class DayEndReport : MonoBehaviour
     /// <summary>일차를 넘기기 직전에 DayCycleController가 부릅니다.</summary>
     public static void Prepare()
     {
+        // 10의 배수 일차가 시작되면 하트 +1 (사용자 요청 2026-11-02). 제자리 검사(하트 감소) 뒤, 아침 대사 때 채움
+        int nextDay = (GManager.Instance != null ? GManager.Instance.Day : 0) + 1;
+        healPending = nextDay % 10 == 0;
+
         ItemPositionManager positions = ItemPositionManager.Instance;
         if (positions == null)
         {
@@ -101,6 +107,7 @@ public sealed class DayEndReport : MonoBehaviour
         List<DialogueLine> lines = report.Length > 0
             ? Stage1Dialogues.DayReportMissing(report)
             : Stage1Dialogues.DayReportClean();
+        ApplyHeal(lines);
 
         // 전날 팔다리를 다 돌려줬으면 곰돌이 보답도 이어서 (아래 Update와 같은 규칙)
         BearLimbGimmickManager bear = FindFirstObjectByType<BearLimbGimmickManager>();
@@ -137,6 +144,22 @@ public sealed class DayEndReport : MonoBehaviour
         return true;
     }
 
+    // 10의 배수 일차: 하트 하나 채우고 한 줄 덧붙임
+    private static void ApplyHeal(List<DialogueLine> lines)
+    {
+        if (!healPending)
+            return;
+        healPending = false;
+
+        HeartManager hearts = FindFirstObjectByType<HeartManager>(FindObjectsInactive.Include);
+        if (hearts == null)
+            return;
+        bool wasFull = hearts.HP >= hearts.MaxHP;
+        hearts.HPP();
+        lines.AddRange(wasFull ? Stage1Dialogues.DayHealFull() : Stage1Dialogues.DayHeal());
+        EXODSound.Play("item_pickup", 0.7f);
+    }
+
     private void Update()
     {
         if (pendingReport == null)
@@ -161,6 +184,7 @@ public sealed class DayEndReport : MonoBehaviour
         List<DialogueLine> lines = report.Length > 0
             ? Stage1Dialogues.DayReportMissing(report)
             : Stage1Dialogues.DayReportClean();
+        ApplyHeal(lines);
 
         // 전날 팔다리를 다 돌려줬으면, 그녀가 나간 뒤 곰돌이가 보답(냉장고 비밀번호 쪽지)을 줌
         BearLimbGimmickManager bear = FindFirstObjectByType<BearLimbGimmickManager>();

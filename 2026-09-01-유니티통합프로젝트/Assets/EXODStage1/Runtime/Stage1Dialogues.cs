@@ -490,6 +490,18 @@ public static class Stage1Dialogues
         Narrate("(끌려 나가던 그녀가 문 앞에서 멈춰 돌아봤다.)"),
     };
 
+    // 10의 배수 일차 아침: 하트 +1 (DayEndReport)
+    public static List<DialogueLine> DayHeal() => new List<DialogueLine>
+    {
+        Think("…오늘은 왠지 몸이 가볍다. 조금 더 버틸 수 있을 것 같아."),
+        Narrate("[하트 하나가 회복됐다.]"),
+    };
+
+    public static List<DialogueLine> DayHealFull() => new List<DialogueLine>
+    {
+        Think("…오늘은 왠지 몸이 가볍다."),
+    };
+
     public const string EscapeEndingLine = "금방 돌아올게. 기다려 줘, 자기야 ♡";
     public const string EscapeEndingTitle = "탈출 엔딩 : 문 밖의 아침";
     public const string EscapeEndingSubtitle = "드디어 그 집을 나왔다. …그런데 왜, 뒤를 돌아보게 되는 걸까.";

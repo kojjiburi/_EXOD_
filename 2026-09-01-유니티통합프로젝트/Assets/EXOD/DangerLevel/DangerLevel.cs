@@ -34,7 +34,7 @@ using UnityEngine.SceneManagement;
 ///    (기믹은 실패 +10 기준) 이 대사 뒤로는 방 이동으로 위험도가 오르지 않음
 ///
 /// [1일차 튜토리얼]
-///  - 남은 시간 1분 30초에 발소리 + "방으로 들어가 있자" → 침실에 들어가면 여자친구 등장(안전)
+///  - 남은 시간 1분에 발소리 + "방으로 들어가 있자" → 침실에 들어가면 여자친구 등장(안전)
 ///  - 그 뒤로 행동 요령 띠에 "여자친구가 올 것 같으면 방에 들어가 있자" 표시 (HideHintUnlocked)
 ///
 /// 1스테이지 씬(SliderManager가 있는 씬)에 자동으로 붙습니다.
@@ -61,7 +61,7 @@ public sealed class DangerLevel : MonoBehaviour
     private const float RollCooldown = 5f;
     private const float RollChance = 0.1f;
     private const float PostWalkGraceSeconds = 15f;
-    private const float TutorialRemainingSeconds = 90f;
+    private const float TutorialRemainingSeconds = 60f;   // 남은 시간 1분에 여자친구 방문 (2026-11-02: 1분 30초 → 1분, 1일차가 1분 30초로 줄어서)
 
     public const string BedroomName = "침실";
     private const string FootstepSound = "footsteps_heels";

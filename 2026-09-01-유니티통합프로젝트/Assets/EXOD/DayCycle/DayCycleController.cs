@@ -6,7 +6,7 @@ using UnityEngine.UI;
 
 /// <summary>
 /// 일차 진행
-/// - 일차는 3분이 지나면 넘어갑니다. (대화·컷신·기절 연출 중에는 시간이 멈춤)
+/// - 일차는 3분(1일차는 1분 30초)이 지나면 넘어갑니다. (대화·컷신·기절 연출 중에는 시간이 멈춤)
 /// - 오른쪽 위 장소 이름 아래에 이번 일차의 남은 시간(m:ss)을 표시합니다.
 ///   2스테이지(산책)에 있는 동안에는 그 바로 아래에 2스테이지 1분 타이머(DayClock)도 표시합니다.
 /// - 2스테이지에 가 있어도 이 3분 타이머는 초기화되지 않고 계속 흐릅니다.
@@ -14,8 +14,8 @@ using UnityEngine.UI;
 /// - 일차가 넘어가면 GManager.NextDay()가 호출되어 DAY 표시가 오르고,
 ///   ItemPositionManager가 제자리 검사(틀리면 하트 감소) 및 초기화를 합니다.
 /// - 황금 열쇠를 얻은 뒤 처음 맞는 일차 끝에 안내 대사를 한 번만 띄웁니다.
-///   · 넘어가기 1분 전: "지금까지 얻은 모든 물건들을 제자리에 돌려놔야 할 것 같다." → "내가 나왔다는 증거가 남아있으면 안 된다."
-///   · 넘어가기 30초 전: "내 방 열쇠 또한 제자리로 돌려놔야 할 것 같다."
+///   · 넘어가기 30초 전: "지금까지 얻은 모든 물건들을 제자리에 돌려놔야 할 것 같다." → "내가 나왔다는 증거가 남아있으면 안 된다."
+///   · 넘어가기 15초 전: "내 방 열쇠 또한 제자리로 돌려놔야 할 것 같다."
 ///   · 그 전에 침대를 클릭하면 남은 대사만 바로 보여 주고 일차는 넘기지 않습니다. (처음 한 번)
 ///     하트·아이템도 그대로이며, 그다음 침대 클릭부터는 평소처럼 넘어갈지 묻습니다.
 /// 실행할 때 SliderManager가 있는 씬에 자동으로 붙습니다.
@@ -25,9 +25,20 @@ public sealed class DayCycleController : MonoBehaviour
 {
     public static DayCycleController Instance { get; private set; }
 
-    private const float DayLengthSeconds = 180f;      // 3분
-    private const float FirstWarningRemaining = 60f;  // 넘어가기 1분 전
-    private const float SecondWarningRemaining = 30f; // 넘어가기 30초 전
+    private const float NormalDayLengthSeconds = 180f;   // 3분
+    private const float FirstDayLengthSeconds = 90f;     // 1일차만 1분 30초 (사용자 요청 2026-11-02)
+    private const float FirstWarningRemaining = 30f;     // 넘어가기 30초 전: 물건 제자리 (2026-11-02: 1분 → 30초)
+    private const float SecondWarningRemaining = 15f;    // 넘어가기 15초 전: 황금 열쇠 (2026-11-02: 30초 → 15초)
+
+    // 이번 일차의 길이 (1일차 1분 30초, 그 밖 3분)
+    private static float DayLengthSeconds
+    {
+        get
+        {
+            GManager manager = GManager.Instance;
+            return manager != null && manager.Day <= 1 ? FirstDayLengthSeconds : NormalDayLengthSeconds;
+        }
+    }
 
     private const string GoldenKeyItemId = "golden_key";
     private const string BedroomViewName = "침실 기믹 화면";
