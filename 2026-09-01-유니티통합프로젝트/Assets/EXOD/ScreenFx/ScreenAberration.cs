@@ -9,6 +9,11 @@ using UnityEngine.UI;
 /// 처음에 세게 터졌다가 조금 줄어든 채로 계속 떨립니다. 대화창은 그 위에 또렷하게 그려집니다.
 ///  - 1스테이지: 침실 밖에서 들킨 대사(VisitCaught) 동안 (DangerLevel)
 ///  - 2스테이지: 산책 중 들킨 뒤 대사가 끝날 때까지 (DangerLevel)
+/// 이 동안 대화창의 여자친구 초상화는 띄우지 않습니다 (DialoguePortrait.HideGirlfriend).
+/// [컷신 이미지 자리] 아래 파일을 넣으면 색수차 화면 위·대화창 아래에 화면 가득(비율 유지) 보입니다. 없으면 안 보임.
+///  - 1스테이지 방 밖에서 들킴: Assets/EXOD/ScreenFx/Resources/EXODScreenFx/CaughtCutscene_House.png
+///  - 2스테이지 산책 중 들킴:  Assets/EXOD/ScreenFx/Resources/EXODScreenFx/CaughtCutscene_Walk.png
+///  (Texture Type은 Sprite (2D and UI)로)
 /// 셰이더: Assets/EXOD/ScreenFx/Resources/EXODScreenFx/ChromaticAberrationUI.shader
 /// </summary>
 public sealed class ScreenAberration : MonoBehaviour
@@ -16,6 +21,8 @@ public sealed class ScreenAberration : MonoBehaviour
     private const int SortingOrder = 850;          // 퀵슬롯(500)·HUD(600)·키패드(700) 위, HP 감소 효과(900)·기절 화면(1000) 아래
     private const int DialogueOrder = SortingOrder + 1;
     private const string ShaderPath = "EXODScreenFx/ChromaticAberrationUI";
+    public const string HouseCutscene = "EXODScreenFx/CaughtCutscene_House";
+    public const string WalkCutscene = "EXODScreenFx/CaughtCutscene_Walk";
 
     private const float PeakStrength = 0.30f;      // 처음 터질 때 (화면 모서리에서 화면 폭의 약 15%만큼 갈라짐)
     private const float HoldStrength = 0.16f;      // 그 뒤 유지
@@ -34,6 +41,7 @@ public sealed class ScreenAberration : MonoBehaviour
     private Canvas canvas;
     private CanvasGroup group;
     private RawImage image;
+    private Image cutsceneImage;
     private Material material;
     private Texture2D shot;
     private Coroutine routine;
@@ -48,7 +56,7 @@ public sealed class ScreenAberration : MonoBehaviour
     /// 화면을 찍고 색수차를 켭니다. 찍은 뒤 afterCapture를 부릅니다 (여기서 대사를 시작하면 찍힌 화면에 대사창이 안 들어감).
     /// stopWhenDialogueCloses가 true면 대사가 열렸다가 닫힐 때 저절로 꺼지고, false면 Stop()을 불러야 꺼집니다.
     /// </summary>
-    public static void Play(Action afterCapture, bool stopWhenDialogueCloses)
+    public static void Play(Action afterCapture, bool stopWhenDialogueCloses, string cutsceneResource = null)
     {
         if (instance == null)
         {
@@ -56,7 +64,7 @@ public sealed class ScreenAberration : MonoBehaviour
             instance = go.AddComponent<ScreenAberration>();
         }
 
-        instance.Begin(afterCapture, stopWhenDialogueCloses);
+        instance.Begin(afterCapture, stopWhenDialogueCloses, cutsceneResource);
     }
 
     public static void Stop()
@@ -71,13 +79,14 @@ public sealed class ScreenAberration : MonoBehaviour
             instance = null;
 
         DialogueOnTop.Lower(DialogueOrder);
+        DialoguePortrait.HideGirlfriend = false;
         if (shot != null)
             Destroy(shot);
         if (material != null)
             Destroy(material);
     }
 
-    private void Begin(Action afterCapture, bool stopWhenDialogueCloses)
+    private void Begin(Action afterCapture, bool stopWhenDialogueCloses, string cutsceneResource)
     {
         if (routine != null)
         {
@@ -86,12 +95,13 @@ public sealed class ScreenAberration : MonoBehaviour
         }
 
         stopRequested = false;
-        routine = StartCoroutine(Run(afterCapture, stopWhenDialogueCloses));
+        routine = StartCoroutine(Run(afterCapture, stopWhenDialogueCloses, cutsceneResource));
     }
 
-    private IEnumerator Run(Action afterCapture, bool stopWhenDialogueCloses)
+    private IEnumerator Run(Action afterCapture, bool stopWhenDialogueCloses, string cutsceneResource)
     {
         EnsureOverlay();
+        DialoguePortrait.HideGirlfriend = true;
 
         // 이번 프레임이 다 그려진 뒤 화면을 찍음
         yield return new WaitForEndOfFrame();
@@ -101,6 +111,11 @@ public sealed class ScreenAberration : MonoBehaviour
         shot.wrapMode = TextureWrapMode.Clamp;
         image.texture = shot;
         image.enabled = material != null;
+
+        // 컷신 이미지 (넣어 두었으면)
+        Sprite cutscene = string.IsNullOrEmpty(cutsceneResource) ? null : Resources.Load<Sprite>(cutsceneResource);
+        cutsceneImage.sprite = cutscene;
+        cutsceneImage.enabled = cutscene != null;
 
         canvas.gameObject.SetActive(true);
         group.alpha = 0f;
@@ -149,7 +164,9 @@ public sealed class ScreenAberration : MonoBehaviour
         group.alpha = 0f;
         canvas.gameObject.SetActive(false);
         DialogueOnTop.Lower(DialogueOrder);
+        DialoguePortrait.HideGirlfriend = false;
         image.texture = null;
+        cutsceneImage.sprite = null;
         if (shot != null)
         {
             Destroy(shot);
@@ -201,6 +218,19 @@ public sealed class ScreenAberration : MonoBehaviour
         rect.offsetMax = Vector2.zero;
         image = imageObject.GetComponent<RawImage>();
         image.raycastTarget = false;
+
+        // 컷신 이미지 자리 (색수차 화면 위, 대화창 아래)
+        GameObject cutsceneObject = new GameObject("컷신 이미지", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        cutsceneObject.transform.SetParent(canvasObject.transform, false);
+        RectTransform cutsceneRect = cutsceneObject.GetComponent<RectTransform>();
+        cutsceneRect.anchorMin = Vector2.zero;
+        cutsceneRect.anchorMax = Vector2.one;
+        cutsceneRect.offsetMin = Vector2.zero;
+        cutsceneRect.offsetMax = Vector2.zero;
+        cutsceneImage = cutsceneObject.GetComponent<Image>();
+        cutsceneImage.preserveAspect = true;
+        cutsceneImage.raycastTarget = false;
+        cutsceneImage.enabled = false;
 
         Shader shader = Resources.Load<Shader>(ShaderPath);
         if (shader != null)

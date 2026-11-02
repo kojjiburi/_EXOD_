@@ -39,6 +39,9 @@ public sealed class DialoguePortrait : MonoBehaviour
     private Sprite bearTornSprite;
     private Sprite bearSprite;
 
+    /// <summary>켜 두면 여자친구 대사여도 초상화를 띄우지 않습니다. (들켰을 때 컷신 — ScreenAberration이 켬)</summary>
+    public static bool HideGirlfriend { get; set; }
+
     /// <summary>초상화 그림 (대화 배경 어둡게 효과가 그 뒤에 놓일 때 사용)</summary>
     public RectTransform PortraitRect => portrait != null ? portrait.rectTransform : null;
 
@@ -81,7 +84,10 @@ public sealed class DialoguePortrait : MonoBehaviour
     {
         string speaker = line.speakerName != null ? line.speakerName.Trim() : string.Empty;
 
-        if (speaker == Stage1Dialogues.Unknown)
+        bool isGirlfriend = speaker == Stage1Dialogues.Unknown || speaker == Stage1Dialogues.Girlfriend || speaker == "얀데레" || speaker == "여주";
+        if (isGirlfriend && HideGirlfriend)
+            Hide();
+        else if (speaker == Stage1Dialogues.Unknown)
             Show(girlfriendSprite, silhouetteColor, girlfriendHeight, girlfriendHiddenBelow);
         else if (speaker == Stage1Dialogues.Girlfriend || speaker == "얀데레" || speaker == "여주")
             Show(girlfriendSprite, Color.white, girlfriendHeight, girlfriendHiddenBelow);
