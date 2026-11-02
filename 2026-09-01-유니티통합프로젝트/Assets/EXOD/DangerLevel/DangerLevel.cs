@@ -13,14 +13,20 @@ using UnityEngine.SceneManagement;
 ///  - 방 이동: +4 (위험도 76 이상이면 +1, 침실로 들어갈 땐 0) ※ 2배 적용 안 함
 ///  - 물건 얻기: +5 (같은 물건은 하루에 한 번만, 산책 중에 얻은 건 0)
 ///  - 기믹 성공 +5 / 기믹 실패 +10 (각 기믹 코드가 GimmickSolved/GimmickFailed 호출)
+///  - 눌러서 열리는 화면(조사 화면·키패드·비밀번호 창·메모 확대·손전등 화면)이 열릴 때 +1
+///  - 상호작용이 안 되는 곳을 클릭할 때 +1 (2초 안에 5번이면 "소리가 많이 나는 것 같은데, 괜찮을까?")
 ///  - 현관문 비밀번호를 처음 푼 뒤부터 방 이동을 뺀 나머지는 2배
 ///  - 1일차에는 오르지 않음 (대신 튜토리얼)
 ///
 /// [여자친구 등장]
-///  - 76 이상: 구두 발소리 + 위험도가 오를 때마다 5초 간격으로 10% 확률 판정
+///  - 65 이상: 구두 발소리 (10초마다 다시 들림). 발소리가 들릴 때 침실에 들어가면 바로 등장 (방 안이라 안전)
+///  - 76 이상: 위험도가 오를 때마다 5초 간격으로 10% 확률 판정
 ///  - 100: 바로 등장 (위 확률 판정과 같이 돌아감)
-///  - 70 이상에서 침실에 들어가면 바로 등장 (방 안이라 안전)
-///  - 등장했을 때 침실에 없으면 걸림 → 하트 -1
+///  - 등장했을 때 침실에 없으면 걸림 → 하트 -1 → 침실로 끌려가 방문이 다시 잠기고 황금 열쇠는 서랍 안으로
+///  - 대사: Stage1Dialogues.VisitSafe / VisitCaught / VisitLockedAgain (nicezzomaru)
+///
+/// [2스테이지(산책)] 위험도는 오르지도 내리지도 않음. 아이콘은 그녀 상태를 보여 줌
+///  - 앞을 봄: 초록 / 뒤돌기 전 말풍선: 노랑 / 뒤돌아봄: 빨강 / 들킴: 검정(흰 눈)
 ///  - 산책에서 돌아온 뒤 15초 동안은 등장 없음
 ///
 /// [경고]
@@ -31,7 +37,6 @@ using UnityEngine.SceneManagement;
 ///  - 남은 시간 1분 30초에 발소리 + "방으로 들어가 있자" → 침실에 들어가면 여자친구 등장(안전)
 ///  - 그 뒤로 행동 요령 띠에 "여자친구가 올 것 같으면 방에 들어가 있자" 표시 (HideHintUnlocked)
 ///
-/// 등장·걸림 대사는 임시입니다. (대사 담당이 아래 Lines 상수를 바꾸면 됨)
 /// 1스테이지 씬(SliderManager가 있는 씬)에 자동으로 붙습니다.
 /// </summary>
 [DefaultExecutionOrder(290)]
@@ -46,10 +51,15 @@ public sealed class DangerLevel : MonoBehaviour
     private const int ItemAmount = 5;
     private const int GimmickSolvedAmount = 5;
     private const int GimmickFailedAmount = 10;
-    private const int HighThreshold = 76;       // 발소리·확률 판정 시작
+    private const int UiOpenAmount = 1;
+    private const int EmptyClickAmount = 1;
+    private const int EmptyClickBurstCount = 5;
+    private const float EmptyClickBurstSeconds = 2f;
+    private const int FootstepThreshold = 65;   // 발소리, 이때 침실에 들어가면 등장
+    private const float FootstepRepeatSeconds = 10f;
+    private const int HighThreshold = 76;       // 확률 판정 시작
     private const float RollCooldown = 5f;
     private const float RollChance = 0.1f;
-    private const int BedroomAppearThreshold = 70;
     private const float PostWalkGraceSeconds = 15f;
     private const float TutorialRemainingSeconds = 90f;
 
@@ -66,16 +76,7 @@ public sealed class DangerLevel : MonoBehaviour
         "방으로 들어가 있자.",
     };
 
-    private static readonly string[] AppearInRoomLines =
-    {
-        "자기야~ 나 왔어. 얌전히 방에 있었네? 착하다 ♡",
-    };
-
-    private static readonly string[] AppearCaughtLines =
-    {
-        "…자기야? 왜 방에 없어?",
-        "어디 가려고 했던 거야?",
-    };
+    private const string NoisyText = "…소리가 많이 나는 것 같은데, 괜찮을까?";
 
     // ── 상태 ─────────────────────────────────────────────
     public static DangerLevel Instance { get; private set; }
@@ -95,16 +96,20 @@ public sealed class DangerLevel : MonoBehaviour
     private bool warnedNearMax;
     private bool footstepsPlayed;
     private bool appearing;
-    private bool appearCaught;
     private bool tutorialShown;
     private bool tutorialWaitingForRoom;
-    private bool waitingDialogueEnd;
+    private float nextFootstepTime;
+    private readonly List<float> emptyClickTimes = new List<float>();
+
+    // 화면이 열릴 때 +1 을 세기 위한 이전 상태
+    private bool wasInspectionOpen, wasMemoOpen, wasFlashlightOpen, wasRestroomKeypadOpen;
 
     private readonly HashSet<string> itemsCountedToday = new HashSet<string>();
     private readonly HashSet<QuickSlotEntry> knownEntries = new HashSet<QuickSlotEntry>();
 
     private SliderManager slider;
     private Yan yan;
+    private EXOD.Walk.WalkYandere walkYandere;
     private Sprite safeIcon, normalIcon, dangerIcon, appearedIcon;
 
     // ═══════════════════════════════════════════════════
@@ -163,7 +168,6 @@ public sealed class DangerLevel : MonoBehaviour
     {
         if (slider != null)
             slider.RoomChanged -= OnRoomChanged;
-        StopListeningDialogueEnd();
 
         if (Instance == this)
             Instance = null;
@@ -202,13 +206,21 @@ public sealed class DangerLevel : MonoBehaviour
         {
             UpdateTutorial();
             SyncKnownEntries();
+            UpdateUiOpenStates(false);
             return;
         }
 
         CheckNewItems();
+        UpdateUiOpenStates(true);
 
         if (DayCycleController.IsTimePaused())
             return;
+
+        CheckEmptyClick();
+
+        // 발소리가 들리는 동안 10초마다 다시
+        if (value >= FootstepThreshold && Time.time >= nextFootstepTime)
+            PlayFootsteps();
 
         // 시간: 2초마다 40% 확률로 +1
         tickTimer += Time.deltaTime;
@@ -241,6 +253,8 @@ public sealed class DangerLevel : MonoBehaviour
         tickTimer = 0f;
         warnedNearMax = false;
         footstepsPlayed = false;
+        nextFootstepTime = 0f;
+        emptyClickTimes.Clear();
         itemsCountedToday.Clear();
         SyncKnownEntries();
     }
@@ -272,11 +286,8 @@ public sealed class DangerLevel : MonoBehaviour
 
         value = Mathf.Min(Max, value + amount);
 
-        if (value >= HighThreshold && !footstepsPlayed)
-        {
-            footstepsPlayed = true;
-            EXODSound.Play(FootstepSound);
-        }
+        if (value >= FootstepThreshold && !footstepsPlayed)
+            PlayFootsteps();
 
         if (!CanAppear())
             return;
@@ -310,7 +321,8 @@ public sealed class DangerLevel : MonoBehaviour
                 return;
             }
 
-            if (CountsNow() && value >= BedroomAppearThreshold && CanAppear())
+            // 발소리가 들릴 때(65 이상) 침실에 들어가면 바로 등장
+            if (CountsNow() && value >= FootstepThreshold && CanAppear())
                 Appear();
             return;
         }
@@ -391,6 +403,13 @@ public sealed class DangerLevel : MonoBehaviour
             Instance.Add(GimmickFailedAmount * Multiplier);
     }
 
+    /// <summary>눌러서 열리는 화면(키패드·비밀번호 창 등)이 열렸을 때 (+1, 현관문 연 뒤 2배)</summary>
+    public static void UiOpened()
+    {
+        if (Instance != null && Instance.CountsNow())
+            Instance.Add(UiOpenAmount * Multiplier);
+    }
+
     /// <summary>
     /// 기믹을 열기 전에 부릅니다. 실패(+10) 기준으로 100이 될 상황이면 경고 대사를 띄우고 true(이번엔 열지 않음)를 돌려줍니다.
     /// 경고는 한 번만 나오고, 다음에 다시 누르면 그대로 열립니다.
@@ -429,6 +448,13 @@ public sealed class DangerLevel : MonoBehaviour
         return true;
     }
 
+    private void PlayFootsteps()
+    {
+        footstepsPlayed = true;
+        nextFootstepTime = Time.time + FootstepRepeatSeconds;
+        EXODSound.Play(FootstepSound);
+    }
+
     private void Appear()
     {
         if (appearing)
@@ -436,64 +462,230 @@ public sealed class DangerLevel : MonoBehaviour
 
         bool inRoom = slider != null && slider.CurrentRoom == BedroomName;
         appearing = true;
-        appearCaught = !inRoom;
         value = 0;
         UpdateIcon();
 
-        if (!footstepsPlayed)
-            EXODSound.Play(FootstepSound);
+        if (inRoom)
+        {
+            PlayCutscene(Stage1Dialogues.VisitSafe(), FinishAppear);
+            return;
+        }
 
-        List<DialogueLine> lines = new List<DialogueLine>();
-        foreach (string text in inRoom ? AppearInRoomLines : AppearCaughtLines)
-            lines.Add(new DialogueLine { speakerName = Stage1Dialogues.Girlfriend, text = text, dialogueType = DialogueType.Character });
+        // 침실 밖에서 들킴 → 하트 -1 → (게임 오버가 아니면) 침실로 끌려가 다시 갇힘
+        PlayCutscene(Stage1Dialogues.VisitCaught(), () =>
+        {
+            HeartManager hearts = FindFirstObjectByType<HeartManager>(FindObjectsInactive.Include);
+            if (hearts != null)
+                hearts.HPM();
+
+            if (hearts != null && hearts.HP <= 0)
+            {
+                FinishAppear();
+                return;
+            }
+
+            LockBackInBedroom();
+            PlayCutscene(Stage1Dialogues.VisitLockedAgain(), FinishAppear);
+        });
+    }
+
+    private static void PlayCutscene(List<DialogueLine> lines, System.Action onFinished)
+    {
+        if (Stage1StoryController.Instance != null)
+        {
+            Stage1StoryController.Instance.PlayCutscene(lines, onFinished);
+            return;
+        }
 
         DialogueManager dialogue = DialogueManager.Instance;
         if (dialogue == null)
         {
-            FinishAppear();
+            onFinished?.Invoke();
             return;
         }
 
+        UnityEngine.Events.UnityAction once = null;
+        once = () =>
+        {
+            dialogue.onDialogueEnd.RemoveListener(once);
+            onFinished?.Invoke();
+        };
+        dialogue.onDialogueEnd.AddListener(once);
         dialogue.StartDialogue(lines);
-        StopListeningDialogueEnd();
-        dialogue.onDialogueEnd.AddListener(FinishAppear);
-        waitingDialogueEnd = true;
+    }
+
+    // 침실로 끌려감: 방문이 다시 잠기고 황금 열쇠는 서랍 안으로 (서랍 비밀번호는 풀린 채라 서랍을 열면 다시 주울 수 있음)
+    private void LockBackInBedroom()
+    {
+        ReturnGoldenKeyToDrawer();
+        if (slider != null)
+            slider.LockBedroomAgain();
+    }
+
+    private static void ReturnGoldenKeyToDrawer()
+    {
+        const string goldenKeyId = "golden_key";
+        ItemPositionManager positions = ItemPositionManager.Instance;
+        QuickSlotInventory inventory = QuickSlotInventory.Instance;
+
+        // 열쇠가 어디에 있든 (퀵슬롯 / 다른 자리에 놓음) 먼저 거둬들입니다.
+        ItemData keyItem = null;
+        if (inventory != null)
+        {
+            foreach (QuickSlotEntry entry in inventory.Entries)
+            {
+                if (entry?.ItemData != null && entry.ItemData.ItemId == goldenKeyId)
+                {
+                    keyItem = entry.ItemData;
+                    inventory.TryRemove(entry);
+                    break;
+                }
+            }
+        }
+
+        if (positions == null)
+            return;
+
+        ItemPositionRecord drawerSlot = null;
+        foreach (ItemPositionRecord record in positions.PositionRecords)
+        {
+            record.RefreshOccupancy();
+            if (record.OriginalItemId == goldenKeyId)
+                drawerSlot = record;
+            else if (record.IsOccupied && record.CurrentItemId == goldenKeyId)
+            {
+                WorldItemPickup misplacedKey = record.CurrentPickup;
+                keyItem = keyItem != null ? keyItem : misplacedKey.ItemData;
+                record.SetOccupant(null);
+                Destroy(misplacedKey.gameObject);
+            }
+        }
+
+        // 서랍 자리에 열쇠를 놓으면 PlayerSystemsSceneBridge가 서랍 안으로 넣어 줍니다.
+        if (drawerSlot != null && keyItem != null && !(drawerSlot.IsOccupied && drawerSlot.CurrentItemId == goldenKeyId))
+            positions.TryPlaceItem(keyItem, drawerSlot.OriginalPosition);
     }
 
     private void FinishAppear()
     {
-        StopListeningDialogueEnd();
-
         appearing = false;
         value = 0;
         warnedNearMax = false;
         footstepsPlayed = false;
         lastRollTime = -999f;
+        emptyClickTimes.Clear();
 
         if (tutorialWaitingForRoom)
         {
             tutorialWaitingForRoom = false;
             HideHintUnlocked = true;
         }
-
-        // 방에 없었으면 걸림 → 하트 -1 (0이 되면 PlayerFaintController가 게임 오버)
-        if (appearCaught)
-        {
-            HeartManager hearts = FindFirstObjectByType<HeartManager>(FindObjectsInactive.Include);
-            if (hearts != null)
-                hearts.HPM();
-        }
-        appearCaught = false;
     }
 
-    private void StopListeningDialogueEnd()
+    // ── 화면 열림 / 빈 곳 클릭 ───────────────────────────
+
+    // 조사 화면·메모 확대·손전등 화면·화장실 금고 키패드가 새로 열리면 +1
+    // (서랍 비밀번호 창·냉장고/현관 키패드는 각 코드에서 UiOpened 호출)
+    private void UpdateUiOpenStates(bool count)
     {
-        if (!waitingDialogueEnd)
+        bool inspection = InspectionManager.Instance != null && InspectionManager.Instance.IsOpen;
+        MemoZoom memo = FindFirstObjectByType<MemoZoom>();
+        bool memoOpen = memo != null && memo.IsOpen;
+        FlashlightGimmick flashlight = FlashlightGimmick.Instance;
+        bool flashlightOpen = flashlight != null && flashlight.IsViewerOpen;
+        bool restroomKeypad = RestroomGimmick.Instance != null && RestroomGimmick.Instance.IsKeypadOpen;
+
+        if (count)
+        {
+            int opened = 0;
+            if (inspection && !wasInspectionOpen) opened++;
+            if (memoOpen && !wasMemoOpen) opened++;
+            if (flashlightOpen && !wasFlashlightOpen) opened++;
+            if (restroomKeypad && !wasRestroomKeypadOpen) opened++;
+            if (opened > 0 && CountsNow())
+                Add(opened * UiOpenAmount * Multiplier);
+        }
+
+        wasInspectionOpen = inspection;
+        wasMemoOpen = memoOpen;
+        wasFlashlightOpen = flashlightOpen;
+        wasRestroomKeypadOpen = restroomKeypad;
+    }
+
+    // 상호작용이 안 되는 곳을 클릭하면 +1, 2초 안에 5번이면 "소리가 많이 나는 것 같은데, 괜찮을까?"
+    private void CheckEmptyClick()
+    {
+        if (!Input.GetMouseButtonDown(0) || !IsEmptySpot(Input.mousePosition))
             return;
 
-        waitingDialogueEnd = false;
-        if (DialogueManager.Instance != null)
-            DialogueManager.Instance.onDialogueEnd.RemoveListener(FinishAppear);
+        float now = Time.time;
+        emptyClickTimes.Add(now);
+        emptyClickTimes.RemoveAll(t => now - t > EmptyClickBurstSeconds);
+
+        if (emptyClickTimes.Count >= EmptyClickBurstCount)
+        {
+            emptyClickTimes.Clear();
+            DialogueManager.Instance?.StartDialogue(Stage1Dialogues.Thought(NoisyText));
+        }
+
+        if (CountsNow())
+            Add(EmptyClickAmount * Multiplier);
+    }
+
+    private static bool IsEmptySpot(Vector2 screenPosition)
+    {
+        // 다른 화면이 열려 있을 때의 클릭은 세지 않음
+        if (InspectionManager.Instance != null && InspectionManager.Instance.IsOpen)
+            return false;
+        if (RestroomGimmick.Instance != null && RestroomGimmick.Instance.IsKeypadOpen)
+            return false;
+        if (FlashlightGimmick.Instance != null && (FlashlightGimmick.Instance.IsViewerOpen || FlashlightGimmick.Instance.IsSelectingTarget))
+            return false;
+        if (GameMenu.IsOpen || (DialogueLog.Instance != null && DialogueLog.Instance.IsOpen))
+            return false;
+
+        UnityEngine.EventSystems.EventSystem eventSystem = UnityEngine.EventSystems.EventSystem.current;
+        if (eventSystem != null)
+        {
+            var pointer = new UnityEngine.EventSystems.PointerEventData(eventSystem) { position = screenPosition };
+            var hits = new List<UnityEngine.EventSystems.RaycastResult>();
+            eventSystem.RaycastAll(pointer, hits);
+            foreach (var hit in hits)
+            {
+                if (IsInteractive(hit.gameObject))
+                    return false;
+            }
+        }
+
+        Camera cam = Camera.main;
+        if (cam != null)
+        {
+            Vector3 world = cam.ScreenToWorldPoint(new Vector3(screenPosition.x, screenPosition.y, Mathf.Abs(cam.transform.position.z)));
+            foreach (Collider2D col in Physics2D.OverlapPointAll(world))
+            {
+                if (IsInteractive(col.gameObject))
+                    return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool IsInteractive(GameObject go)
+    {
+        if (go == null)
+            return false;
+        if (go.GetComponentInParent<UnityEngine.UI.Selectable>() != null)
+            return true;
+        if (go.GetComponentInParent<UnityEngine.EventSystems.EventTrigger>() != null)
+            return true;
+        if (go.GetComponentInParent<UnityEngine.EventSystems.IPointerClickHandler>() != null)
+            return true;
+        if (go.GetComponentInParent<UnityEngine.EventSystems.IPointerDownHandler>() != null)
+            return true;
+        if (go.GetComponentInParent<UnityEngine.EventSystems.IBeginDragHandler>() != null)
+            return true;
+        return false;
     }
 
     // ── 1일차 튜토리얼 ───────────────────────────────────
@@ -509,8 +701,7 @@ public sealed class DangerLevel : MonoBehaviour
 
         tutorialShown = true;
         tutorialWaitingForRoom = true;
-        footstepsPlayed = true;
-        EXODSound.Play(FootstepSound);
+        PlayFootsteps();
         DialogueManager.Instance?.StartDialogue(Stage1Dialogues.Thought(TutorialLines));
     }
 
@@ -531,10 +722,31 @@ public sealed class DangerLevel : MonoBehaviour
         if (yan.StateRenderer == null)
             return;
 
-        Sprite icon = appearing ? appearedIcon
-                    : value <= 30 ? safeIcon
-                    : value <= 50 ? normalIcon
-                    : dangerIcon;
+        Sprite icon;
+        if (Stage2HouseLink.IsInStage2)
+        {
+            // 산책 중: 그녀 상태 (앞을 봄 초록 / 말풍선 노랑 / 뒤돌아봄 빨강 / 들킴 검정)
+            if (walkYandere == null)
+                walkYandere = FindFirstObjectByType<EXOD.Walk.WalkYandere>();
+            if (walkYandere == null)
+                icon = safeIcon;
+            else if (walkYandere.State == EXOD.Walk.YandereState.Caught)
+                icon = appearedIcon;
+            else if (walkYandere.State == EXOD.Walk.YandereState.Watching)
+                icon = dangerIcon;
+            else if (walkYandere.IsTurnWarningShown)
+                icon = normalIcon;
+            else
+                icon = safeIcon;
+        }
+        else
+        {
+            walkYandere = null;
+            icon = appearing ? appearedIcon
+                 : value <= 30 ? safeIcon
+                 : value <= 50 ? normalIcon
+                 : dangerIcon;
+        }
         if (icon != null && yan.StateRenderer.sprite != icon)
             yan.StateRenderer.sprite = icon;
     }

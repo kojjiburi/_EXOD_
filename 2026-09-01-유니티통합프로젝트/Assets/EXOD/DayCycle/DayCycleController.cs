@@ -46,11 +46,6 @@ public sealed class DayCycleController : MonoBehaviour
 
     private const string AskNextDayText = "다음 일차로 넘어갈까?";
 
-    // 일차 끝 점검에서 모두 제자리였을 때
-    private static readonly string[] DayEndSafeLines =
-    {
-        "오늘은 무사히 넘긴 것 같다.",
-    };
     private static readonly string[] AskNextDayChoices = { "넘어간다", "아직 아니다" };
 
     private static readonly string[] SecondWarningLines =
@@ -156,33 +151,11 @@ public sealed class DayCycleController : MonoBehaviour
         // 화면이 천천히 검어졌다가 'DAY-n'을 보여주고 다시 투명해집니다 (DayController). 일차는 검은 화면일 때 넘어갑니다.
         if (DayController.IsTransitioning)
             return;
-        if (DayController.TryPlayDayTransition(AdvanceDayNow, ShowDayEndReport))
+        // 일차 끝 알림(제자리에 없던 물건)은 nicezzomaru의 DayEndReport가 'DAY-n' 화면 뒤에 보여 줍니다.
+        if (DayController.TryPlayDayTransition(AdvanceDayNow))
             return;
 
         AdvanceDayNow();
-        ShowDayEndReport();
-    }
-
-    // 일차 끝 점검 결과: 페이드가 끝난 뒤 제자리에 없던 물건을 알려 줍니다. 모두 제자리면 무사히 넘겼다고 말합니다.
-    private void ShowDayEndReport()
-    {
-        if (PlayerFaintController.Instance != null && PlayerFaintController.Instance.IsBusy)
-            return;
-
-        ItemPositionManager positions = ItemPositionManager.Instance;
-        IReadOnlyList<string> missing = positions != null ? positions.LastDayEndMisplacedNames : null;
-
-        if (missing == null || missing.Count == 0)
-        {
-            Think(DayEndSafeLines);
-            return;
-        }
-
-        Think(new[]
-        {
-            "…제자리에 없던 물건이 있었다.",
-            string.Join(", ", missing) + ".",
-        });
     }
 
     private void AdvanceDayNow()

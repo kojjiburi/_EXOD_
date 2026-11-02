@@ -359,11 +359,13 @@ public static class Stage1Dialogues
         Say(Girlfriend, "…자기야."),
         Say(Girlfriend, "이거, 왜 제자리에 없어? 「" + itemNames + "」"),
         Say(Girlfriend, "내 물건 함부로 만지지 말랬잖아. …다음엔 진짜 화낼 거야."),
+        Think("…정리하지 못했던 물건이 있었다."),
     };
 
     public static List<DialogueLine> DayReportClean() => new List<DialogueLine>
     {
         Narrate("아침이 밝았다."),
         Say(Girlfriend, "좋은 아침, 자기야~ 오늘도 얌전히 있었네? ♡"),
+        Think("오늘은 무사히 넘긴 것 같다."),
     };
 }

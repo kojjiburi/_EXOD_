@@ -246,6 +246,26 @@ public class SliderManager : MonoBehaviour
         MoveToRoom();
     }
 
+    // [위험도] 여자친구에게 들켜 다시 갇혔다가 열쇠로 다시 열 때는 곰인형 첫 만남 장면을 다시 보여 주지 않습니다.
+    private bool bedroomDoorOpenedOnce;
+
+    /// <summary>
+    /// [위험도] 여자친구에게 들켜 침실로 끌려옴: 침실로 옮기고 방문을 다시 잠급니다.
+    /// (황금 열쇠를 서랍 안으로 돌려놓는 건 DangerLevel이 함 → 서랍에서 다시 꺼내 열면 됨)
+    /// </summary>
+    public void LockBedroomAgain()
+    {
+        if (isUnlocked)
+        {
+            int bedroomIndex = _unlockedRooms.IndexOf("침실");
+            if (bedroomIndex >= 0)
+                _currentIndex = bedroomIndex;
+        }
+
+        isUnlocked = false;
+        UpdateSlider();
+    }
+
     private bool TryOpenBedroomDoorWithKey()
     {
         PasswordDrawer drawer = FindFirstObjectByType<PasswordDrawer>(FindObjectsInactive.Include);
@@ -254,6 +274,13 @@ public class SliderManager : MonoBehaviour
 
         UnlockSlider();
         RoomManager.Instance?.Clear침실();
+
+        if (bedroomDoorOpenedOnce)
+        {
+            DialogueManager.Instance?.StartDialogue(Stage1Dialogues.Thought("철컥. 황금 열쇠로 방문을 다시 열었다."));
+            return true;
+        }
+        bedroomDoorOpenedOnce = true;
 
         // 문을 열면 곰인형이 말을 거는 장면 (대사: Stage1Dialogues.BearFirstMeet)
         List<DialogueLine> bearLines = Stage1Dialogues.BearFirstMeet();

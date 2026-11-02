@@ -42,6 +42,7 @@ public sealed class Stage1Keypad : MonoBehaviour
         // [위험도] 틀리면 100이 될 상황이면 경고만 하고 이번엔 열지 않음
         if (DangerLevel.WarnBeforeGimmick())
             return;
+        DangerLevel.UiOpened();
 
         if (instance == null)
             instance = new GameObject("키패드").AddComponent<Stage1Keypad>();

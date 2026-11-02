@@ -98,6 +98,7 @@ public class PasswordDrawer : MonoBehaviour
         // [위험도] 틀리면 100이 될 상황이면 경고만 하고 이번엔 열지 않음
         if (DangerLevel.WarnBeforeGimmick())
             return;
+        DangerLevel.UiOpened();
 
         passwordPanel.SetActive(true);
         passwordInput.text = string.Empty;

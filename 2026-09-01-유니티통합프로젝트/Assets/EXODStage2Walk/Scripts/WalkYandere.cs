@@ -67,6 +67,8 @@ namespace EXOD.Walk
 
         public YandereState State { get; private set; } = YandereState.Away;
         public bool IsWatching => State == YandereState.Watching;
+        /// <summary>뒤돌기 전 말풍선(2SWW)이 떠 있는지 (통합 프로젝트 위험도 아이콘이 노랑으로 바뀜)</summary>
+        public bool IsTurnWarningShown => warningSr != null && warningSr.gameObject.activeSelf && State == YandereState.Away;
         /// <summary>대화창이 떠 있는 동안 등 잠시 멈춤 (뒤돌아보는 타이머와 걷기 정지)</summary>
         public bool Paused { get; set; }
 
