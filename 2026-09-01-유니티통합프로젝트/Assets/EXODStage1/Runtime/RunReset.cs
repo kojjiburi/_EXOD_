@@ -8,7 +8,7 @@ using UnityEngine;
 /// 씬을 다시 불러와도 static 값은 남아 있어서 "일부 아이템이 사라진 채로 다시 안 나오는" 문제가 있었음.
 /// 여러 팀원 파일의 private static 값을 이름으로 찾아 지우므로, 이름이 바뀌어도 에러 없이 건너뜁니다.
 /// PlayerFaintController.ResetRunState가 부릅니다.
-/// 남기는 것: 엔딩 수집(PlayerPrefs), 음량, 행동 요령 접힘, Tab UI 숨김 단계 같은 사용자 설정
+/// 남기는 것: 엔딩 수집(게임을 켜 둔 동안), 음량, 행동 요령 접힘, Tab UI 숨김 단계 같은 사용자 설정
 /// </summary>
 public static class RunReset
 {

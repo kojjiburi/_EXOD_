@@ -190,12 +190,18 @@ public static class Stage1Dialogues
     };
 
     // 팔다리를 다 돌려줬을 때 (보답은 다음 날 아침 컷신에서 — 2026-11-02 사용자 결정)
-    public static List<DialogueLine> BearReturn() => new List<DialogueLine>
+    public static List<DialogueLine> BearReturn()
     {
-        Say(Player, "자, 여기! 네 팔다리."),
-        Say(Bear, "와아… 정말 다 찾아주셨네요!"),
-        Say(Bear, "꼭 은혜를 갚을게요!"),
-    };
+        List<DialogueLine> lines = new List<DialogueLine>
+        {
+            Say(Player, "자, 여기! 네 팔다리."),
+            Say(Bear, "와아… 정말 다 찾아주셨네요!"),
+        };
+        // [이지] 그 자리에서 바로 보답하므로 "꼭 은혜를 갚을게요!"는 뺌 (사용자 요청 2026-11-03)
+        if (!GameDifficulty.IsEasy)
+            lines.Add(Say(Bear, "꼭 은혜를 갚을게요!"));
+        return lines;
+    }
 
     // [이지] 팔다리를 돌려준 그 자리에서 바로 보답 (BearReturn 뒤에 이어짐) — 이 대사 뒤 냉장고 비밀번호 쪽지가 퀵슬롯에 들어옴
     public static List<DialogueLine> BearSameDayGift() => new List<DialogueLine>
