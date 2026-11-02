@@ -8,8 +8,9 @@ using UnityEngine.UI;
 /// <summary>
 /// 화장실 선반의 손거울 → 거울 미로(MirrorMazeGimmick, 친구 main 기믹) → 전화 부스 열쇠 (2026-11-02 사용자 결정)
 /// - 화장실 선반 오른쪽 칸(금고 왼쪽)에 분홍 손거울 그림을 세워 두고, 누르면 거울 미로가 열립니다.
-/// - 출구에 도착하면 "거울 뒷면에 작은 열쇠가… 'TELEPHONE'" → 부스 열쇠(stage2_booth_key)가 퀵슬롯에 들어옵니다.
-///   (일차 끝 점검 예외 아이템: ItemPositionManager.AlwaysAllowedInInventoryItemIds)
+/// - 출구에 도착하면 미로 화면 선반 위로 부스 열쇠가 떨어지고, 눌러서 주우면 퀵슬롯에 들어옵니다.
+///   (2026-11-02 친구 main 99c6166 "미로기믹 수정본" 방식, MirrorMazeReward가 퀵슬롯에 넣음 — 이 파일은 열쇠를 따로 주지 않음)
+///   미로를 닫으면 "열쇠고리에 'TELEPHONE'…" 대사. (일차 끝 점검 예외 아이템: ItemPositionManager.AlwaysAllowedInInventoryItemIds)
 /// - 벽에 3번 부딪히면 닫히고 다시 도전할 수 있습니다.
 /// - 친구 위험도 규칙: 열기 전 WarnBeforeGimmick·UiOpened, 성공 GimmickSolved(+5), 실패 GimmickFailed(+10)
 /// 대사: Stage1Dialogues.MirrorKeyFound / MirrorFailed / MirrorEmpty
@@ -46,6 +47,11 @@ public sealed class Stage1MirrorBoothKey : MonoBehaviour
 
     private IEnumerator Start()
     {
+        // 새 판(씬을 새로 불러옴)마다 거울 미로 기록을 지웁니다. (static이라 다시 시작/로비 뒤에도 남아 있어서
+        // '이미 깬 상태·열쇠 이미 주움'으로 열려 열쇠를 못 받던 문제) 같은 판 안에서는 기록 유지
+        ResetMirrorMazeRecord("IsSolved");
+        ResetMirrorMazeRecord("RewardTaken");
+
         // SliderManager가 방 화면을 만든 뒤에 찾습니다.
         yield return null;
         yield return null;
@@ -100,64 +106,50 @@ public sealed class Stage1MirrorBoothKey : MonoBehaviour
             return;
         DangerLevel.UiOpened();
 
-        // 지난 판(다시 시작/로비)에 미로를 깬 기록이 남아 있으면, 열자마자 '클리어 화면'만 나오고 열쇠를 못 받음 → 기록을 지우고 다시 풀게 함
-        if (MirrorMazeGimmick.IsSolved)
-        {
-            System.Reflection.PropertyInfo solved = typeof(MirrorMazeGimmick).GetProperty(nameof(MirrorMazeGimmick.IsSolved));
-            if (solved != null && solved.GetSetMethod(true) != null)
-                solved.GetSetMethod(true).Invoke(null, new object[] { false });
-        }
-
         Unsubscribe();
         MirrorMazeGimmick.Solved += OnSolved;
         MirrorMazeGimmick.Failed += OnFailed;
         MirrorMazeGimmick.Closed += OnClosed;
+        MirrorMazeGimmick.RewardObtained += OnRewardObtained;
         opened = true;
-        MirrorMazeGimmick.Open();
+        // 우리 부스 열쇠(아이콘 = 사용자 그림)를 그대로 주도록 넘겨 줌
+        MirrorMazeGimmick.Open(rewardItemAsset: boothKey);
     }
+
+    private bool solvedCounted;
 
     private void OnSolved(string clue)
     {
-        if (keyGiven)
+        // 위험도: 미로 성공 +5 (한 판에 한 번)
+        if (solvedCounted)
             return;
-
-        // 기믹 창이 닫힌 뒤 대사와 함께 열쇠를 줌
-        StartCoroutine(GiveKeyAfterClose());
+        solvedCounted = true;
+        DangerLevel.GimmickSolved();
     }
 
-    private IEnumerator GiveKeyAfterClose()
+    // 미로 안에서 열쇠를 주웠을 때 (퀵슬롯에는 MirrorMazeReward가 이미 넣음) → 미로를 닫으면 대사
+    private void OnRewardObtained(string itemId)
     {
+        if (keyGiven)
+            return;
         keyGiven = true;
-        DangerLevel.GimmickSolved();
-        EXODSound.Play("key_unlock");
+        StartCoroutine(SayKeyLinesAfterClose());
+    }
 
+    private IEnumerator SayKeyLinesAfterClose()
+    {
         while (MirrorMazeGimmick.IsOpen)
             yield return null;
         yield return null;
-
-        Stage1Room.PlayCutscene(Stage1Dialogues.MirrorKeyFound(), GiveKey);
+        Stage1Room.PlayCutscene(Stage1Dialogues.MirrorKeyFound());
     }
 
-    private void GiveKey()
+    private static void ResetMirrorMazeRecord(string propertyName)
     {
-        QuickSlotInventory inventory = QuickSlotInventory.Instance;
-        if (inventory == null || boothKey == null)
-            return;
-
-        bool alreadyHas = inventory.Entries.Any(e => e != null && e.ItemData != null && e.ItemData.ItemId == Stage1Dialogues.BoothKeyItemId);
-        if (alreadyHas)
-            return;
-
-        if (inventory.TryAdd(boothKey))
-        {
-            EXODSound.Play("item_pickup");
-        }
-        else
-        {
-            // 자리가 없으면 다음에 손거울을 다시 눌러 받을 수 있게
-            keyGiven = false;
-            DialogueManager.Instance?.StartDialogue(Stage1Dialogues.Thought("퀵슬롯이 가득 차서 열쇠를 챙길 수 없어. 자리를 비우고 다시 보자."));
-        }
+        PropertyInfo property = typeof(MirrorMazeGimmick).GetProperty(propertyName, BindingFlags.Public | BindingFlags.Static);
+        MethodInfo setter = property != null ? property.GetSetMethod(true) : null;
+        if (setter != null)
+            setter.Invoke(null, new object[] { false });
     }
 
     private void OnFailed()
@@ -185,6 +177,7 @@ public sealed class Stage1MirrorBoothKey : MonoBehaviour
         MirrorMazeGimmick.Solved -= OnSolved;
         MirrorMazeGimmick.Failed -= OnFailed;
         MirrorMazeGimmick.Closed -= OnClosed;
+        MirrorMazeGimmick.RewardObtained -= OnRewardObtained;
     }
 
     // 산책 쪽 부스 기믹은 itemId로 같은 열쇠인지 비교하므로, 같은 ID로 만들어 씀
