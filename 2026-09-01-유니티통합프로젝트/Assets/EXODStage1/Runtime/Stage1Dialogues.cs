@@ -312,4 +312,58 @@ public static class Stage1Dialogues
         Say(Player, "뭐야, 벌써 밤이라고?! 한 것도 없는데…!"),
         Say(Player, "그녀가 오기 전에, 빨리 전부 원래대로 돌려놔야 해!"),
     };
+
+    // ═══════════════════════════════════════════════════
+    //  8. 여자친구 불시 방문 컷신 (위험도·등장 기능은 친구 담당, 그 기능에서 이 대사를 쓰면 됨) — 2026-11-02
+    //     위험도가 높을 때 랜덤으로 → 2초 경고 → 침실에 있으면 무사, 아니면 화내고 하트 -1 + 다시 갇힘
+    // ═══════════════════════════════════════════════════
+
+    // 화면 가운데 큰 경고 (2초)
+    public const string VisitWarningTitle = "…누군가의 발소리다.";
+    public const string VisitWarningSub = "방으로 돌아가자!";
+
+    // 침실에 있었을 때
+    public static List<DialogueLine> VisitSafe() => new List<DialogueLine>
+    {
+        Narrate("끼익— 방문이 살짝 열렸다."),
+        Say(Girlfriend, "자기야~ 얌전히 잘 있었네? ♡"),
+        Say(Girlfriend, "착하다. 조금만 더 기다려 줘."),
+        Narrate("탁. 발소리가 멀어졌다."),
+        Think("…휴, 들킬 뻔했다."),
+    };
+
+    // 침실 밖에서 들켰을 때 (이 대사 뒤 하트 -1, 침실로 끌려가 다시 갇힘)
+    public static List<DialogueLine> VisitCaught() => new List<DialogueLine>
+    {
+        Say(Girlfriend, "…자기야?"),
+        Say(Girlfriend, "왜 거기 있어? 방에서 기다리라고 했잖아."),
+        Say(Player, "아, 그게… 목이 말라서…"),
+        Say(Girlfriend, "거짓말."),
+        Say(Girlfriend, "…나 지금 엄청 화났어."),
+    };
+
+    public static List<DialogueLine> VisitLockedAgain() => new List<DialogueLine>
+    {
+        Narrate("그녀에게 끌려 다시 방으로 돌아왔다."),
+        Narrate("철컥. 밖에서 문 잠기는 소리가 들렸다."),
+        Think("열쇠까지 빼앗겼다… 서랍에서 다시 꺼내야 해."),
+    };
+
+    // ═══════════════════════════════════════════════════
+    //  9. 일차가 넘어갈 때 컷신 (DayEndReport) — 제자리에 안 돌려놓은 물건을 그녀가 짚어 줌
+    // ═══════════════════════════════════════════════════
+
+    public static List<DialogueLine> DayReportMissing(string itemNames) => new List<DialogueLine>
+    {
+        Narrate("아침이 밝았다. 그녀가 방 안을 천천히 둘러본다."),
+        Say(Girlfriend, "…자기야."),
+        Say(Girlfriend, "이거, 왜 제자리에 없어? 「" + itemNames + "」"),
+        Say(Girlfriend, "내 물건 함부로 만지지 말랬잖아. …다음엔 진짜 화낼 거야."),
+    };
+
+    public static List<DialogueLine> DayReportClean() => new List<DialogueLine>
+    {
+        Narrate("아침이 밝았다."),
+        Say(Girlfriend, "좋은 아침, 자기야~ 오늘도 얌전히 있었네? ♡"),
+    };
 }
