@@ -179,6 +179,13 @@ public sealed class PlayerFaintController : MonoBehaviour
 
         gameOverLineRoot.SetActive(true);
         MatchTeamDialogueBox();
+        if (gameOverPortrait != null)
+        {
+            Sprite face = pendingStyle == EndingStyle.Proposal ? DialoguePortrait.LoadSweetPortrait() : null;
+            gameOverPortrait.sprite = face != null ? face : DialoguePortrait.LoadPortrait();
+            float h = gameOverPortrait.rectTransform.sizeDelta.y;
+            gameOverPortrait.rectTransform.sizeDelta = new Vector2(h * gameOverPortrait.sprite.rect.width / gameOverPortrait.sprite.rect.height, h);
+        }
         gameOverLineText.text = line;
         gameOverLineText.maxVisibleCharacters = 0;
 

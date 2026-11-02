@@ -338,7 +338,14 @@ public static class Stage1Dialogues
     public const string VisitWarningSub = "방으로 돌아가자!";
 
     // 침실에 있었을 때
-    public static List<DialogueLine> VisitSafe() => new List<DialogueLine>
+    // (사용자 요청 2026-11-02: 이 장면은 볼 빨간 웃는 얼굴 그림을 대화창 가운데에)
+    public static List<DialogueLine> VisitSafe()
+    {
+        DialoguePortrait.UseSweetForNextDialogue(true);
+        return VisitSafeLines();
+    }
+
+    private static List<DialogueLine> VisitSafeLines() => new List<DialogueLine>
     {
         Narrate("끼익— 방문이 살짝 열렸다."),
         Say(Girlfriend, "자기야~ 얌전히 잘 있었네? ♡"),
@@ -438,7 +445,14 @@ public static class Stage1Dialogues
     };
 
     // 반지를 집은 뒤 (이 대사 뒤 암전 → 마지막 대사 → 엔딩 화면)
-    public static List<DialogueLine> ProposalCutscene() => new List<DialogueLine>
+    // (사용자 요청 2026-11-02: 청혼 장면은 볼 빨간 웃는 얼굴 그림)
+    public static List<DialogueLine> ProposalCutscene()
+    {
+        DialoguePortrait.UseSweetForNextDialogue(false);
+        return ProposalCutsceneLines();
+    }
+
+    private static List<DialogueLine> ProposalCutsceneLines() => new List<DialogueLine>
     {
         Narrate("반지 안쪽에 글자가 새겨져 있다. 「영원히, 나만의 자기」"),
         Narrate("등 뒤에서… 문이 열리는 소리가 났다."),
@@ -454,4 +468,29 @@ public static class Stage1Dialogues
     public const string ProposalEndingLine = "평생, 영원히… 내 거야 ♡";
     public const string ProposalEndingTitle = "청혼 엔딩 : 해피 엔딩…?";
     public const string ProposalEndingSubtitle = "우리는 오래오래 행복하게 살았습니다. …아마도.";
+
+    // ═══════════════════════════════════════════════════
+    //  12. 침실 단서 (BedroomClueStory) — 서랍 비밀번호 724 = 기념일 7일 · 사진 속 2 · 사랑해의 '사'
+    // ═══════════════════════════════════════════════════
+
+    public static readonly string[] BedroomCalendarOpening = { "벽에 걸린 달력이다.", "7일에 빨간 동그라미가 쳐져 있다." };
+    public static readonly string[] BedroomCalendarFirst = { "동그라미 옆에 작게 적혀 있다. 「우리 기념일 ♡」" };
+    public static readonly string[] BedroomCalendarRepeat = { "7일. 그녀가 정한 '우리 기념일'이다." };
+
+    public static readonly string[] BedroomPhotoOpening = { "하얀 베개다.", "아래에 무언가 끼어 있는 것 같다." };
+    public static readonly string[] BedroomPhotoFirst =
+    {
+        "베개 밑에서 사진 한 장을 발견했다.",
+        "그녀가 볼을 붉히며 웃고 있는 사진이다.",
+        "…뒤쪽 꼬마전구 줄이 이상한 모양으로 걸려 있다.",
+    };
+    public static readonly string[] BedroomPhotoRepeat = { "그녀의 사진. 뒤쪽 꼬마전구 모양이 묘하게 눈에 걸린다." };
+
+    public static readonly string[] BedroomMemoOpening = { "화병 아래에 종이 한 장이 깔려 있다." };
+    public static readonly string[] BedroomMemoFirst =
+    {
+        "그녀의 글씨다. 서랍 비밀번호를 순서대로 적어 둔 것 같다.",
+        "기념일 날짜, 사진 속 숫자, 그리고… '사'랑해의 '사'?",
+    };
+    public static readonly string[] BedroomMemoRepeat = { "기념일 날짜, 사진 속 숫자, '사'랑해의 '사'. 순서대로라고 했지." };
 }

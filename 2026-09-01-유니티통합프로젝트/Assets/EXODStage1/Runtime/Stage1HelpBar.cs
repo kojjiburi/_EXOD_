@@ -62,7 +62,11 @@ public sealed class Stage1HelpBar : MonoBehaviour
     {
         bool hidden = (DialogueManager.Instance != null && DialogueManager.Instance.IsDialogueOpen)
             || HudToggle.IsStatusHidden
-            || (PlayerFaintController.Instance != null && PlayerFaintController.Instance.IsBusy);
+            || (PlayerFaintController.Instance != null && PlayerFaintController.Instance.IsBusy)
+            // 1.5배로 커져 화면 가운데에 걸치므로, 확대 화면·키패드·기믹 창이 열려 있으면 숨김
+            || (InspectionManager.Instance != null && InspectionManager.Instance.IsOpen)
+            || (MemoZoom.Instance != null && MemoZoom.Instance.IsOpen) || Stage1Keypad.IsOpen || MirrorMazeGimmick.IsOpen || StrangePotionGimmick.IsOpen
+            || Stage1FridgeGimmick.IsAnyInsideShown;
 
         bool inWalk = Stage2HouseLink.IsInStage2;
         bool watching = inWalk && !hidden && IsHerWatching();
