@@ -5,7 +5,7 @@ using UnityEngine.SceneManagement;
 /// <summary>
 /// 위험도(여자친구 등장) 시스템 — 하트 오른쪽 아이콘(팀 HUD의 Yan)을 이 코드가 움직입니다.
 ///
-/// [위험도 0~100]  0~30 초록불 / 31~50 노랑불 / 51 이상 빨강불 / 등장 중 검은 바탕 흰 눈
+/// [위험도 0~100]  0~35 초록불 / 36~64 노랑불 / 65 이상 빨강불 (이지 모드는 71 이상) / 등장 중 검은 바탕 흰 눈 (2026-11-03 사용자 요청)
 ///  - 새 일차가 시작되면 0, 여자친구가 나타나면 0
 ///
 /// [오르는 경우]
@@ -306,6 +306,10 @@ public sealed class DangerLevel : MonoBehaviour
             ScreenCapture.CaptureScreenshot("Screenshot_" + System.DateTime.Now.ToString("HHmmss") + ".png");
     }
 #endif
+
+    // 아이콘 색 기준 (사용자 요청 2026-11-03): 초록 0~35 (이지·하드 같음), 빨강 하드 65 이상 / 이지 71 이상
+    private const int GreenMax = 35;
+    private static int RedFrom => GameDifficulty.IsEasy ? 71 : 65;
 
     private bool CountsNow()
     {
@@ -827,8 +831,8 @@ public sealed class DangerLevel : MonoBehaviour
             walkYandere = null;
             walkCaughtFxPlayed = false;
             icon = appearing ? appearedIcon
-                 : value <= 30 ? safeIcon
-                 : value <= 50 ? normalIcon
+                 : value <= GreenMax ? safeIcon
+                 : value < RedFrom ? normalIcon
                  : dangerIcon;
         }
         icon = ApplyAppearGlitch(icon);

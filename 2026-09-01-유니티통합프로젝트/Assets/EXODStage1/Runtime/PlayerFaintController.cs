@@ -234,10 +234,15 @@ public sealed class PlayerFaintController : MonoBehaviour
         endingScreen.Show(pendingTitle, pendingSubtitle, pendingStyle);
     }
 
+    // [다시 시작]: 이지/하드를 다시 고른 뒤 처음부터 (사용자 요청 2026-11-03)
     public void Restart()
     {
-        ResetRunState();
-        SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+        DifficultyPicker.Show(easy =>
+        {
+            GameDifficulty.IsEasy = easy;
+            ResetRunState();
+            SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+        });
     }
 
     public void BackToLobby()

@@ -528,6 +528,13 @@ public static class Stage1Dialogues
         Think("…너무 오래 망설였다. 이러다 들키겠어."),
     };
 
+    // [이지] 1일차에 현관문으로 나가려 하면 (Stage2HouseLink)
+    public static List<DialogueLine> WalkFirstDayBlocked() => new List<DialogueLine>
+    {
+        Think("…아직 첫날이야. 지금 나가면 바로 들킬 것 같아."),
+        Think("오늘은 집 안부터 살펴보자."),
+    };
+
     // 하루 남은 시간이 1분 20초 이하일 때 현관문으로 나가려 하면 (Stage2HouseLink, 사용자 선택 2026-11-03)
     public static List<DialogueLine> WalkTooLate() => new List<DialogueLine>
     {

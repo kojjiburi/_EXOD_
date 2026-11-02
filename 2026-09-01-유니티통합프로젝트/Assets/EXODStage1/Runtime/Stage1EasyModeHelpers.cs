@@ -41,6 +41,8 @@ public static class Stage1EasyModeHelpers
     {
         // 수화기 선은 이미 테이프로 감겨 있음 (테이프는 산책 길에 안 나옴: Stage2HouseLink)
         EXOD.Walk.PhoneBoothProgress.CordFixed = true;
+        // 다이얼 버튼 [2]도 이미 끼워져 있음 ([1]만 산책 길에서 찾기, 사용자 요청 2026-11-03)
+        EXOD.Walk.PhoneBoothProgress.Button2Installed = true;
 
         const BindingFlags flags = BindingFlags.NonPublic | BindingFlags.Instance;
         foreach (EXOD.Walk.PhoneBooth booth in Object.FindObjectsByType<EXOD.Walk.PhoneBooth>(FindObjectsInactive.Include, FindObjectsSortMode.None))

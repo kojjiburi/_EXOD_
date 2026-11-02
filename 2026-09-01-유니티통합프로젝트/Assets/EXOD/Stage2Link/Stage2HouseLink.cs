@@ -146,8 +146,15 @@ public sealed class Stage2HouseLink : MonoBehaviour
             return;
         }
 
-        // [이지] 외출 시간 제한 없음 (사용자 요청 2026-11-03)
-        if (!GameDifficulty.IsEasy && DayCycleController.Instance != null && DayCycleController.Instance.RemainingSeconds <= MinRemainingToWalkSeconds)
+        // [이지] 1일차에는 외출 금지 (사용자 요청 2026-11-03)
+        if (GameDifficulty.IsEasy && GManager.Instance != null && GManager.Instance.Day <= 1)
+        {
+            DialogueManager.Instance?.StartDialogue(Stage1Dialogues.WalkFirstDayBlocked());
+            return;
+        }
+
+        // 하루 남은 시간 1분 20초 이하면 외출 불가 (이지·하드 같음)
+        if (DayCycleController.Instance != null && DayCycleController.Instance.RemainingSeconds <= MinRemainingToWalkSeconds)
         {
             DialogueManager.Instance?.StartDialogue(Stage1Dialogues.WalkTooLate());
             return;
@@ -445,6 +452,9 @@ public sealed class Stage2HouseLink : MonoBehaviour
                 if (item.ItemId.StartsWith("paper_") && item.ItemId != "paper_a")
                     return true;
                 if (item.ItemId == "stage2_insulating_tape")
+                    return true;
+                // 다이얼 버튼 [2]는 이미 끼워져 있음 → [1]만 찾으면 됨
+                if (item.ItemId == "stage2_dial_button_2")
                     return true;
             }
 
