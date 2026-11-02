@@ -176,8 +176,8 @@ namespace EXOD.Walk
             // 대화창·컷신·기절 연출 중에는 멈춤 (1스테이지 DayCycleController와 같은 기준)
             bool paused = DayClock.IsTimePaused();
             player.CanMove = !paused && !waitingAtGate && Overlay == null;   // 부스 안 등 창이 열려 있으면 화면이 멈춘다
-            // 전화 부스 안(창)이 열려 있으면 그녀도 멈추고 산책 시간도 흐르지 않음 (사용자 요청 2026-11-02)
-            yandere.Paused = paused || Overlay != null;
+            // 전화 부스 안(창)이 열려 있으면 산책 시간은 흐르지 않음. 그녀는 계속 뒤돌아봄 (사용자 요청 2026-11-02)
+            yandere.Paused = paused;
             if (paused) return;
 
             if (Overlay == null)
