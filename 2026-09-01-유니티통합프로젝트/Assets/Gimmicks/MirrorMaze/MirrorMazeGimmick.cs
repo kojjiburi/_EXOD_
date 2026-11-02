@@ -469,10 +469,6 @@ public class MirrorMazeGimmick : MonoBehaviour
         if (mazeRoot == null || closing) return;
         var kb = Keyboard.current;
         if (kb != null && kb.escapeKey.wasPressedThisFrame) { Close(); return; }
-#if UNITY_EDITOR
-        // 테스트용: 에디터에서만 F9 = 바로 클리어 (빌드에는 포함되지 않음)
-        if (kb != null && kb.f9Key.wasPressedThisFrame && !solved) { playerCell = goalCell; ShowSolvedState(true); }
-#endif
         if (kb != null && kb.rKey.wasPressedThisFrame && !solved) { BuildMaze(); MoveMirrorTo(playerSr.transform.position); }
 
         if (failTimer >= 0f)
@@ -728,12 +724,6 @@ public class MirrorMazeGimmick : MonoBehaviour
         onFailed?.Invoke();
         Failed?.Invoke();
         Close();
-    }
-
-    /// <summary>테스트용: 미로를 바로 클리어 상태로 만든다 (테스트 씬의 F9).</summary>
-    public void DebugSolve()
-    {
-        if (!solved && !closing && failTimer < 0f) ShowSolvedState(true);
     }
 
     /// <summary>기믹 창을 닫고 원래 화면으로 돌아간다.</summary>
