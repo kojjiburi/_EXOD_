@@ -65,4 +65,8 @@
 ## 엔딩 연결 자리
 - **청혼 엔딩**: 화장실 금고(RRSafe_block이 치워진 뒤) 안의 청혼반지를 주우면 `ProposalEnding.Trigger()`가 호출됩니다 (`Assets/EXOD/Endings/ProposalEnding.cs`).
   - 엔딩 연출은 nicezzomaru 담당: `ProposalEnding.Requested` 이벤트에 연출을 연결하세요. 연결 전에는 임시 대사만 나옵니다.
-- 위험도 아이콘 그림(임시): `Assets/EXOD/DangerLevel/Resources/EXODDanger/` (초록·노랑·빨강 불, 검은 바탕 흰 눈 = 등장). 아직 코드에 연결 안 됨.
+## 위험도(여자친구 등장) 시스템
+- 코드: `Assets/EXOD/DangerLevel/DangerLevel.cs` (규칙 전체가 파일 맨 위 주석에 있음). 아이콘은 팀 HUD의 `Yan` 아이콘 자리를 바꿔 씀 (`Yan.cs`의 자체 로직은 안 씀).
+- 기믹을 새로 만들면: 성공 시 `DangerLevel.GimmickSolved()`(+5), 실패 시 `DangerLevel.GimmickFailed()`(+10), 기믹 창을 열기 전 `if (DangerLevel.WarnBeforeGimmick()) return;` 을 넣어 주세요.
+- 등장·걸림·튜토리얼 대사는 임시라 DangerLevel.cs 위쪽 Lines 상수를 바꾸면 됩니다.
+- 일차가 끝나면 페이드 뒤에 제자리에 없던 물건 이름을 대사로 알려 줌 (`ItemPositionManager.LastDayEndMisplacedNames`).

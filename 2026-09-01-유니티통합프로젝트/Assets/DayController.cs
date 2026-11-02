@@ -60,18 +60,18 @@ public class DayController : MonoBehaviour
     /// 일차 넘김 페이드: 천천히 검어짐 → (검은 화면에서) advance 실행 + "DAY-n" 표시 → 천천히 투명해짐.
     /// 씬에 DayController가 없으면 false를 돌려주고 아무것도 하지 않습니다.
     /// </summary>
-    public static bool TryPlayDayTransition(Action advance)
+    public static bool TryPlayDayTransition(Action advance, Action onFinished = null)
     {
         if (_instance == null || !_instance.isActiveAndEnabled)
             return false;
         if (IsTransitioning)
             return true;
 
-        _instance.StartCoroutine(_instance.DayTransitionRoutine(advance));
+        _instance.StartCoroutine(_instance.DayTransitionRoutine(advance, onFinished));
         return true;
     }
 
-    private IEnumerator DayTransitionRoutine(Action advance)
+    private IEnumerator DayTransitionRoutine(Action advance, Action onFinished)
     {
         IsTransitioning = true;
         EnsureFadeOverlay();
@@ -95,6 +95,9 @@ public class DayController : MonoBehaviour
         _fadeGroup.blocksRaycasts = false;
         _fadeGroup.gameObject.SetActive(false);
         IsTransitioning = false;
+
+        // 페이드가 끝난 뒤 (예: 제자리에 없던 물건 알림 대사)
+        onFinished?.Invoke();
     }
 
     private IEnumerator FadeOverlay(float from, float to, float seconds)

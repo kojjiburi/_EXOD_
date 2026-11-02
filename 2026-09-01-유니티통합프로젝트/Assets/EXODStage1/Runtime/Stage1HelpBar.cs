@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using EXOD.Walk;
 using TMPro;
 using UnityEngine;
@@ -122,19 +123,24 @@ public sealed class Stage1HelpBar : MonoBehaviour
     }
 
     // 첫 줄: 지금 목표 (노란색), 그 아래: 제자리 규칙
+    // 1일차 튜토리얼(여자친구 첫 등장)을 본 뒤 추가되는 행동 요령
+    private const string HideTip = "여자친구가 올 것 같으면 방에 들어가 있자.";
+
     private static string[] BuildHouseTips()
     {
+        List<string> tips = new List<string>();
         string goal = GetCurrentGoal();
-        if (string.IsNullOrEmpty(goal))
-            return HouseRules;
+        if (!string.IsNullOrEmpty(goal))
+            tips.Add($"<color=#{ColorUtility.ToHtmlStringRGB(GoalColor)}>목표: {goal}</color>");
 
-        return new[]
-        {
-            $"<color=#{ColorUtility.ToHtmlStringRGB(GoalColor)}>목표: {goal}</color>",
-            HouseRules[0],
-            HouseRules[1],
-            BedTip,
-        };
+        tips.Add(HouseRules[0]);
+        tips.Add(HouseRules[1]);
+        if (DangerLevel.HideHintUnlocked)
+            tips.Add(HideTip);
+        if (!string.IsNullOrEmpty(goal))
+            tips.Add(BedTip);
+
+        return tips.ToArray();
     }
 
     // 1스테이지 진행 상황에 맞는 목표

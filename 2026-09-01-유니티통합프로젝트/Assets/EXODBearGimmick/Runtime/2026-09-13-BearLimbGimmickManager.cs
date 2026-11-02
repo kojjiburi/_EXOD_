@@ -162,6 +162,7 @@ internal sealed class BearLimbGimmickManager : MonoBehaviour
 
         completed = true;
         EXODSound.Play("music_box", 0.8f);
+        DangerLevel.GimmickSolved();
         // 보답 대사 동안에는 쪽지를 내미는 곰, 끝나면 완성된 곰으로 바꿉니다.
         SetBearSprite(givingBearSprite != null ? givingBearSprite : completeBearSprite);
 

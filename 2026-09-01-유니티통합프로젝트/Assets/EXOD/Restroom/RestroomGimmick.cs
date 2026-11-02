@@ -635,6 +635,10 @@ public sealed class RestroomGimmick : MonoBehaviour
         if (safeUnlocked || IsBusy())
             return;
 
+        // [위험도] 틀리면 100이 될 상황이면 경고만 하고 이번엔 열지 않음
+        if (DangerLevel.WarnBeforeGimmick())
+            return;
+
         if (keypadRoot == null)
             CreateKeypad();
 
@@ -668,9 +672,14 @@ public sealed class RestroomGimmick : MonoBehaviour
             return;
 
         if (IsCorrect())
+        {
             UnlockSafe();
+        }
         else
+        {
             EXODSound.Play("keypad_error");
+            DangerLevel.GimmickFailed();
+        }
     }
 
     private bool IsCorrect()
@@ -698,6 +707,7 @@ public sealed class RestroomGimmick : MonoBehaviour
         CreateRingButton();
 
         EXODSound.Play("key_unlock");
+        DangerLevel.GimmickSolved();
         Debug.Log("[Restroom] 금고 비밀번호 정답! RRSafe_block을 지웠습니다.", this);
 
         // 금고를 열면 종이는 모두 없어집니다. (퀵슬롯·맵·선반 어디에 있든)

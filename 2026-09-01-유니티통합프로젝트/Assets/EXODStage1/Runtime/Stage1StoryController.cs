@@ -204,6 +204,7 @@ public sealed class Stage1StoryController : MonoBehaviour
     {
         if (isCleared)
         {
+            DangerLevel.GimmickSolved();
             PlayCutscene(Stage1Dialogues.PotionSuccess());
             return;
         }

@@ -533,6 +533,45 @@ public sealed class ItemPositionManager : MonoBehaviour
         return misplaced;
     }
 
+    private readonly List<string> lastDayEndMisplacedNames = new List<string>();
+
+    /// <summary>마지막 일차 끝 점검에서 제자리에 없던 물건 이름 (일차가 넘어간 뒤 대사로 알려 줄 때 사용)</summary>
+    public IReadOnlyList<string> LastDayEndMisplacedNames => lastDayEndMisplacedNames;
+
+    private void RememberMisplacedNames(List<ItemPositionRecord> misplaced, List<string> misplacedInInventory)
+    {
+        lastDayEndMisplacedNames.Clear();
+
+        foreach (ItemPositionRecord record in misplaced)
+            AddMisplacedName(record.OriginalItem != null ? record.OriginalItem.DisplayName : record.OriginalItemId);
+
+        QuickSlotInventory inventory = QuickSlotInventory.Instance != null
+            ? QuickSlotInventory.Instance
+            : FindFirstObjectByType<QuickSlotInventory>();
+        foreach (string itemId in misplacedInInventory)
+        {
+            string name = itemId;
+            if (inventory != null)
+            {
+                foreach (QuickSlotEntry entry in inventory.Entries)
+                {
+                    if (entry?.ItemData != null && entry.ItemData.ItemId == itemId)
+                    {
+                        name = entry.ItemData.DisplayName;
+                        break;
+                    }
+                }
+            }
+            AddMisplacedName(name);
+        }
+    }
+
+    private void AddMisplacedName(string name)
+    {
+        if (!string.IsNullOrWhiteSpace(name) && !lastDayEndMisplacedNames.Contains(name))
+            lastDayEndMisplacedNames.Add(name);
+    }
+
     public bool AreAllItemsInOriginalPlace()
     {
         return GetMisplacedRecords().Count == 0 && GetMisplacedInventoryItemIds().Count == 0;
@@ -547,6 +586,7 @@ public sealed class ItemPositionManager : MonoBehaviour
         List<ItemPositionRecord> misplaced = GetMisplacedRecords();
         List<string> misplacedInInventory = GetMisplacedInventoryItemIds();
         int misplacedCount = misplaced.Count + misplacedInInventory.Count;
+        RememberMisplacedNames(misplaced, misplacedInInventory);
 
         if (misplacedCount == 0)
         {

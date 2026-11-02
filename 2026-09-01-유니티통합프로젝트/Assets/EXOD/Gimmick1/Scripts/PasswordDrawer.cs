@@ -95,6 +95,10 @@ public class PasswordDrawer : MonoBehaviour
         if (passwordPanel == null || passwordInput == null)
             return;
 
+        // [위험도] 틀리면 100이 될 상황이면 경고만 하고 이번엔 열지 않음
+        if (DangerLevel.WarnBeforeGimmick())
+            return;
+
         passwordPanel.SetActive(true);
         passwordInput.text = string.Empty;
         passwordInput.ActivateInputField();
@@ -113,6 +117,7 @@ public class PasswordDrawer : MonoBehaviour
         {
             isUnlocked = true;
             EXODSound.Play("door_lock");
+            DangerLevel.GimmickSolved();
 
             if (InspectionManager.Instance != null)
                 InspectionManager.Instance.SetCurrentDetailSprite(openedDrawerSprite);
@@ -130,6 +135,7 @@ public class PasswordDrawer : MonoBehaviour
         else
         {
             EXODSound.Play("keypad_error");
+            DangerLevel.GimmickFailed();
             if (resultText != null)
                 resultText.text = "비밀번호가 맞지 않는다.";
 
