@@ -27,8 +27,21 @@ namespace EXOD.Walk
         bool playing;
         float readyTimer;
 
+        /// <summary>
+        /// [통합] 엔딩 화면 버튼 동작. 비워 두면 기본 동작(지금 씬 다시 불러오기 / 시작 화면)을 쓴다.
+        /// 통합 프로젝트에서는 Stage2HouseLink가 팀 게임 오버 화면과 같은 동작(진행 상황 초기화 포함)으로 연결한다.
+        /// </summary>
+        public static System.Action RestartAction;
+        public static System.Action LobbyAction;
+        const string LobbySceneName = "StartScenes";
+
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        static void ResetStatics() => instance = null;
+        static void ResetStatics()
+        {
+            instance = null;
+            RestartAction = null;
+            LobbyAction = null;
+        }
 
         /// <summary>엔딩 대기 시작 (이미 대기 중이면 설정만 바꾼다)</summary>
         public static void Arm(WalkLine[] endingLines, string endingTitle, string endingSubtitle, string endingScene)
@@ -126,6 +139,57 @@ namespace EXOD.Walk
             var s = WalkUi.CreateText("엔딩 설명", canvas.transform, 40, Color.white, TextAnchor.MiddleCenter);
             WalkUi.Place(s.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0f, -60f), new Vector2(1600f, 80f));
             s.text = subtitle;
+
+            // 다른 엔딩·게임 오버 화면과 같은 세 버튼
+            CreateButton(canvas.transform, "다시 시작", new Vector2(-380f, -220f), Restart);
+            CreateButton(canvas.transform, "로비로", new Vector2(0f, -220f), Lobby);
+            CreateButton(canvas.transform, "게임 종료", new Vector2(380f, -220f), Quit);
+        }
+
+        static void CreateButton(Transform parent, string label, Vector2 position, UnityEngine.Events.UnityAction onClick)
+        {
+            var image = WalkUi.CreateImage(label, parent, null, Color.white);
+            image.raycastTarget = true;
+            WalkUi.Place(image.rectTransform, new Vector2(0.5f, 0.5f), position, new Vector2(340f, 84f));
+
+            var button = image.gameObject.AddComponent<Button>();
+            ColorBlock colors = button.colors;
+            colors.normalColor = new Color(0.20f, 0.14f, 0.14f, 1f);
+            colors.highlightedColor = new Color(0.45f, 0.16f, 0.20f, 1f);
+            colors.pressedColor = new Color(0.62f, 0.20f, 0.26f, 1f);
+            colors.selectedColor = colors.normalColor;
+            button.colors = colors;
+            button.onClick.AddListener(onClick);
+
+            var text = WalkUi.CreateText("글자", image.transform, 34, Color.white, TextAnchor.MiddleCenter);
+            WalkUi.Stretch(text.rectTransform);
+            text.text = label;
+        }
+
+        void Restart()
+        {
+            Destroy(gameObject);   // 씬을 넘어가도 남는 엔딩 화면을 먼저 지운다
+            if (RestartAction != null) { RestartAction(); return; }
+            PhoneBoothProgress.ResetAll();
+            SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+        }
+
+        void Lobby()
+        {
+            Destroy(gameObject);
+            if (LobbyAction != null) { LobbyAction(); return; }
+            PhoneBoothProgress.ResetAll();
+            if (Application.CanStreamedLevelBeLoaded(LobbySceneName)) SceneManager.LoadScene(LobbySceneName);
+            else SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+        }
+
+        static void Quit()
+        {
+#if UNITY_EDITOR
+            UnityEditor.EditorApplication.isPlaying = false;
+#else
+            Application.Quit();
+#endif
         }
     }
 }

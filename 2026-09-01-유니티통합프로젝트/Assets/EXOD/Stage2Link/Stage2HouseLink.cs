@@ -75,6 +75,10 @@ public sealed class Stage2HouseLink : MonoBehaviour
         subscribedDayManager = GManager.Instance != null ? GManager.Instance : FindFirstObjectByType<GManager>(FindObjectsInactive.Include);
         if (subscribedDayManager != null)
             subscribedDayManager.onDayChanged += OnTeamDayChanged;
+
+        // 전화 부스 탈출 엔딩의 [다시 시작]/[로비로]도 팀 게임 오버 화면과 같은 동작 (퀵슬롯·진행 상황 초기화)
+        PhoneBoothEnding.RestartAction = () => PlayerFaintController.Instance?.Restart();
+        PhoneBoothEnding.LobbyAction = () => PlayerFaintController.Instance?.BackToLobby();
     }
 
     private void OnDestroy()
