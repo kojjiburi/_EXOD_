@@ -64,8 +64,8 @@ public sealed class DialogueLog : MonoBehaviour
         if (Input.GetKeyDown(ToggleKey) || (IsOpen && Input.GetKeyDown(KeyCode.Escape)))
             Toggle();
 
-        // 버튼은 상단 UI를 Tab으로 숨겼을 때 같이 숨깁니다.
-        bool showButton = !HudToggle.IsStatusHidden && !IsOpen;
+        // 버튼은 상단 UI를 Tab으로 숨겼을 때, 아이템 확대 화면·키패드·기믹 창이 열려 있을 때 숨깁니다.
+        bool showButton = !HudToggle.IsStatusHidden && !IsOpen && !Stage1HelpBar.IsCloseUpOpen();
         buttonGroup.alpha = showButton ? 1f : 0f;
         buttonGroup.blocksRaycasts = showButton;
     }

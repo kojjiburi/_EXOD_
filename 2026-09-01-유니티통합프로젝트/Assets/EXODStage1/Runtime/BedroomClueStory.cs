@@ -12,6 +12,7 @@ using UnityEngine.SceneManagement;
 /// </summary>
 public static class BedroomClueStory
 {
+    private const string CalendarPath = "EXODStage1/Clue_Calendar";   // 7에 동그라미 + 빨간 글씨 "우리 기념일 ♡" (2026-11-02)
     private const string PhotoPath = "EXODStage1/Clue_Photo";
     private const string MemoPath = "EXODStage1/Clue_Memo";
 
@@ -32,7 +33,7 @@ public static class BedroomClueStory
             switch (item.ItemId)
             {
                 case "bedroom_calendar":
-                    Apply(item, null, Stage1Dialogues.BedroomCalendarOpening, Stage1Dialogues.BedroomCalendarFirst, Stage1Dialogues.BedroomCalendarRepeat);
+                    Apply(item, LoadSprite(CalendarPath), Stage1Dialogues.BedroomCalendarOpening, Stage1Dialogues.BedroomCalendarFirst, Stage1Dialogues.BedroomCalendarRepeat);
                     break;
                 case "bedroom_photo":
                     Apply(item, LoadSprite(PhotoPath), Stage1Dialogues.BedroomPhotoOpening, Stage1Dialogues.BedroomPhotoFirst, Stage1Dialogues.BedroomPhotoRepeat);

@@ -74,7 +74,9 @@ public sealed class GameMenu : MonoBehaviour
             return;
 
         // 버튼은 상단 UI를 Tab으로 숨겼을 때·메뉴가 열려 있을 때·일차 넘김 페이드 중·엔딩(게임 오버·기절 포함) 화면에서는 숨깁니다.
-        bool showButton = !HudToggle.IsStatusHidden && !IsOpen && !DayController.IsTransitioning && !IsEndingShown();
+        // 아이템 확대 화면·키패드·기믹 창이 열려 있을 때도 숨김 (nicezzomaru 2026-11-02, Stage1HelpBar.IsCloseUpOpen)
+        bool showButton = !HudToggle.IsStatusHidden && !IsOpen && !DayController.IsTransitioning && !IsEndingShown()
+            && !Stage1HelpBar.IsCloseUpOpen();
         buttonGroup.alpha = showButton ? 1f : 0f;
         buttonGroup.blocksRaycasts = showButton;
 

@@ -181,6 +181,17 @@ public sealed class Stage1HelpBar : MonoBehaviour
         return rightEdge - size.x - 16f * scale;
     }
 
+    /// <summary>
+    /// 아이템을 눌러 연 확대 화면·키패드·기믹 창이 떠 있으면 true.
+    /// 이때 오른쪽 위 [대화 기록](DialogueLog)·[종료](GameMenu) 버튼도 숨깁니다. (사용자 요청 2026-11-02)
+    /// </summary>
+    public static bool IsCloseUpOpen()
+    {
+        return (InspectionManager.Instance != null && InspectionManager.Instance.IsOpen)
+            || (MemoZoom.Instance != null && MemoZoom.Instance.IsOpen) || Stage1Keypad.IsOpen || MirrorMazeGimmick.IsOpen
+            || StrangePotionGimmick.IsOpen || Stage1FridgeGimmick.IsAnyInsideShown;
+    }
+
     private static RectTransform FindRect(string objectName)
     {
         GameObject go = GameObject.Find(objectName);
