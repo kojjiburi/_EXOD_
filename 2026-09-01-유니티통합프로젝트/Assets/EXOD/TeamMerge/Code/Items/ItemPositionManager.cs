@@ -88,6 +88,8 @@ public sealed class ItemPositionManager : MonoBehaviour
         "bear_left_leg",
         "bear_right_leg",
         "fridge_lock_note",
+        // 청혼반지: 주우면 바로 청혼 엔딩
+        "proposal_ring",
         // 2스테이지 전화 부스 기믹 아이템 (산책에서 얻고, 부스에 쓰면 사라짐 / 주소지는 신고용으로 남음)
         "stage2_booth_key",
         "stage2_insulating_tape",

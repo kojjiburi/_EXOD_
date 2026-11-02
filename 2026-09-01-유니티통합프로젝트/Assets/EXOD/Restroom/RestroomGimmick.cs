@@ -20,6 +20,7 @@ using UnityEngine.UI;
 ///   · 숫자를 누르면 그 숫자가 저장되고, 눌린 버튼은 어두워져서 다시 누를 수 없습니다.
 ///   · [닫기]로 닫았다가 다시 열면 모두 초기화됩니다.
 ///   · 7 4 1 5 2 3 8 9 6 순서로 누르면 금고 잠금판이 사라지고, 모든 종이(paper_)가 영구히 없어집니다.
+/// - 금고가 열리면 안에 청혼반지(ProposalRing)가 보이고, 누르면 퀵슬롯에 들어간 뒤 청혼 엔딩(ProposalEnding.Trigger)을 부릅니다.
 /// 그림과 아이템 데이터는 Assets/EXOD/Restroom/Resources/EXODRestroom 에 있습니다.
 /// 실행할 때 SliderManager가 있는 씬에 자동으로 붙습니다.
 /// </summary>
@@ -41,6 +42,8 @@ public sealed class RestroomGimmick : MonoBehaviour
     private static readonly RectInt TowelRect = FromCorners(526, 0, 785, 72);
     private static readonly RectInt SafeRect = FromCorners(1318, 5, 1518, 184);
     private static readonly RectInt SafeBlockRect = FromCorners(1364, 25, 1518, 183);
+    // 금고 안 청혼반지 (잠금판이 있던 자리 가운데)
+    private static readonly RectInt RingRect = FromCorners(1401, 64, 1481, 144);
     private static readonly RectInt ToiletButtonRect = FromCorners(490, 333, 534, 363);
 
     // 손전등과 그 밖의 물건은 수건 자리 가운데에 이 크기로 놓입니다.
@@ -100,6 +103,9 @@ public sealed class RestroomGimmick : MonoBehaviour
     private bool roomObjectsCreated;
 
     private GameObject safeBlockButton;
+    private GameObject ringButton;
+    private ItemData ringItem;
+    private bool ringTaken;
 
     private GameObject keypadRoot; // RRPass
     private readonly List<RestroomKeypadButton> keypadButtons = new();
@@ -162,6 +168,7 @@ public sealed class RestroomGimmick : MonoBehaviour
     {
         towelItem = Resources.Load<ItemData>(ResourceFolder + "Towel");
         flashlightItem = Resources.Load<ItemData>(FlashlightResourcePath);
+        ringItem = Resources.Load<ItemData>(ResourceFolder + "ProposalRing");
         if (towelItem == null || flashlightItem == null)
             Debug.LogError("[Restroom] 수건 또는 손전등 아이템을 찾을 수 없습니다.");
 
@@ -219,6 +226,8 @@ public sealed class RestroomGimmick : MonoBehaviour
 
         if (!safeUnlocked)
             safeBlockButton = CreateRoomImage(roomView, "RRSafe_block", LoadSprite("RRSafe_block"), SafeBlockRect, OpenKeypad, false);
+        else
+            CreateRingButton();
 
         RebuildShelfViews();
     }
@@ -686,12 +695,46 @@ public sealed class RestroomGimmick : MonoBehaviour
         if (safeBlockButton != null)
             Destroy(safeBlockButton);
 
+        CreateRingButton();
+
         EXODSound.Play("key_unlock");
         Debug.Log("[Restroom] 금고 비밀번호 정답! RRSafe_block을 지웠습니다.", this);
 
         // 금고를 열면 종이는 모두 없어집니다. (퀵슬롯·맵·선반 어디에 있든)
         ItemPositionManager manager = positionManager != null ? positionManager : ItemPositionManager.GetOrCreate();
         manager?.RemovePapersPermanently();
+    }
+
+    // ═══════════════════════════════════════════════════
+    //  금고 안 청혼반지 → 청혼 엔딩
+    // ═══════════════════════════════════════════════════
+
+    private void CreateRingButton()
+    {
+        if (ringTaken || ringButton != null || roomViewTransform == null || ringItem == null)
+            return;
+
+        ringButton = CreateRoomImage(roomViewTransform, "청혼반지", ringItem.Icon, RingRect, TakeRing, true);
+    }
+
+    private void TakeRing()
+    {
+        if (ringTaken || IsBusy())
+            return;
+
+        QuickSlotInventory inventory = GetInventory();
+        if (inventory != null && !inventory.TryAdd(ringItem))
+        {
+            Think("퀵슬롯이 가득 차서 주울 수 없어.");
+            return;
+        }
+
+        ringTaken = true;
+        if (ringButton != null)
+            Destroy(ringButton);
+
+        EXODSound.Play("item_pickup");
+        ProposalEnding.Trigger();
     }
 
     private void CreateKeypad()
