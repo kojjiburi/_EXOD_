@@ -57,7 +57,7 @@ namespace EXOD.Walk
         [Tooltip("열쇠를 가지고 있지만 퀵슬롯에서 고르지 않았을 때")]
         [SerializeField] WalkLine[] lockedHasKeyLines =
         {
-            new WalkLine("", "(문이 잠겨 있다. 퀵슬롯에서 열쇠를 골라 써 보자.)")
+            new WalkLine("", "(문이 잠겨 있다. 퀵슬롯의 열쇠를 부스에 끌어다 놓아 보자.)")
         };
         [SerializeField] WalkLine[] unlockLines =
         {

@@ -113,7 +113,7 @@ namespace EXOD.Walk
         [SerializeField] WalkLine[] needAddressLines =
         {
             new WalkLine("경찰", "여보세요? 지금 계신 곳 주소를 말씀해 주세요."),
-            new WalkLine("", "(여기가 어디인지 정확히 말해야 한다. 퀵슬롯에서 [주소지]를 골라 수화기를 클릭하자.)")
+            new WalkLine("", "(여기가 어디인지 정확히 말해야 한다. 퀵슬롯의 [주소지]를 수화기에 끌어다 놓자.)")
         };
         [SerializeField] WalkLine[] reportDoneLines =
         {
@@ -130,7 +130,7 @@ namespace EXOD.Walk
         [SerializeField] WalkLine[] needAddress119Lines =
         {
             new WalkLine("119", "여보세요? 주소를 말씀해 주셔야 출동할 수 있어요."),
-            new WalkLine("", "(여기가 어디인지 정확히 말해야 한다. 퀵슬롯에서 [주소지]를 골라 수화기를 클릭하자.)")
+            new WalkLine("", "(여기가 어디인지 정확히 말해야 한다. 퀵슬롯의 [주소지]를 수화기에 끌어다 놓자.)")
         };
         [SerializeField] WalkLine[] reportDone119Lines =
         {
@@ -554,7 +554,7 @@ namespace EXOD.Walk
             {
                 case CallState.Connected:
                     callTitle.text = "통화: " + CallerName;
-                    callBody.text = CallerName + ": 지금 계신 곳이 어디입니까?\n\n(퀵슬롯에서 [주소지]를 골라 수화기를 클릭)";
+                    callBody.text = CallerName + ": 지금 계신 곳이 어디입니까?\n\n(퀵슬롯의 [주소지]를 수화기에 끌어다 놓기)";
                     break;
                 case CallState.Reporting:
                     float t = Mathf.Clamp01(reportProgress / Mathf.Max(0.01f, reportSeconds));
