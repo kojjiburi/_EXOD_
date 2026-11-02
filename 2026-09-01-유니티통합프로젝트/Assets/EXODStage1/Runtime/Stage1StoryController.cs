@@ -208,20 +208,14 @@ public sealed class Stage1StoryController : MonoBehaviour
             return;
         }
 
-        // 실패: "그냥 이렇게 살자" → 하트 -1 → (하트가 남아 있으면) 다시 도전
-        // 하트가 0이 되면 PlayerFaintController가 게임 오버를 띄웁니다.
+        // 실패: 탈출을 포기하고 그녀 곁에 남음 → 순응 엔딩 (하트는 줄지 않음)
         PlayCutscene(Stage1Dialogues.PotionFail(), () =>
         {
-            HeartManager hearts = FindFirstObjectByType<HeartManager>(FindObjectsInactive.Include);
-            if (hearts != null)
-            {
-                EXODSound.Play("hp_lost");
-                hearts.HPM();
-                if (hearts.HP <= 0)
-                    return;
-            }
-
-            PlayCutscene(Stage1Dialogues.PotionRetry(), StartPotionGimmick);
+            if (PlayerFaintController.Instance != null)
+                PlayerFaintController.Instance.ShowEnding(
+                    Stage1Dialogues.PotionEndingLine,
+                    Stage1Dialogues.PotionEndingTitle,
+                    Stage1Dialogues.PotionEndingSubtitle);
         });
     }
 
