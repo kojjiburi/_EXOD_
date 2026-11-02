@@ -46,6 +46,18 @@ public sealed class Stage1HelpBar : MonoBehaviour
     private bool warningShown;
     private WalkYandere yandere;
     private float nextTipRefreshTime;
+    private RectTransform panelRect;
+
+    // 왼쪽 Shift로 접기/펴기 (사용자 요청 2026-11-02). 씬을 다시 불러와도 유지.
+    // (대화 중 Shift는 DialogueManager의 타이핑 넘기기 키라서, 대화창이 열려 있을 땐 접기/펴기 안 함)
+    public const KeyCode CollapseKey = KeyCode.LeftShift;
+    private static bool collapsed;
+    // 오른쪽 가장자리에 세로로 긴 모양 (사용자 그림 2026-11-02: 가로 줄이고 오른쪽 아래로 길게)
+    private const float ExpandedWidth = 720f;
+    private const float MinExpandedHeight = 160f;
+    private const float MaxExpandedHeight = 420f;
+    private const float CollapsedWidth = 450f;
+    private const float CollapsedHeight = 62f;
 
     private void Start()
     {
@@ -68,6 +80,13 @@ public sealed class Stage1HelpBar : MonoBehaviour
             || (MemoZoom.Instance != null && MemoZoom.Instance.IsOpen) || Stage1Keypad.IsOpen || MirrorMazeGimmick.IsOpen || StrangePotionGimmick.IsOpen
             || Stage1FridgeGimmick.IsAnyInsideShown;
 
+        bool dialogueOpen = DialogueManager.Instance != null && DialogueManager.Instance.IsDialogueOpen;
+        if (!dialogueOpen && Input.GetKeyDown(CollapseKey))
+        {
+            collapsed = !collapsed;
+            EXODSound.Play("ui_click", 0.5f);
+        }
+
         bool inWalk = Stage2HouseLink.IsInStage2;
         bool watching = inWalk && !hidden && IsHerWatching();
 
@@ -87,6 +106,105 @@ public sealed class Stage1HelpBar : MonoBehaviour
         }
 
         group.alpha = Mathf.MoveTowards(group.alpha, hidden ? 0f : 1f, Time.unscaledDeltaTime * 6f);
+        ApplyCollapse(collapsed && !watching);   // 그녀가 보고 있다는 경고는 접혀 있어도 펼쳐서 보여 줌
+    }
+
+    // ─── 방 이름·남은 시간 / [대화 기록]·[종료] 버튼을 행동 요령 띠 바로 아래로 ───
+    // (씬 파일은 건드리지 않고 실행 중에 위치만 옮김. 화면 좌표로 계산하므로 캔버스가 달라도 맞음)
+    private RectTransform roomNameRect;
+    private RectTransform logButtonRect;
+    private RectTransform quitButtonRect;
+
+    private void LateUpdate()
+    {
+        if (panelRect == null)
+            return;
+
+        if (roomNameRect == null && SliderManager.Instance != null && SliderManager.Instance.roomNameText != null)
+            roomNameRect = SliderManager.Instance.roomNameText.rectTransform;
+        if (logButtonRect == null)
+            logButtonRect = FindRect("대화 기록 버튼");
+        if (quitButtonRect == null)
+            quitButtonRect = FindRect("종료 버튼");
+
+        Vector3[] corners = new Vector3[4];
+        panelRect.GetWorldCorners(corners);
+        float scale = panelRect.lossyScale.y;
+        float right = corners[2].x;
+        float top = corners[0].y - 12f * scale;   // 띠 아래 12px
+
+        // 방 이름 + 그 아래 남은 시간: 띠 오른쪽 아래
+        float rowLeft = right;
+        if (roomNameRect != null)
+        {
+            roomNameRect.GetWorldCorners(corners);
+            Vector2 size = corners[2] - corners[0];
+            Vector3 center = roomNameRect.position;
+            Vector3 offset = center - (corners[0] + corners[2]) * 0.5f;
+            roomNameRect.position = new Vector3(right - size.x * 0.5f, top - size.y * 0.5f, center.z) + offset;
+            rowLeft = right - size.x - 16f * scale;
+        }
+
+        // 버튼은 방 이름 왼쪽에 같은 줄로
+        rowLeft = PlaceLeftOf(quitButtonRect, rowLeft, top, scale);
+        PlaceLeftOf(logButtonRect, rowLeft, top, scale);
+
+        // 산책 중 "Esc 그만두기" 안내: 방 이름·시간(산책 시간 포함) 바로 아래 오른쪽
+        if (walkHintRect == null && Stage2HouseLink.IsInStage2)
+            walkHintRect = FindRect("조작");
+        if (walkHintRect != null && roomNameRect != null)
+        {
+            float bottom = float.MaxValue;
+            foreach (RectTransform child in roomNameRect.GetComponentsInChildren<RectTransform>(false))
+            {
+                child.GetWorldCorners(corners);
+                bottom = Mathf.Min(bottom, corners[0].y);
+            }
+            walkHintRect.GetWorldCorners(corners);
+            Vector2 size = corners[2] - corners[0];
+            Vector3 offset = walkHintRect.position - (corners[0] + corners[2]) * 0.5f;
+            walkHintRect.position = new Vector3(right - size.x * 0.5f, bottom - 6f * scale - size.y * 0.5f, walkHintRect.position.z) + offset;
+        }
+    }
+
+    private RectTransform walkHintRect;
+
+    private static float PlaceLeftOf(RectTransform rect, float rightEdge, float top, float scale)
+    {
+        if (rect == null)
+            return rightEdge;
+        Vector3[] corners = new Vector3[4];
+        rect.GetWorldCorners(corners);
+        Vector2 size = corners[2] - corners[0];
+        Vector3 offset = rect.position - (corners[0] + corners[2]) * 0.5f;
+        rect.position = new Vector3(rightEdge - size.x * 0.5f, top - size.y * 0.5f, rect.position.z) + offset;
+        return rightEdge - size.x - 16f * scale;
+    }
+
+    private static RectTransform FindRect(string objectName)
+    {
+        GameObject go = GameObject.Find(objectName);
+        return go != null ? go.transform as RectTransform : null;
+    }
+
+    private void ApplyCollapse(bool fold)
+    {
+        float expandedHeight = Mathf.Clamp(
+            tipText.GetPreferredValues(tipText.text, ExpandedWidth - 54f, 0f).y + 75f,
+            MinExpandedHeight, MaxExpandedHeight);
+        Vector2 target = fold ? new Vector2(CollapsedWidth, CollapsedHeight) : new Vector2(ExpandedWidth, expandedHeight);
+        panelRect.sizeDelta = Vector2.Lerp(panelRect.sizeDelta, target, 1f - Mathf.Exp(-Time.unscaledDeltaTime * 18f));
+        bool showTips = !fold && panelRect.sizeDelta.x > ExpandedWidth * 0.9f;
+        if (tipText.gameObject.activeSelf != showTips)
+            tipText.gameObject.SetActive(showTips);
+
+        if (!warningShown)
+        {
+            string title = fold ? Title + "  <size=70%><color=#9A8F93>[Shift] 펼치기</color></size>"
+                                : Title + "  <size=70%><color=#9A8F93>[Shift] 접기</color></size>";
+            if (titleText.text != title)
+                titleText.text = title;
+        }
     }
 
     private bool IsHerWatching()
@@ -137,6 +255,10 @@ public sealed class Stage1HelpBar : MonoBehaviour
         if (!string.IsNullOrEmpty(goal))
             tips.Add($"<color=#{ColorUtility.ToHtmlStringRGB(GoalColor)}>목표: {goal}</color>");
 
+        // 손전등을 얻었고 화장실 금고가 아직 안 열렸으면: 종이를 비춰 보라는 안내 (사용자 요청 2026-11-02)
+        if (HasFlashlight() && (RestroomGimmick.Instance == null || !RestroomGimmick.Instance.IsSafeUnlocked))
+            tips.Add($"<color=#{ColorUtility.ToHtmlStringRGB(GoalColor)}>{FlashlightTip}</color>");
+
         tips.Add(HouseRules[0]);
         tips.Add(HouseRules[1]);
         if (DangerLevel.HideHintUnlocked)
@@ -145,6 +267,21 @@ public sealed class Stage1HelpBar : MonoBehaviour
             tips.Add(BedTip);
 
         return tips.ToArray();
+    }
+
+    private const string FlashlightTip = "손전등으로 종이 A~E를 비춰 보자.";
+
+    private static bool HasFlashlight()
+    {
+        QuickSlotInventory inventory = QuickSlotInventory.Instance;
+        if (inventory == null)
+            return false;
+        foreach (QuickSlotEntry entry in inventory.Entries)
+        {
+            if (entry != null && entry.ItemData != null && entry.ItemData.ItemId == FlashlightGimmick.FlashlightItemId)
+                return true;
+        }
+        return false;
     }
 
     // 1스테이지 진행 상황에 맞는 목표
@@ -217,10 +354,12 @@ public sealed class Stage1HelpBar : MonoBehaviour
         GameObject panelObject = new GameObject("안내 띠", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
         panelObject.transform.SetParent(root.transform, false);
         RectTransform rect = panelObject.GetComponent<RectTransform>();
+        panelRect = rect;
         rect.anchorMin = rect.anchorMax = new Vector2(1f, 1f);
         rect.pivot = new Vector2(1f, 1f);
-        rect.anchoredPosition = new Vector2(-40f, -216f);
-        rect.sizeDelta = new Vector2(960f, 198f);
+        // 화면 오른쪽 맨 위 (사용자 요청 2026-11-02). 방 이름·시간과 [대화 기록]·[종료] 버튼은 이 띠 아래로 옮김 (LateUpdate)
+        rect.anchoredPosition = new Vector2(-40f, -20f);
+        rect.sizeDelta = collapsed ? new Vector2(CollapsedWidth, CollapsedHeight) : new Vector2(ExpandedWidth, MinExpandedHeight);
 
         panel = panelObject.GetComponent<Image>();
         panel.color = PanelColor;
@@ -235,9 +374,10 @@ public sealed class Stage1HelpBar : MonoBehaviour
         titleRect.offsetMax = new Vector2(-27f, -12f);
 
         tipText = CreateText("안내", panelObject.transform, string.Empty, 33f, TipColor, TextAlignmentOptions.TopLeft);
-        tipText.enableAutoSizing = true;
-        tipText.fontSizeMin = 21f;
-        tipText.fontSizeMax = 33f;
+        // 폭이 좁아졌으므로 글자 크기는 고정하고 줄바꿈해서 아래로 길어지게 함
+        tipText.fontSize = 28f;
+        tipText.enableWordWrapping = true;
+        tipText.lineSpacing = 8f;
         RectTransform tipRect = tipText.rectTransform;
         tipRect.anchorMin = Vector2.zero;
         tipRect.anchorMax = Vector2.one;

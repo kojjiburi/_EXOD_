@@ -156,6 +156,9 @@ public sealed class PlayerFaintController : MonoBehaviour
         pendingSubtitle = subtitle;
         pendingStyle = style;
 
+        // 시작 화면 [엔딩 목록]에 본 엔딩으로 기록
+        EndingCollection.MarkSeen(style);
+
         isGameOver = true;
         StopAllCoroutines();
         CloseOtherUi();

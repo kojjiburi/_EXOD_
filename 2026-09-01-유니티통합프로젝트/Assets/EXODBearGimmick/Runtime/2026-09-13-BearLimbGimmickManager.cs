@@ -267,7 +267,15 @@ internal sealed class BearLimbGimmickManager : MonoBehaviour
 
     private void CreateUi()
     {
-        Canvas canvas = FindFirstObjectByType<Canvas>();
+        // 방 화면(SliderPanel)이 있는 메인 캔버스에 붙입니다.
+        // (아무 캔버스나 고르면 하트 HUD 캔버스에 붙어서, Tab으로 UI를 숨길 때 팔다리까지 사라졌음 — 2026-11-02 수정)
+        Canvas canvas = SliderManager.Instance != null && SliderManager.Instance.sliderPanel != null
+            ? SliderManager.Instance.sliderPanel.GetComponentInParent<Canvas>(true)
+            : null;
+        if (canvas != null)
+            canvas = canvas.rootCanvas;
+        else
+            canvas = FindFirstObjectByType<Canvas>();
         if (canvas == null)
             return;
 

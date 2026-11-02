@@ -134,7 +134,8 @@ TextureImporter:
     secondaryTextures: []
     spriteCustomMetadata:
       entries: []
-    nameFileIdTable: {}
+    nameFileIdTable:
+      BoothKeyIcon_0: -1823317813795290296
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

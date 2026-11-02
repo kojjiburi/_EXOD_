@@ -35,6 +35,8 @@ public sealed class StartScreen : MonoBehaviour
     private TextMeshProUGUI titleGhostRed;
     private TextMeshProUGUI titleGhostCyan;
     private GameObject settingsPanel;
+    private GameObject endingsPanel;
+    private RectTransform endingsWindow;
     private bool isStarting;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
@@ -75,6 +77,8 @@ public sealed class StartScreen : MonoBehaviour
     {
         if (settingsPanel != null && settingsPanel.activeSelf && Input.GetKeyDown(KeyCode.Escape))
             CloseSettings();
+        if (endingsPanel != null && endingsPanel.activeSelf && Input.GetKeyDown(KeyCode.Escape))
+            CloseEndings();
     }
 
     // ═══════════════════════════════════════════════════
@@ -113,6 +117,19 @@ public sealed class StartScreen : MonoBehaviour
     private void CloseSettings()
     {
         settingsPanel.SetActive(false);
+        menuGroup.interactable = true;
+    }
+
+    private void OpenEndings()
+    {
+        BuildEndingCards();
+        endingsPanel.SetActive(true);
+        menuGroup.interactable = false;
+    }
+
+    private void CloseEndings()
+    {
+        endingsPanel.SetActive(false);
         menuGroup.interactable = true;
     }
 
@@ -251,6 +268,7 @@ public sealed class StartScreen : MonoBehaviour
         team.alignment = TextAlignmentOptions.Right;
 
         BuildSettingsPanel();
+        BuildEndingsPanel();
 
         blackout = CreateImage("암전", canvasRoot, Color.black);
         Stretch(blackout.rectTransform);
@@ -324,9 +342,10 @@ public sealed class StartScreen : MonoBehaviour
         Stretch(rect);
         menuGroup = menu.GetComponent<CanvasGroup>();
 
-        CreateMenuButton(rect, "시작하기", new Vector2(0.79f, 0.42f), OnStartClicked);
-        CreateMenuButton(rect, "설정", new Vector2(0.79f, 0.34f), OpenSettings);
-        CreateMenuButton(rect, "종료", new Vector2(0.79f, 0.26f), QuitGame);
+        CreateMenuButton(rect, "시작하기", new Vector2(0.79f, 0.44f), OnStartClicked);
+        CreateMenuButton(rect, "엔딩 목록", new Vector2(0.79f, 0.365f), OpenEndings);
+        CreateMenuButton(rect, "설정", new Vector2(0.79f, 0.29f), OpenSettings);
+        CreateMenuButton(rect, "종료", new Vector2(0.79f, 0.215f), QuitGame);
     }
 
     // 글자만 보이는 메뉴 버튼. 마우스를 올리면 붉어지고 떨립니다.
@@ -417,6 +436,130 @@ public sealed class StartScreen : MonoBehaviour
         Stretch(closeText.rectTransform);
 
         settingsPanel.SetActive(false);
+    }
+
+    // ─── 엔딩 목록 창 (EndingCollection) ─────────────────
+
+    private void BuildEndingsPanel()
+    {
+        Image dim = CreateImage("엔딩 목록", canvasRoot, new Color(0f, 0f, 0f, 0.82f));
+        Stretch(dim.rectTransform);
+        dim.raycastTarget = true;
+        endingsPanel = dim.gameObject;
+
+        Image window = CreateImage("엔딩 목록 창", dim.rectTransform, new Color(0.07f, 0.04f, 0.05f, 1f));
+        Place(window.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(1640f, 800f), Vector2.zero);
+        Outline outline = window.gameObject.AddComponent<Outline>();
+        outline.effectColor = new Color(0.45f, 0.06f, 0.1f, 1f);
+        outline.effectDistance = new Vector2(3f, -3f);
+        endingsWindow = window.rectTransform;
+
+        Image close = CreateImage("닫기", window.rectTransform, Color.white);
+        Place(close.rectTransform, new Vector2(0.5f, 0f), new Vector2(220f, 70f), new Vector2(0f, 65f));
+        Button closeButton = close.gameObject.AddComponent<Button>();
+        ColorBlock colors = closeButton.colors;
+        colors.normalColor = new Color(0.20f, 0.14f, 0.14f, 1f);
+        colors.highlightedColor = new Color(0.45f, 0.16f, 0.20f, 1f);
+        colors.pressedColor = new Color(0.62f, 0.20f, 0.26f, 1f);
+        colors.selectedColor = colors.normalColor;
+        closeButton.colors = colors;
+        closeButton.onClick.AddListener(CloseEndings);
+        EXODSound.AttachUiSounds(close.gameObject);
+
+        TextMeshProUGUI closeText = CreateText("글자", close.rectTransform, "닫기", 32f, Color.white);
+        Stretch(closeText.rectTransform);
+
+        endingsPanel.SetActive(false);
+    }
+
+    // 열 때마다 카드를 새로 만듭니다. (기록이 바뀌었을 수 있으므로)
+    private void BuildEndingCards()
+    {
+        Transform old = endingsWindow.Find("내용");
+        if (old != null)
+            Destroy(old.gameObject);
+
+        RectTransform content = new GameObject("내용", typeof(RectTransform)).GetComponent<RectTransform>();
+        content.SetParent(endingsWindow, false);
+        Stretch(content);
+
+        EndingCollection.Entry[] entries = EndingCollection.Entries;
+        TextMeshProUGUI heading = CreateText("제목", content,
+            "엔딩 목록  <size=60%><color=#9A8F93>" + EndingCollection.SeenCount + " / " + entries.Length + "</color></size>",
+            52f, TitleColor);
+        Place(heading.rectTransform, new Vector2(0.5f, 1f), new Vector2(1000f, 90f), new Vector2(0f, -75f));
+
+        const float cardWidth = 360f;
+        const float gap = 30f;
+        float startX = -(entries.Length - 1) * (cardWidth + gap) * 0.5f;
+        for (int i = 0; i < entries.Length; i++)
+            BuildEndingCard(content, entries[i], new Vector2(startX + i * (cardWidth + gap), 15f), new Vector2(cardWidth, 500f));
+    }
+
+    private void BuildEndingCard(RectTransform parent, EndingCollection.Entry entry, Vector2 position, Vector2 size)
+    {
+        bool seen = EndingCollection.IsSeen(entry.Style);
+        Color accent = entry.Accent;
+
+        Image card = CreateImage(seen ? entry.Title : "???", parent,
+            seen ? new Color(0.13f, 0.08f, 0.10f, 1f) : new Color(0.05f, 0.04f, 0.045f, 1f));
+        Place(card.rectTransform, new Vector2(0.5f, 0.5f), size, position);
+        Outline outline = card.gameObject.AddComponent<Outline>();
+        outline.effectColor = seen ? accent : new Color(0.22f, 0.2f, 0.21f, 1f);
+        outline.effectDistance = new Vector2(2f, -2f);
+
+        // 위쪽 색 띠
+        Image band = CreateImage("색 띠", card.rectTransform, seen ? accent : new Color(0.16f, 0.15f, 0.16f, 1f));
+        band.rectTransform.anchorMin = new Vector2(0f, 1f);
+        band.rectTransform.anchorMax = new Vector2(1f, 1f);
+        band.rectTransform.pivot = new Vector2(0.5f, 1f);
+        band.rectTransform.sizeDelta = new Vector2(0f, 12f);
+        band.rectTransform.anchoredPosition = Vector2.zero;
+
+        if (!seen)
+        {
+            TextMeshProUGUI unknown = CreateText("???", card.rectTransform, "???", 72f, new Color(0.35f, 0.32f, 0.33f, 1f));
+            Place(unknown.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(size.x, 120f), new Vector2(0f, 30f));
+            TextMeshProUGUI locked = CreateText("아직", card.rectTransform, "아직 보지 못한 엔딩", 26f, new Color(0.32f, 0.29f, 0.30f, 1f));
+            Place(locked.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(size.x, 50f), new Vector2(0f, -60f));
+            return;
+        }
+
+        // 제목: "순응 엔딩 : 따뜻한 감옥" → 두 줄 (큰 글씨 / 부제)
+        string main = entry.Title;
+        string sub = string.Empty;
+        int split = main.IndexOf(" : ");
+        if (split >= 0)
+        {
+            sub = main.Substring(split + 3);
+            main = main.Substring(0, split);
+        }
+
+        TextMeshProUGUI titleText = CreateText("제목", card.rectTransform, main, 44f, accent);
+        Place(titleText.rectTransform, new Vector2(0.5f, 1f), new Vector2(size.x - 30f, 70f), new Vector2(0f, -70f));
+        if (!string.IsNullOrEmpty(sub))
+        {
+            TextMeshProUGUI subText = CreateText("부제", card.rectTransform, sub, 32f, Color.white);
+            Place(subText.rectTransform, new Vector2(0.5f, 1f), new Vector2(size.x - 30f, 50f), new Vector2(0f, -125f));
+        }
+
+        Image line = CreateImage("구분선", card.rectTransform, new Color(accent.r, accent.g, accent.b, 0.5f));
+        Place(line.rectTransform, new Vector2(0.5f, 1f), new Vector2(size.x - 80f, 2f), new Vector2(0f, -165f));
+
+        if (!string.IsNullOrEmpty(entry.Subtitle))
+        {
+            TextMeshProUGUI desc = CreateText("설명", card.rectTransform, entry.Subtitle, 25f, TextColor);
+            Place(desc.rectTransform, new Vector2(0.5f, 1f), new Vector2(size.x - 50f, 150f), new Vector2(0f, -250f));
+            desc.enableWordWrapping = true;
+        }
+
+        if (!string.IsNullOrEmpty(entry.LastLine))
+        {
+            TextMeshProUGUI quote = CreateText("마지막 대사", card.rectTransform, "“" + entry.LastLine + "”", 26f,
+                new Color(0.95f, 0.35f, 0.45f, 1f));
+            Place(quote.rectTransform, new Vector2(0.5f, 0f), new Vector2(size.x - 40f, 120f), new Vector2(0f, 80f));
+            quote.enableWordWrapping = true;
+        }
     }
 
     private Slider CreateSlider(RectTransform parent, Vector2 position)

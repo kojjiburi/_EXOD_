@@ -100,6 +100,14 @@ public sealed class Stage1MirrorBoothKey : MonoBehaviour
             return;
         DangerLevel.UiOpened();
 
+        // 지난 판(다시 시작/로비)에 미로를 깬 기록이 남아 있으면, 열자마자 '클리어 화면'만 나오고 열쇠를 못 받음 → 기록을 지우고 다시 풀게 함
+        if (MirrorMazeGimmick.IsSolved)
+        {
+            System.Reflection.PropertyInfo solved = typeof(MirrorMazeGimmick).GetProperty(nameof(MirrorMazeGimmick.IsSolved));
+            if (solved != null && solved.GetSetMethod(true) != null)
+                solved.GetSetMethod(true).Invoke(null, new object[] { false });
+        }
+
         Unsubscribe();
         MirrorMazeGimmick.Solved += OnSolved;
         MirrorMazeGimmick.Failed += OnFailed;
