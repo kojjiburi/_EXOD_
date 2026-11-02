@@ -24,8 +24,14 @@ public sealed class Stage1FridgeGimmick : MonoBehaviour
     private static readonly Rect MemoArea = Rect.MinMaxRect(0.470f, 0.575f, 0.515f, 0.650f);
     private static readonly Rect KeypadArea = Rect.MinMaxRect(0.553f, 0.550f, 0.588f, 0.628f);
 
+    // 메모 근처(이만큼 넓힌 영역)에 마우스가 오면 '메모 읽기' 표시
+    private const float MemoNearPaddingX = 0.035f;
+    private const float MemoNearPaddingY = 0.05f;
+
     private bool isOpened;
     private GameObject insideView;
+    private RectTransform memoNearZone;
+    private GameObject memoLabel;
 
     public bool IsOpened => isOpened;
     public bool IsShowingInside => insideView != null && insideView.activeSelf;
@@ -47,8 +53,8 @@ public sealed class Stage1FridgeGimmick : MonoBehaviour
 
         Stage1Room.CreateHotspot(kitchen, "냉장고 클릭 영역", FridgeArea, OnFridgeClicked);
         Stage1Room.CreateHotspot(kitchen, "냉장고 키패드 클릭 영역", KeypadArea, OnFridgeClicked);
-        Stage1Room.CreateHotspot(kitchen, "냉장고 메모 클릭 영역", MemoArea,
-            () => Stage1Room.PlayCutscene(Stage1Dialogues.FridgeMemo()));
+        Stage1Room.CreateHotspot(kitchen, "냉장고 메모 클릭 영역", MemoArea, ReadMemo);
+        BuildMemoLabel(kitchen);
 
         BuildInsideView(kitchen.parent);
         if (SliderManager.Instance != null)
@@ -67,6 +73,86 @@ public sealed class Stage1FridgeGimmick : MonoBehaviour
     {
         if (IsShowingInside)
             KeepBehindDialogueUi();
+
+        UpdateMemoLabel();
+    }
+
+    private void ReadMemo()
+    {
+        if (memoLabel != null)
+            memoLabel.SetActive(false);
+        Stage1Room.PlayCutscene(Stage1Dialogues.FridgeMemo());
+    }
+
+    // ═══════════════════════════════════════════════════
+    //  메모 근처에 가면 '메모 읽기' 표시
+    // ═══════════════════════════════════════════════════
+
+    private void BuildMemoLabel(RectTransform kitchen)
+    {
+        // 메모보다 조금 넓은 '근처' 영역 (보이지 않음, 클릭을 막지 않음)
+        GameObject zone = new GameObject("냉장고 메모 근처", typeof(RectTransform));
+        zone.transform.SetParent(kitchen, false);
+        memoNearZone = zone.GetComponent<RectTransform>();
+        memoNearZone.anchorMin = new Vector2(MemoArea.xMin - MemoNearPaddingX, MemoArea.yMin - MemoNearPaddingY);
+        memoNearZone.anchorMax = new Vector2(MemoArea.xMax + MemoNearPaddingX, MemoArea.yMax + MemoNearPaddingY);
+        memoNearZone.offsetMin = Vector2.zero;
+        memoNearZone.offsetMax = Vector2.zero;
+
+        // 메모 바로 위에 뜨는 '메모 읽기' 버튼
+        memoLabel = new GameObject("메모 읽기 표시", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Button));
+        memoLabel.transform.SetParent(kitchen, false);
+        RectTransform rect = memoLabel.GetComponent<RectTransform>();
+        rect.anchorMin = rect.anchorMax = new Vector2(MemoArea.center.x, MemoArea.yMax);
+        rect.pivot = new Vector2(0.5f, 0f);
+        rect.anchoredPosition = new Vector2(0f, 10f);
+        rect.sizeDelta = new Vector2(150f, 44f);
+
+        Image background = memoLabel.GetComponent<Image>();
+        background.color = new Color(0.08f, 0.07f, 0.07f, 0.85f);
+        Button button = memoLabel.GetComponent<Button>();
+        button.transition = Selectable.Transition.None;
+        button.onClick.AddListener(() =>
+        {
+            if (!Stage1Room.IsBlocked())
+                ReadMemo();
+        });
+
+        GameObject textObject = new GameObject("글자", typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
+        textObject.transform.SetParent(memoLabel.transform, false);
+        RectTransform textRect = textObject.GetComponent<RectTransform>();
+        textRect.anchorMin = Vector2.zero;
+        textRect.anchorMax = Vector2.one;
+        textRect.offsetMin = Vector2.zero;
+        textRect.offsetMax = Vector2.zero;
+        TextMeshProUGUI text = textObject.GetComponent<TextMeshProUGUI>();
+        if (EXODUiAssets.Font != null)
+            text.font = EXODUiAssets.Font;
+        text.text = "메모 읽기";
+        text.fontSize = 24f;
+        text.color = Color.white;
+        text.alignment = TextAlignmentOptions.Center;
+        text.raycastTarget = false;
+
+        memoLabel.SetActive(false);
+    }
+
+    private void UpdateMemoLabel()
+    {
+        if (memoLabel == null || memoNearZone == null)
+            return;
+
+        bool show = memoNearZone.gameObject.activeInHierarchy
+            && !IsShowingInside
+            && !Stage1Room.IsBlocked()
+            && (RectTransformUtility.RectangleContainsScreenPoint(memoNearZone, Input.mousePosition, null)
+                || (memoLabel.activeSelf && RectTransformUtility.RectangleContainsScreenPoint(
+                    (RectTransform)memoLabel.transform, Input.mousePosition, null)));
+
+        if (memoLabel.activeSelf != show)
+            memoLabel.SetActive(show);
+        if (show)
+            memoLabel.transform.SetAsLastSibling();
     }
 
     private void OnFridgeClicked()
