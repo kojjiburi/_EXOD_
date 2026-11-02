@@ -426,8 +426,41 @@ public sealed class DangerLevel : MonoBehaviour
     // ── 기믹에서 부르는 곳 ────────────────────────────────
 
     /// <summary>기믹을 풀었을 때 (+5, 현관문 연 뒤 2배)</summary>
+    /// <summary>지금까지 기믹 성공/실패가 불린 횟수 (위험도가 안 오르는 때도 셈). 잠수 방지(Stage1AntiIdle)가 "그냥 닫았는지" 판단할 때 씀</summary>
+    public static int SolvedCount { get; private set; }
+    public static int FailedCount { get; private set; }
+
+    /// <summary>
+    /// 조사 대사를 5초 동안 안 넘겨서 자동으로 넘겼을 때 (+5, 현관문 연 뒤 2배) — 잠수·시간 멈춤 악용 방지 (사용자 요청 2026-11-03)
+    /// 이것 때문에 100이 될 상황이면, 기믹과 같은 경고("지금 이 행동을 하면 위험할 것 같다…")를 먼저 한 번 보여 줌 (대사가 끝난 뒤)
+    /// </summary>
+    public static void IdleAutoAdvanced()
+    {
+        DangerLevel d = Instance;
+        if (d == null || !d.CountsNow())
+            return;
+        int amount = IdleAutoAdvanceAmount * Multiplier;
+        if (!d.warnedNearMax && d.value + amount >= Max)
+        {
+            d.warnedNearMax = true;
+            d.StartCoroutine(d.ShowWarningAfterDialogue());
+            return;
+        }
+        d.Add(amount);
+    }
+
+    private const int IdleAutoAdvanceAmount = 5;
+
+    private System.Collections.IEnumerator ShowWarningAfterDialogue()
+    {
+        while (DialogueManager.Instance != null && DialogueManager.Instance.IsDialogueOpen)
+            yield return null;
+        DialogueManager.Instance?.StartDialogue(Stage1Dialogues.Thought(WarningText));
+    }
+
     public static void GimmickSolved()
     {
+        SolvedCount++;
         if (Instance != null && Instance.CountsNow())
             Instance.Add(GimmickSolvedAmount * Multiplier);
     }
@@ -435,6 +468,7 @@ public sealed class DangerLevel : MonoBehaviour
     /// <summary>기믹을 틀렸을 때 (+10, 현관문 연 뒤 2배)</summary>
     public static void GimmickFailed()
     {
+        FailedCount++;
         if (Instance != null && Instance.CountsNow())
             Instance.Add(GimmickFailedAmount * Multiplier);
     }
@@ -508,21 +542,26 @@ public sealed class DangerLevel : MonoBehaviour
         }
 
         // 침실 밖에서 들킴 → (들킨 대사 동안 화면 색수차) → 하트 -1 → (게임 오버가 아니면) 침실로 끌려가 다시 갇힘
+        // 색수차는 끌려가 다시 갇히는 대사까지 컷신 내내 유지 (사용자 요청 2026-11-03)
         ScreenAberration.Play(() => PlayCutscene(Stage1Dialogues.VisitCaught(), () =>
         {
-            ScreenAberration.Stop();
             HeartManager hearts = FindFirstObjectByType<HeartManager>(FindObjectsInactive.Include);
             if (hearts != null)
                 hearts.HPM();
 
             if (hearts != null && hearts.HP <= 0)
             {
+                ScreenAberration.Stop();
                 FinishAppear();
                 return;
             }
 
             LockBackInBedroom();
-            PlayCutscene(Stage1Dialogues.VisitLockedAgain(), FinishAppear);
+            PlayCutscene(Stage1Dialogues.VisitLockedAgain(), () =>
+            {
+                ScreenAberration.Stop();
+                FinishAppear();
+            });
         }), false, ScreenAberration.HouseCutscene);
     }
 

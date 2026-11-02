@@ -145,6 +145,9 @@ public class PasswordDrawer : MonoBehaviour
         }
     }
 
+    /// <summary>비밀번호 창이 열려 있는지 (잠수 방지 Stage1AntiIdle)</summary>
+    public bool IsPanelOpen => passwordPanel != null && passwordPanel.activeSelf;
+
     public void Close()
     {
         if (passwordPanel != null)

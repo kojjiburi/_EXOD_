@@ -97,8 +97,13 @@ public class DayController : MonoBehaviour
 
         // 정리 못 한 물건이 있으면: 컷신 이미지가 천천히 다 나타난 뒤에 대사
         bool showMissingImage = DayEndReport.HasMissingReport && LoadMissingImage();
+        Coroutine missingFx = null;
         if (showMissingImage)
+        {
+            // 컷신 내내 색수차 (방 밖에서 들켰을 때·2스테이지처럼, 사용자 요청 2026-11-03)
+            missingFx = StartCoroutine(AnimateMissingFx());
             yield return FadeCutsceneImage(0f, 1f, missingImageFadeSeconds);
+        }
 
         bool reportDone = false;
         DialogueOnTop.Raise(ReportDialogueOrder);
@@ -111,7 +116,12 @@ public class DayController : MonoBehaviour
         DialogueOnTop.Lower(ReportDialogueOrder);
 
         if (showMissingImage)
+        {
             yield return FadeCutsceneImage(1f, 0f, 0.6f);
+            if (missingFx != null)
+                StopCoroutine(missingFx);
+            _cutsceneImage.material = null;
+        }
 
         int day = GManager.Instance != null ? GManager.Instance.Day : dayNumber + 1;
         _fadeTitle.text = string.Format(dayTitleFormat, day);
@@ -149,6 +159,39 @@ public class DayController : MonoBehaviour
         if (_cutsceneImage.sprite == null)
             _cutsceneImage.sprite = Resources.Load<Sprite>(MissingImagePath);
         return _cutsceneImage.sprite != null;
+    }
+
+    private Material _missingFxMaterial;
+
+    // 정리 못 한 물건 컷신 이미지에 색수차 (ScreenAberration과 같은 셰이더·비슷한 세기)
+    private IEnumerator AnimateMissingFx()
+    {
+        if (_missingFxMaterial == null)
+        {
+            Shader shader = Resources.Load<Shader>("EXODScreenFx/ChromaticAberrationUI");
+            if (shader == null)
+                yield break;
+            _missingFxMaterial = new Material(shader);
+            _missingFxMaterial.SetFloat("_IsScreenshot", 0f);   // 일반 그림
+        }
+        _cutsceneImage.material = _missingFxMaterial;
+
+        float t = 0f;
+        Vector2 jitter = Vector2.zero;
+        while (true)
+        {
+            float strength = t < 0.6f
+                ? Mathf.Lerp(0.30f, 0.16f, Mathf.SmoothStep(0f, 1f, t / 0.6f))
+                : 0.16f * (1f + 0.3f * Mathf.Sin(t * 9f));
+            if (UnityEngine.Random.value < 6f * Time.unscaledDeltaTime)
+                jitter = UnityEngine.Random.insideUnitCircle * 0.012f;
+            else
+                jitter = Vector2.Lerp(jitter, Vector2.zero, 12f * Time.unscaledDeltaTime);
+            _missingFxMaterial.SetFloat("_Strength", strength);
+            _missingFxMaterial.SetVector("_Jitter", new Vector4(jitter.x, jitter.y, 0f, 0f));
+            t += Time.unscaledDeltaTime;
+            yield return null;
+        }
     }
 
     private IEnumerator FadeCutsceneImage(float from, float to, float seconds)
@@ -230,6 +273,7 @@ public class DayController : MonoBehaviour
         titleRect.sizeDelta = new Vector2(1200f, 240f);
         _fadeTitle = title.GetComponent<TextMeshProUGUI>();
         _fadeTitle.fontSize = 120f;
+        _fadeTitle.characterSpacing = 18f;   // 글자가 겹쳐 보여서 자간 넓힘 (사용자 요청 2026-11-03)
         _fadeTitle.alignment = TextAlignmentOptions.Center;
         _fadeTitle.color = Color.white;
         _fadeTitle.raycastTarget = false;

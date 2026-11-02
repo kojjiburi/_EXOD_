@@ -44,6 +44,7 @@ public sealed class ScreenAberration : MonoBehaviour
     private RawImage image;
     private Image cutsceneImage;
     private Material material;
+    private Material cutsceneMaterial;
     private Texture2D shot;
     private Coroutine routine;
     private bool stopRequested;
@@ -85,6 +86,8 @@ public sealed class ScreenAberration : MonoBehaviour
             Destroy(shot);
         if (material != null)
             Destroy(material);
+        if (cutsceneMaterial != null)
+            Destroy(cutsceneMaterial);
     }
 
     private void Begin(Action afterCapture, bool stopWhenDialogueCloses, string cutsceneResource)
@@ -213,6 +216,11 @@ public sealed class ScreenAberration : MonoBehaviour
 
         material.SetFloat(StrengthId, strength);
         material.SetVector(JitterId, new Vector4(jitter.x, jitter.y, 0f, 0f));
+        if (cutsceneMaterial != null)
+        {
+            cutsceneMaterial.SetFloat(StrengthId, strength);
+            cutsceneMaterial.SetVector(JitterId, new Vector4(jitter.x, jitter.y, 0f, 0f));
+        }
     }
 
     private void EnsureOverlay()
@@ -257,6 +265,10 @@ public sealed class ScreenAberration : MonoBehaviour
         {
             material = new Material(shader);
             image.material = material;
+            // 컷신 이미지에도 같은 색수차 → 컷신 동안 계속 갈라져 보임 (2스테이지처럼, 사용자 요청 2026-11-03)
+            cutsceneMaterial = new Material(shader);
+            cutsceneMaterial.SetFloat("_IsScreenshot", 0f);
+            cutsceneImage.material = cutsceneMaterial;
         }
         else
         {

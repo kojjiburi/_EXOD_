@@ -7,6 +7,8 @@ Shader "EXOD/ChromaticAberrationUI"
         _MainTex ("Texture", 2D) = "white" {}
         _Strength ("Strength", Float) = 0.15
         _Jitter ("Jitter", Vector) = (0, 0, 0, 0)
+        // 1: 찍은 화면(감마 값 그대로) / 0: 일반 그림(스프라이트, 컷신 이미지) — 2026-11-03 컷신 이미지에도 쓰려고 추가
+        _IsScreenshot ("Is Screenshot", Float) = 1
     }
 
     SubShader
@@ -42,6 +44,7 @@ Shader "EXOD/ChromaticAberrationUI"
             sampler2D _MainTex;
             float _Strength;
             float4 _Jitter;
+            float _IsScreenshot;
 
             v2f vert (appdata v)
             {
@@ -69,14 +72,17 @@ Shader "EXOD/ChromaticAberrationUI"
                 }
                 r /= 6.0;
                 b /= 6.0;
-                float g = tex2D(_MainTex, i.uv + _Jitter.xy * edge * 0.3).g;
+                fixed4 center = tex2D(_MainTex, i.uv + _Jitter.xy * edge * 0.3);
+                float g = center.g;
 
                 fixed3 col = fixed3(r, g, b);
             #ifndef UNITY_COLORSPACE_GAMMA
-                // 찍은 화면은 감마 값 그대로라 리니어 프로젝트에서는 바꿔 줘야 밝기가 맞음
-                col = GammaToLinearSpace(col);
+                // 찍은 화면은 감마 값 그대로라 리니어 프로젝트에서는 바꿔 줘야 밝기가 맞음 (일반 그림은 이미 리니어)
+                if (_IsScreenshot > 0.5)
+                    col = GammaToLinearSpace(col);
             #endif
-                return fixed4(col, i.color.a);
+                float a = _IsScreenshot > 0.5 ? i.color.a : center.a * i.color.a;
+                return fixed4(col * (_IsScreenshot > 0.5 ? 1 : i.color.rgb), a);
             }
             ENDCG
         }

@@ -130,6 +130,15 @@ public static class Stage1Dialogues
     // 연타 기믹 화면에 떠다니는 생각
     public const string PotionThought = "탈출 하지 말까";
 
+    // 물약 기믹 머릿속 생각 4가지 (사용자 문구 2026-11-03): 한 번씩은 꼭 나오고, 그 뒤로는 무작위
+    public static readonly string[] PotionThoughts =
+    {
+        "탈출하지 말까..",
+        "생각보다 살기 좋은데?",
+        "여자친구도 이쁘잖아..",
+        "몰라.. 다 귀찮아...",
+    };
+
     // 기믹 실패: 이 대사 뒤에 암전 → 순응 엔딩 (2026-11-02 사용자 확정)
     public static List<DialogueLine> PotionFail() => new List<DialogueLine>
     {
@@ -300,14 +309,29 @@ public static class Stage1Dialogues
     // ═══════════════════════════════════════════════════
 
     // 처음 나갈 때: 문 앞에 그녀가 서 있는 반전
-    public static List<DialogueLine> Stage2EnterFirst() => new List<DialogueLine>
+    // (2026-11-03 사용자 요청) 앞부분은 '방 밖에서 들킴' 연출(색수차·컷신 이미지·UI 가림, 초상화 없음) 위에서 →
+    // "…들켰다" 뒤 연출이 사라지고 화면이 정상으로 돌아온 다음 뒷부분 (Stage2HouseLink)
+    public static List<DialogueLine> Stage2EnterFirstCaught() => new List<DialogueLine>
     {
+        Say(Girlfriend, "자기야…?"),
         Narrate("끼익— 현관문이 열렸다."),
         Narrate("문 앞에… 누군가 서 있다."),
         Say(Girlfriend, "어머, 자기야. 마중 나와 준 거야?"),
         Think("…들켰다. 심장이 멎는 줄 알았어."),
+    };
+
+    public static List<DialogueLine> Stage2EnterFirstAfter() => new List<DialogueLine>
+    {
         Say(Girlfriend, "마침 잘됐다. 우리 같이 산책하자 ♡"),
     };
+
+    // (예전 한 번에 이어진 버전 — 다른 곳에서 쓸 수 있게 남겨 둠)
+    public static List<DialogueLine> Stage2EnterFirst()
+    {
+        List<DialogueLine> lines = Stage2EnterFirstCaught();
+        lines.AddRange(Stage2EnterFirstAfter());
+        return lines;
+    }
 
     // 두 번째부터 (다음 날 다시 나갈 때)
     public static List<DialogueLine> Stage2EnterAgain() => new List<DialogueLine>
@@ -486,6 +510,19 @@ public static class Stage1Dialogues
         Say(Girlfriend, "괜찮아. 화 안 났어. 진짜야."),
         Narrate("(끼익— 문이 열리고, 경찰이 그녀의 손목에 수갑을 채웠다.)"),
         Narrate("(끌려 나가던 그녀가 문 앞에서 멈춰 돌아봤다.)"),
+    };
+
+    // 기믹 창을 열어 둔 채 10초 동안 아무것도 안 했을 때 (Stage1AntiIdle, 창을 닫고 실패 처리)
+    public static List<DialogueLine> GimmickIdleClosed() => new List<DialogueLine>
+    {
+        Think("…너무 오래 망설였다. 이러다 들키겠어."),
+    };
+
+    // 하루 남은 시간이 1분 20초 이하일 때 현관문으로 나가려 하면 (Stage2HouseLink, 사용자 선택 2026-11-03)
+    public static List<DialogueLine> WalkTooLate() => new List<DialogueLine>
+    {
+        Think("…지금 나가면 그녀가 오기 전에 돌아오지 못할 것 같아."),
+        Think("오늘은 여기까지만 하자."),
     };
 
     // 10의 배수 일차 아침: 하트 +1 (DayEndReport)

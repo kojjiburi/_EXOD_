@@ -121,6 +121,7 @@ public sealed class StrangePotionGimmick : MonoBehaviour
         BuildUi();
 
         thoughts.Clear();
+        thoughtsShown = 0;
         spawnedCount = 0;
         clearedCount = 0;
         timeLeft = timeLimit;
@@ -258,6 +259,31 @@ public sealed class StrangePotionGimmick : MonoBehaviour
     //  생각 만들기
     // ═══════════════════════════════════════════════════
 
+    // 4가지 문구를 한 번씩 섞어서 먼저 다 보여 준 뒤, 그다음부터는 무작위
+    private readonly List<string> thoughtDeck = new List<string>();
+    private int thoughtsShown;
+
+    private string NextThoughtText()
+    {
+        string[] all = Stage1Dialogues.PotionThoughts;
+        if (thoughtsShown == 0)
+        {
+            thoughtDeck.Clear();
+            thoughtDeck.AddRange(all);
+            for (int i = thoughtDeck.Count - 1; i > 0; i--)
+            {
+                int j = UnityEngine.Random.Range(0, i + 1);
+                (thoughtDeck[i], thoughtDeck[j]) = (thoughtDeck[j], thoughtDeck[i]);
+            }
+        }
+
+        string text = thoughtsShown < thoughtDeck.Count
+            ? thoughtDeck[thoughtsShown]
+            : all[UnityEngine.Random.Range(0, all.Length)];
+        thoughtsShown++;
+        return text;
+    }
+
     private void SpawnThought()
     {
         Vector2 home = FindFreeSpot();
@@ -280,8 +306,13 @@ public sealed class StrangePotionGimmick : MonoBehaviour
         Button button = go.GetComponent<Button>();
         button.transition = Selectable.Transition.None;
 
-        TextMeshProUGUI label = CreateText("글자", rect, Stage1Dialogues.PotionThought + "…", 40f, BubbleTextColor);
+        TextMeshProUGUI label = CreateText("글자", rect, NextThoughtText(), 40f, BubbleTextColor);
         Stretch(label.rectTransform);
+        // 문구 길이가 달라서 칸에 맞게 줄어들도록
+        label.enableAutoSizing = true;
+        label.fontSizeMin = 22f;
+        label.fontSizeMax = 32f;
+        label.margin = new Vector4(12f, 6f, 12f, 6f);
         label.raycastTarget = false;
 
         Thought thought = new Thought

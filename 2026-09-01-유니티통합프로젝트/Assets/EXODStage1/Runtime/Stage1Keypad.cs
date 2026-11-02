@@ -95,6 +95,13 @@ public sealed class Stage1Keypad : MonoBehaviour
         root.SetActive(true);
     }
 
+    /// <summary>열려 있는 키패드를 닫습니다. (잠수 방지 Stage1AntiIdle)</summary>
+    public static void CloseActive()
+    {
+        if (IsOpen)
+            instance.Close();
+    }
+
     private void Close()
     {
         StopAllCoroutines();

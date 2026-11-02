@@ -56,7 +56,7 @@ public sealed class DayEndReport : MonoBehaviour
         healPending = nextDay % 10 == 0;
 
         ItemPositionManager positions = ItemPositionManager.Instance;
-        if (positions == null)
+        if (positions == null || ItemPositionManager.SkipDayEndCheck)
         {
             pendingReport = null;
             return;

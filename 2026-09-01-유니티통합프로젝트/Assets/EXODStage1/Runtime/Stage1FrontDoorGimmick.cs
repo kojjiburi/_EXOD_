@@ -28,6 +28,13 @@ public sealed class Stage1FrontDoorGimmick : MonoBehaviour
 
     public bool IsPasswordSolved => isPasswordSolved;
 
+    /// <summary>일차 끝 점검에 걸리면 현관문은 다시 잠김 → 비밀번호부터 다시 풀어야 함 (Stage1ConfiscateOnFail, 사용자 결정 2026-11-03)</summary>
+    public void Relock()
+    {
+        isPasswordSolved = false;
+        isCleared = false;
+    }
+
     private IEnumerator Start()
     {
         // SliderManager가 방 배경 화면들을 만든 뒤에 찾습니다.
@@ -75,9 +82,14 @@ public sealed class Stage1FrontDoorGimmick : MonoBehaviour
     }
 
     // 경보가 울리고 여자친구에게 들켜 기절합니다.
+    // (2026-11-03 사용자 요청) 방 밖에서 들켰을 때와 같은 연출(UI 가림·색수차·컷신 이미지, 여자친구 초상화 없음) 위에서 대사 → 기절
     private void OnPasswordWrong()
     {
-        Stage1Room.PlayCutscene(Stage1Dialogues.FrontDoorWrongPassword(), () => Stage1Room.Faint());
+        ScreenAberration.Play(() => Stage1Room.PlayCutscene(Stage1Dialogues.FrontDoorWrongPassword(), () =>
+        {
+            ScreenAberration.Stop();
+            Stage1Room.Faint();
+        }), false, ScreenAberration.HouseCutscene);
     }
 
     private void OnPasswordCorrect()

@@ -38,6 +38,8 @@ public sealed class Stage2HouseLink : MonoBehaviour
     private string savedRoomLabel;
 
     public const float WalkTimeCostSeconds = 60f;
+    // 하루 남은 시간이 이 이하면 외출 불가 (돌아오자마자 일차가 넘어가 꼬이는 문제, 사용자 요청 2026-11-03)
+    public const float MinRemainingToWalkSeconds = 80f;
 
     public static bool IsInStage2 => Instance != null && Instance.inStage2;
 
@@ -144,6 +146,12 @@ public sealed class Stage2HouseLink : MonoBehaviour
             return;
         }
 
+        if (DayCycleController.Instance != null && DayCycleController.Instance.RemainingSeconds <= MinRemainingToWalkSeconds)
+        {
+            DialogueManager.Instance?.StartDialogue(Stage1Dialogues.WalkTooLate());
+            return;
+        }
+
         if (!Application.CanStreamedLevelBeLoaded(WalkSceneName))
         {
             Debug.LogError($"[Stage2Link] '{WalkSceneName}' 씬을 불러올 수 없습니다. Build Settings 씬 목록을 확인하세요.");
@@ -151,15 +159,39 @@ public sealed class Stage2HouseLink : MonoBehaviour
         }
 
         isTransitioning = true;
-        List<DialogueLine> cutscene = hasEnteredOnce
-            ? Stage1Dialogues.Stage2EnterAgain()
-            : Stage1Dialogues.Stage2EnterFirst();
+        bool first = !hasEnteredOnce;
         hasEnteredOnce = true;
 
+        if (first)
+        {
+            // 처음 나갈 때: '방 밖에서 들킴' 연출 위에서 "…들켰다"까지 → 연출이 사라지고 정상 화면 → 나머지 대사 (사용자 요청 2026-11-03)
+            ScreenAberration.Play(() => PlayStoryCutscene(Stage1Dialogues.Stage2EnterFirstCaught(), () =>
+            {
+                ScreenAberration.Stop();
+                StartCoroutine(AfterCaughtFadeThen(() =>
+                    PlayStoryCutscene(Stage1Dialogues.Stage2EnterFirstAfter(), () => StartCoroutine(EnterRoutine())))); 
+            }), false, ScreenAberration.HouseCutscene);
+            return;
+        }
+
+        PlayStoryCutscene(Stage1Dialogues.Stage2EnterAgain(), () => StartCoroutine(EnterRoutine()));
+    }
+
+    private static void PlayStoryCutscene(List<DialogueLine> lines, System.Action onFinished)
+    {
         if (Stage1StoryController.Instance != null)
-            Stage1StoryController.Instance.PlayCutscene(cutscene, () => StartCoroutine(EnterRoutine()));
+            Stage1StoryController.Instance.PlayCutscene(lines, onFinished);
         else
-            StartCoroutine(EnterRoutine());
+            onFinished?.Invoke();
+    }
+
+    // 들킴 연출(색수차·컷신 이미지)이 다 사라질 때까지 기다림
+    private IEnumerator AfterCaughtFadeThen(System.Action next)
+    {
+        while (ScreenAberration.IsPlaying)
+            yield return null;
+        yield return new WaitForSecondsRealtime(0.2f);
+        next?.Invoke();
     }
 
     private IEnumerator EnterRoutine()

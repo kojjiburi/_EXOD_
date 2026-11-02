@@ -110,6 +110,20 @@ namespace EXOD.Walk
             turnWarningLead = Random.Range(min, max + 1) / 10f;
         }
 
+        /// <summary>
+        /// 앞을 보게 돌려놓고, 한동안(쿨타임 + 앞을 보는 시간) 뒤돌아보지 않게 한다.
+        /// 전화 부스 신고 성공 대사 중에 뒤돌아본 채로 있지 않게 (nicezzomaru 2026-11-03, 사용자 요청)
+        /// </summary>
+        public void CalmDown()
+        {
+            if (!running || State == YandereState.Caught) return;
+            SetState(YandereState.Away);
+            timer = RandomIn(turnCooldown) + RandomIn(awayDuration);
+            PickTurnWarningLead();
+            SetWarningVisible(false);
+            onStopWatching.Invoke();
+        }
+
         public void Stop()
         {
             running = false;

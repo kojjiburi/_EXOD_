@@ -258,11 +258,8 @@ public sealed class PlayerFaintController : MonoBehaviour
     // 씬을 다시 불러와도 남아 있는 진행 상황을 지웁니다.
     private static void ResetRunState()
     {
-        InspectionState.ResetAll();
-        EXOD.Walk.PhoneBoothProgress.ResetAll();   // 전화 부스 기믹 진행도 처음부터
-
-        if (QuickSlotInventory.Instance != null)
-            QuickSlotInventory.Instance.Clear();
+        // 엔딩 수집 기록만 남기고 이번 판 진행을 모두 지움 (RunReset, 2026-11-03)
+        RunReset.ResetAll();
     }
 
     private static void CloseOtherUi()

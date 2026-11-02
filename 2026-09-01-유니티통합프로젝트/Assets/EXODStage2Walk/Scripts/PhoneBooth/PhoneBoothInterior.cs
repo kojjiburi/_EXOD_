@@ -495,6 +495,9 @@ namespace EXOD.Walk
                 Booth.OnReported();
             }
             Play(hangUpClip);
+            // 신고 성공 대사가 나오는 동안 그녀가 뒤돌아본 채로 있지 않게 앞을 보게 돌려놓음 (사용자 요청 2026-11-03)
+            var yandere = FindFirstObjectByType<WalkYandere>();
+            if (yandere != null) yandere.CalmDown();
             Debug.Log("[PhoneBooth] 신고 완료 → 하루가 끝나면 탈출 엔딩");
             RefreshAll();
             Say(Is119 ? reportDone119Lines : reportDoneLines);

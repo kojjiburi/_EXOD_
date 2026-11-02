@@ -108,8 +108,40 @@ public class InspectionManager : MonoBehaviour
             return;
         }
 
-        if (currentItem != null)
-            currentItem.Examine();
+        if (currentItem == null)
+            return;
+
+        // 서랍장은 화면 아무 데나 눌러도 열쇠를 다시 줍던 문제 → 맨 위 서랍 부분을 눌렀을 때만 (사용자 요청 2026-11-03)
+        if (currentItem.ItemId == "bedroom_drawer" && !IsPointerOnDrawer())
+            return;
+
+        currentItem.Examine();
+    }
+
+    // 서랍장 그림(488x488) 안 맨 위 서랍 자리: 가로 21%~93%, 위에서 26%~62%
+    private static readonly Rect DrawerAreaNormalized = new Rect(0.21f, 0.26f, 0.72f, 0.36f);
+
+    private bool IsPointerOnDrawer()
+    {
+        if (detailImage == null || detailImage.sprite == null)
+            return true;
+
+        RectTransform rect = detailImage.rectTransform;
+        Canvas canvas = detailImage.canvas;
+        Camera cam = canvas != null && canvas.renderMode != RenderMode.ScreenSpaceOverlay ? canvas.worldCamera : null;
+        if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(rect, Input.mousePosition, cam, out Vector2 local))
+            return false;
+
+        // preserveAspect로 실제 그림이 그려진 영역
+        Rect r = rect.rect;
+        float spriteAspect = detailImage.sprite.rect.width / detailImage.sprite.rect.height;
+        float w = r.width, h = r.height;
+        if (w / h > spriteAspect) w = h * spriteAspect; else h = w / spriteAspect;
+        float x0 = r.center.x - w * 0.5f, yTop = r.center.y + h * 0.5f;
+
+        float nx = (local.x - x0) / w;
+        float ny = (yTop - local.y) / h;   // 위에서부터
+        return DrawerAreaNormalized.Contains(new Vector2(nx, ny));
     }
 
     public void Close()

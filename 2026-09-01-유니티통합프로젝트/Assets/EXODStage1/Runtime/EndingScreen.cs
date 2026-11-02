@@ -38,6 +38,7 @@ public sealed class EndingScreen : MonoBehaviour
     private TextMeshProUGUI ghostRed;
     private TextMeshProUGUI ghostCyan;
     private TextMeshProUGUI subtitle;
+    private TextMeshProUGUI dayLine;   // "탈출하기까지 걸린 시간 : DAY n" (청혼·탈출 엔딩만, 2026-11-03)
     private readonly List<CanvasGroup> buttons = new List<CanvasGroup>();
     private readonly List<Image> particleImages = new List<Image>();
     private Image titleBand;
@@ -175,6 +176,10 @@ public sealed class EndingScreen : MonoBehaviour
         subtitle = CreateText("설명", 40f, new Color(0.88f, 0.85f, 0.87f, 1f));
         Place(subtitle.rectTransform, new Vector2(0f, 40f), new Vector2(1600f, 70f));
 
+        dayLine = CreateText("걸린 일차", 32f, new Color(1f, 0.78f, 0.86f, 1f));
+        Place(dayLine.rectTransform, new Vector2(0f, -58f), new Vector2(1600f, 50f));
+        dayLine.characterSpacing = 4f;
+
         CreateButton("다시 시작", new Vector2(-400f, -140f), restart);
         CreateButton("로비로", new Vector2(0f, -140f), lobby);
         CreateButton("게임 종료", new Vector2(400f, -140f), quit);
@@ -260,6 +265,9 @@ public sealed class EndingScreen : MonoBehaviour
         bandAidB.rectTransform.localEulerAngles = new Vector3(0f, 0f, ribbon ? -10f : -18f);
         subtitle.text = subtitleText ?? string.Empty;
         subtitle.gameObject.SetActive(!string.IsNullOrEmpty(subtitleText));
+        string day = DayLineFor(style);
+        dayLine.text = day ?? string.Empty;
+        dayLine.gameObject.SetActive(!string.IsNullOrEmpty(day));
 
         for (int i = 0; i < particles.Count; i++)
             ResetParticle(i, true);
@@ -268,6 +276,18 @@ public sealed class EndingScreen : MonoBehaviour
         transform.SetAsLastSibling();
         StopAllCoroutines();
         StartCoroutine(Intro());
+    }
+
+    // 엔딩 화면에 걸린 일차 표시 (사용자 문구 2026-11-03). 순응 엔딩·게임 오버는 표시 안 함
+    private static string DayLineFor(EndingStyle s)
+    {
+        int day = GManager.Instance != null ? GManager.Instance.Day : 1;
+        switch (s)
+        {
+            case EndingStyle.Proposal: return "결실을 맺기까지 걸린 시간 : DAY " + day;
+            case EndingStyle.Escape: return "탈출하기까지 걸린 시간 : DAY " + day;
+            default: return null;
+        }
     }
 
     public void Hide()
@@ -284,6 +304,7 @@ public sealed class EndingScreen : MonoBehaviour
         group.alpha = 0f;
         title.maxVisibleCharacters = ghostRed.maxVisibleCharacters = ghostCyan.maxVisibleCharacters = 0;
         SetAlpha(subtitle, 0f);
+        SetAlpha(dayLine, 0f);
         SetAlpha(titleBand, 0f);
         SetLineWidth(0f);
         foreach (Image deco in new[] { heartLeft, heartRight, bandAidA, bandAidB })
@@ -334,6 +355,8 @@ public sealed class EndingScreen : MonoBehaviour
 
         // 설명
         yield return Animate(0.6f, t => SetAlpha(subtitle, t));
+        if (dayLine.gameObject.activeSelf)
+            yield return Animate(0.5f, t => SetAlpha(dayLine, t));
 
         // 버튼이 하나씩 아래에서 올라옴
         for (int i = 0; i < buttons.Count; i++)

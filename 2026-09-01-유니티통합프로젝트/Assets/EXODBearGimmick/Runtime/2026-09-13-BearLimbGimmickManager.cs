@@ -129,6 +129,29 @@ internal sealed class BearLimbGimmickManager : MonoBehaviour
         RefreshVisibility();
     }
 
+    /// <summary>
+    /// 일차 끝 점검에 걸렸을 때: 아직 곰돌이에게 돌려주지 않은 팔다리를 퀵슬롯에서 빼고 원래 자리에 다시 놓음
+    /// (Stage1ConfiscateOnFail, 사용자 요청 2026-11-03). 이미 다 돌려줬으면 아무것도 안 함
+    /// </summary>
+    public void ConfiscateHeldLimbs()
+    {
+        if (completed)
+            return;
+
+        QuickSlotInventory inventory = QuickSlotInventory.Instance ?? FindFirstObjectByType<QuickSlotInventory>();
+        foreach (LimbDefinition limb in Limbs)
+        {
+            if (inventory != null)
+            {
+                QuickSlotEntry entry = FindEntry(inventory, limb.Id);
+                if (entry != null)
+                    inventory.TryRemove(entry);
+            }
+        }
+        collected.Clear();
+        RefreshVisibility();
+    }
+
     /// <summary>팔다리는 다 돌려줬지만 보답 쪽지는 아직 못 받음 (다음 날 아침 컷신에서 받음)</summary>
     internal bool IsRewardPending => completed && rewardPending;
 

@@ -336,8 +336,18 @@ public sealed class ItemPositionManager : MonoBehaviour
         subscribedDayManager = null;
     }
 
+    /// <summary>
+    /// 전화 부스로 경찰 신고에 성공했으면(다음 날 탈출 엔딩 대기) 일차 끝 점검을 하지 않습니다.
+    /// (점검에 걸려 초기화되면 경찰을 다시 부를 수 없는 문제, 사용자 요청 2026-11-03)
+    /// </summary>
+    public static bool SkipDayEndCheck =>
+        EXOD.Walk.PhoneBoothProgress.Reported && !EXOD.Walk.PhoneBoothProgress.EndingShown;
+
     private void HandleDayChanged(int newDay)
     {
+        if (SkipDayEndCheck)
+            return;
+
         int misplacedCount = CheckItemsOnDayEnd();
 
         // 하나라도 틀렸을 때만 초기화합니다. 모두 제자리면 종이 등 퀵슬롯은 그대로 둡니다.
