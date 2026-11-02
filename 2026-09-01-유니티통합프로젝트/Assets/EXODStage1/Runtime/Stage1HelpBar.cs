@@ -162,6 +162,8 @@ public sealed class Stage1HelpBar : MonoBehaviour
         BearLimbGimmickManager bear = FindFirstObjectByType<BearLimbGimmickManager>();
         if (bear != null && !bear.IsCompleted)
             return $"곰돌이 팔다리를 찾아 돌려주자. ({bear.CollectedCount}/{BearLimbGimmickManager.LimbCount})";
+        if (bear != null && bear.IsRewardPending)
+            return "곰돌이가 내일 아침에 보답해 준대. 침대를 눌러 하루를 넘기자.";
 
         Stage1FridgeGimmick fridge = FindFirstObjectByType<Stage1FridgeGimmick>();
         if (fridge != null && !fridge.IsOpened)
@@ -207,36 +209,36 @@ public sealed class Stage1HelpBar : MonoBehaviour
         group.blocksRaycasts = false;
         group.interactable = false;
 
-        // 하트 HUD 오른쪽, 방 이름·타이머 왼쪽 빈자리
+        // 1.5배 크기 (2026-11-02 사용자 요청): 하트 HUD와 겹치지 않게 오른쪽 위 [대화 기록]·[종료] 버튼 아래에 둠
         GameObject panelObject = new GameObject("안내 띠", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
         panelObject.transform.SetParent(root.transform, false);
         RectTransform rect = panelObject.GetComponent<RectTransform>();
         rect.anchorMin = rect.anchorMax = new Vector2(1f, 1f);
         rect.pivot = new Vector2(1f, 1f);
-        rect.anchoredPosition = new Vector2(-190f, -22f);
-        rect.sizeDelta = new Vector2(640f, 132f);
+        rect.anchoredPosition = new Vector2(-40f, -216f);
+        rect.sizeDelta = new Vector2(960f, 198f);
 
         panel = panelObject.GetComponent<Image>();
         panel.color = PanelColor;
         panel.raycastTarget = false;
 
-        titleText = CreateText("제목", panelObject.transform, Title, 22f, TitleColor, TextAlignmentOptions.TopLeft);
+        titleText = CreateText("제목", panelObject.transform, Title, 33f, TitleColor, TextAlignmentOptions.TopLeft);
         RectTransform titleRect = titleText.rectTransform;
         titleRect.anchorMin = new Vector2(0f, 1f);
         titleRect.anchorMax = new Vector2(1f, 1f);
         titleRect.pivot = new Vector2(0.5f, 1f);
-        titleRect.offsetMin = new Vector2(18f, -36f);
-        titleRect.offsetMax = new Vector2(-18f, -8f);
+        titleRect.offsetMin = new Vector2(27f, -54f);
+        titleRect.offsetMax = new Vector2(-27f, -12f);
 
-        tipText = CreateText("안내", panelObject.transform, string.Empty, 22f, TipColor, TextAlignmentOptions.TopLeft);
+        tipText = CreateText("안내", panelObject.transform, string.Empty, 33f, TipColor, TextAlignmentOptions.TopLeft);
         tipText.enableAutoSizing = true;
-        tipText.fontSizeMin = 14f;
-        tipText.fontSizeMax = 22f;
+        tipText.fontSizeMin = 21f;
+        tipText.fontSizeMax = 33f;
         RectTransform tipRect = tipText.rectTransform;
         tipRect.anchorMin = Vector2.zero;
         tipRect.anchorMax = Vector2.one;
-        tipRect.offsetMin = new Vector2(18f, 8f);
-        tipRect.offsetMax = new Vector2(-18f, -38f);
+        tipRect.offsetMin = new Vector2(27f, 12f);
+        tipRect.offsetMax = new Vector2(-27f, -57f);
     }
 
     private static TextMeshProUGUI CreateText(string name, Transform parent, string value, float size, Color color,
