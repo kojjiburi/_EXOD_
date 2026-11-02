@@ -20,7 +20,7 @@ using UnityEngine.SceneManagement;
 ///
 /// [여자친구 등장]
 ///  - 65 이상: 구두 발소리 (10초마다 다시 들림). 발소리가 들릴 때 침실에 들어가면 바로 등장 (방 안이라 안전)
-///  - 76 이상: 위험도가 오를 때마다 5초 간격으로 10% 확률 판정
+///  - 76 이상: 위험도가 오를 때마다 5초 간격으로 확률 판정. 확률 = 10% - (76 - 위험도) x 2% → 76은 10%, 80은 18%, 90은 38%, 99는 56% (2026-11-03 사용자 요청)
 ///  - 100: 바로 등장 (위 확률 판정과 같이 돌아감)
 ///  - 등장했을 때 침실에 없으면 걸림 → 하트 -1 → 침실로 끌려가 방문이 다시 잠기고 황금 열쇠는 서랍 안으로
 ///  - 대사: Stage1Dialogues.VisitSafe / VisitCaught / VisitLockedAgain (nicezzomaru)
@@ -60,7 +60,12 @@ public sealed class DangerLevel : MonoBehaviour
     private const float FootstepRepeatSeconds = 10f;
     private const int HighThreshold = 76;       // 확률 판정 시작
     private const float RollCooldown = 5f;
-    private const float RollChance = 0.1f;
+    private const float RollChance = 0.1f;          // 76일 때 10%
+    private const float RollChancePerPoint = 0.02f; // 76보다 1 높을 때마다 +2%
+
+    // 등장 확률 = 10% - (76 - 위험도) x 2%  (사용자 요청 2026-11-03)
+    private float CurrentRollChance =>
+        Mathf.Clamp01(RollChance - (HighThreshold - value) * RollChancePerPoint);
     private const float PostWalkGraceSeconds = 15f;
     private const float TutorialDelayAfterLeavingSeconds = 20f;   // 침실 밖에 처음 나간 뒤 게임 타이머 20초에 첫 등장 이벤트
 
@@ -335,11 +340,11 @@ public sealed class DangerLevel : MonoBehaviour
             return;
         }
 
-        // 76 이상: 오를 때마다 5초 간격으로 10% 확률
+        // 76 이상: 오를 때마다 5초 간격으로 확률 판정 (위험도가 높을수록 잘 나옴)
         if (value >= HighThreshold && Time.time >= lastRollTime + RollCooldown)
         {
             lastRollTime = Time.time;
-            if (Random.value < RollChance)
+            if (Random.value < CurrentRollChance)
                 Appear();
         }
     }
