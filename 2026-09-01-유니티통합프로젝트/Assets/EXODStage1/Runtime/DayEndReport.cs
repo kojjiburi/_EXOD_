@@ -78,6 +78,12 @@ public sealed class DayEndReport : MonoBehaviour
         pendingReport = string.Join(", ", names);
     }
 
+    /// <summary>제자리에 없는 물건이 있어서, 지금 TryPlayNow를 부르면 그 대사가 나오는지 (DayController가 컷신 이미지를 먼저 띄울 때 씀)</summary>
+    public static bool HasMissingReport =>
+        !string.IsNullOrEmpty(pendingReport)
+        && !Stage2HouseLink.IsInStage2
+        && !(PlayerFaintController.Instance != null && PlayerFaintController.Instance.IsBusy);
+
     /// <summary>
     /// 일차 넘김 검은 화면 위에서 바로 말해 줍니다 (DayController가 부름, kojjiburi 2026-11-02).
     /// 말할 게 없거나 게임 오버·산책 중이면 false (산책 중이면 돌아온 뒤 Update가 말함).

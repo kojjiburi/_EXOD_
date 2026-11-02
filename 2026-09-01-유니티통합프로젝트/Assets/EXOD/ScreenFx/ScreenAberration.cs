@@ -10,15 +10,15 @@ using UnityEngine.UI;
 ///  - 1스테이지: 침실 밖에서 들킨 대사(VisitCaught) 동안 (DangerLevel)
 ///  - 2스테이지: 산책 중 들킨 뒤 대사가 끝날 때까지 (DangerLevel)
 /// 이 동안 대화창의 여자친구 초상화는 띄우지 않습니다 (DialoguePortrait.HideGirlfriend).
-/// [컷신 이미지 자리] 아래 파일을 넣으면 색수차 화면 위·대화창 아래에 화면 가득(비율 유지) 보입니다. 없으면 안 보임.
-///  - 1스테이지 방 밖에서 들킴: Assets/EXOD/ScreenFx/Resources/EXODScreenFx/CaughtCutscene_House.png
+/// [컷신 이미지 자리] 아래 파일을 넣으면 색수차 화면 위·대화창 아래에 화면 가득(비율 유지) 천천히 나타나고, 다 나타난 뒤 대사가 시작됩니다. 없으면 안 보임.
+///  - 1스테이지 방 밖에서 들킴: Assets/EXOD/ScreenFx/Resources/EXODScreenFx/CaughtCutscene_House.png (넣음)
 ///  - 2스테이지 산책 중 들킴:  Assets/EXOD/ScreenFx/Resources/EXODScreenFx/CaughtCutscene_Walk.png
 ///  (Texture Type은 Sprite (2D and UI)로)
 /// 셰이더: Assets/EXOD/ScreenFx/Resources/EXODScreenFx/ChromaticAberrationUI.shader
 /// </summary>
 public sealed class ScreenAberration : MonoBehaviour
 {
-    private const int SortingOrder = 850;          // 퀵슬롯(500)·HUD(600)·키패드(700) 위, HP 감소 효과(900)·기절 화면(1000) 아래
+    private const int SortingOrder = 30000;        // 모든 UI(하트·퀵슬롯·종료 버튼 등) 위, 일차 넘김 검은 화면(32000) 아래. 대화창만 그 위에 그림
     private const int DialogueOrder = SortingOrder + 1;
     private const string ShaderPath = "EXODScreenFx/ChromaticAberrationUI";
     public const string HouseCutscene = "EXODScreenFx/CaughtCutscene_House";
@@ -33,6 +33,7 @@ public sealed class ScreenAberration : MonoBehaviour
     private const float JitterChancePerSecond = 6f;
     private const float FadeInSeconds = 0.08f;
     private const float FadeOutSeconds = 0.35f;
+    private const float CutsceneFadeSeconds = 1.2f;   // 컷신 이미지가 천천히 나타나는 시간 (다 나타난 뒤 대사 시작)
     private const float WaitDialogueOpenSeconds = 5f;
     private const float SafetySeconds = 40f;
 
@@ -116,10 +117,30 @@ public sealed class ScreenAberration : MonoBehaviour
         Sprite cutscene = string.IsNullOrEmpty(cutsceneResource) ? null : Resources.Load<Sprite>(cutsceneResource);
         cutsceneImage.sprite = cutscene;
         cutsceneImage.enabled = cutscene != null;
+        cutsceneImage.color = new Color(1f, 1f, 1f, 0f);
 
         canvas.gameObject.SetActive(true);
         group.alpha = 0f;
         DialogueOnTop.Raise(DialogueOrder);
+
+        float t = 0f;
+        Vector2 jitter = Vector2.zero;
+
+        // 컷신 이미지가 천천히 다 나타난 뒤에 대사 시작
+        if (cutscene != null)
+        {
+            float fadeIn = 0f;
+            while (fadeIn < CutsceneFadeSeconds && !stopRequested)
+            {
+                group.alpha = Mathf.Clamp01(t / FadeInSeconds);
+                cutsceneImage.color = new Color(1f, 1f, 1f, Mathf.SmoothStep(0f, 1f, fadeIn / CutsceneFadeSeconds));
+                Animate(t, ref jitter);
+                fadeIn += Time.unscaledDeltaTime;
+                t += Time.unscaledDeltaTime;
+                yield return null;
+            }
+            cutsceneImage.color = Color.white;
+        }
 
         try
         {
@@ -130,15 +151,14 @@ public sealed class ScreenAberration : MonoBehaviour
             Debug.LogException(e);
         }
 
-        float t = 0f;
         bool dialogueOpened = false;
-        Vector2 jitter = Vector2.zero;
+        float waitStart = t;
         while (!stopRequested)
         {
             bool open = DialogueManager.Instance != null && DialogueManager.Instance.IsDialogueOpen;
             if (open)
                 dialogueOpened = true;
-            if (stopWhenDialogueCloses && ((dialogueOpened && !open) || (!dialogueOpened && t > WaitDialogueOpenSeconds)))
+            if (stopWhenDialogueCloses && ((dialogueOpened && !open) || (!dialogueOpened && t - waitStart > WaitDialogueOpenSeconds)))
                 break;
             if (t > SafetySeconds)
                 break;

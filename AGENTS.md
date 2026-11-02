@@ -74,5 +74,6 @@
 - 기믹을 새로 만들면: 기믹 창 열기 전 `if (DangerLevel.WarnBeforeGimmick()) return; DangerLevel.UiOpened();`, 성공 시 `DangerLevel.GimmickSolved()`, 실패 시 `DangerLevel.GimmickFailed()`.
 - 일차 끝 순서: 화면이 천천히 검어짐 → 검은 화면 위에 일차 끝 대사(DayEndReport: 물건이 제자리에 없을 때 / 다 정리했을 때, 끝에 "…정리하지 못했던 물건이 있었다." 또는 "오늘은 무사히 넘긴 것 같다.") → 'DAY-n' → 밝아짐 (`DayController`).
 - 들켰을 때(1스테이지 침실 밖, 2스테이지 산책) 화면 색수차: `Assets/EXOD/ScreenFx/ScreenAberration.cs` (가운데 약하게, 가장자리 세게). 대화창은 `DialogueOnTop`으로 효과 위에 그려짐. 이때 대화창의 여자친구 초상화는 안 띄움(`DialoguePortrait.HideGirlfriend`).
-  - **컷신 이미지 자리 (nicezzomaru 넣을 예정)**: `Assets/EXOD/ScreenFx/Resources/EXODScreenFx/CaughtCutscene_House.png`(1스테이지 방 밖에서 들킴), `CaughtCutscene_Walk.png`(산책 중 들킴). Sprite로 넣으면 색수차 위·대화창 아래에 화면 가득(비율 유지) 나옴.
+  - **컷신 이미지**: `Assets/EXOD/ScreenFx/Resources/EXODScreenFx/CaughtCutscene_House.png`(1스테이지 방 밖에서 들킴, 넣음), `CaughtCutscene_Walk.png`(산책 중 들킴, 아직 없음). 천천히 나타나 다 보인 뒤 대사 시작. 대화창 빼고 모든 UI를 가림.
+  - 일차 끝 정리 못 한 물건이 있을 때: 검은 화면에서 `DayEndMissing.png`가 천천히 나타나 다 보인 뒤 대사 → 이미지 사라짐 → DAY-n.
 - 에디터 테스트 단축키(빌드 제외, DangerLevel): F8 일차 넘기기 / F9 방 밖에서 들킨 등장 / F10 산책 나가기 / F12 게임 화면 스크린샷.

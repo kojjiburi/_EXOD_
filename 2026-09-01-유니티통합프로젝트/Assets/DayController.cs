@@ -35,6 +35,10 @@ public class DayController : MonoBehaviour
     public float reportDelaySeconds = 0.4f;
 
     private const int ReportDialogueOrder = 32001;   // 검은 화면(32000) 위에 대화창
+    [Tooltip("정리 못 한 물건이 있을 때 컷신 이미지가 천천히 나타나는 시간(초)")]
+    public float missingImageFadeSeconds = 1.2f;
+    private const string MissingImagePath = "EXODScreenFx/DayEndMissing";   // Assets/EXOD/ScreenFx/Resources/EXODScreenFx/DayEndMissing.png
+    private Image _cutsceneImage;
 
     private bool _dayCleared = false;
 
@@ -90,6 +94,12 @@ public class DayController : MonoBehaviour
 
         // 검은 화면 위에 대사 (물건이 제자리에 없을 때 / 다 정리해 놨을 때) → 다 읽으면 'DAY-n'
         yield return new WaitForSecondsRealtime(reportDelaySeconds);
+
+        // 정리 못 한 물건이 있으면: 컷신 이미지가 천천히 다 나타난 뒤에 대사
+        bool showMissingImage = DayEndReport.HasMissingReport && LoadMissingImage();
+        if (showMissingImage)
+            yield return FadeCutsceneImage(0f, 1f, missingImageFadeSeconds);
+
         bool reportDone = false;
         DialogueOnTop.Raise(ReportDialogueOrder);
         if (DayEndReport.TryPlayNow(() => reportDone = true))
@@ -99,6 +109,9 @@ public class DayController : MonoBehaviour
             yield return new WaitForSecondsRealtime(0.3f);   // 초상화가 사라질 시간
         }
         DialogueOnTop.Lower(ReportDialogueOrder);
+
+        if (showMissingImage)
+            yield return FadeCutsceneImage(1f, 0f, 0.6f);
 
         int day = GManager.Instance != null ? GManager.Instance.Day : dayNumber + 1;
         _fadeTitle.text = string.Format(dayTitleFormat, day);
@@ -127,6 +140,31 @@ public class DayController : MonoBehaviour
             yield return null;
         }
         _fadeGroup.alpha = to;
+    }
+
+    private bool LoadMissingImage()
+    {
+        if (_cutsceneImage == null)
+            return false;
+        if (_cutsceneImage.sprite == null)
+            _cutsceneImage.sprite = Resources.Load<Sprite>(MissingImagePath);
+        return _cutsceneImage.sprite != null;
+    }
+
+    private IEnumerator FadeCutsceneImage(float from, float to, float seconds)
+    {
+        _cutsceneImage.gameObject.SetActive(true);
+        float t = 0f;
+        seconds = Mathf.Max(0.01f, seconds);
+        while (t < seconds)
+        {
+            t += Time.unscaledDeltaTime;
+            _cutsceneImage.color = new Color(1f, 1f, 1f, Mathf.Lerp(from, to, Mathf.SmoothStep(0f, 1f, t / seconds)));
+            yield return null;
+        }
+        _cutsceneImage.color = new Color(1f, 1f, 1f, to);
+        if (to <= 0f)
+            _cutsceneImage.gameObject.SetActive(false);
     }
 
     private IEnumerator FadeTitle(float from, float to, float seconds)
@@ -169,6 +207,20 @@ public class DayController : MonoBehaviour
         Image image = black.GetComponent<Image>();
         image.color = Color.black;
         image.raycastTarget = true;
+
+        // 정리 못 한 물건이 있을 때의 컷신 이미지 (검은 화면 위, DAY 표시 아래)
+        GameObject cutscene = new GameObject("컷신 이미지", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        cutscene.transform.SetParent(canvasObject.transform, false);
+        RectTransform cutsceneRect = cutscene.GetComponent<RectTransform>();
+        cutsceneRect.anchorMin = Vector2.zero;
+        cutsceneRect.anchorMax = Vector2.one;
+        cutsceneRect.offsetMin = Vector2.zero;
+        cutsceneRect.offsetMax = Vector2.zero;
+        _cutsceneImage = cutscene.GetComponent<Image>();
+        _cutsceneImage.preserveAspect = true;
+        _cutsceneImage.raycastTarget = false;
+        _cutsceneImage.color = new Color(1f, 1f, 1f, 0f);
+        cutscene.SetActive(false);
 
         GameObject title = new GameObject("DAY 표시", typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
         title.transform.SetParent(canvasObject.transform, false);
