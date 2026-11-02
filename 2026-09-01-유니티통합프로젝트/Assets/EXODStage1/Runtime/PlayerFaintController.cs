@@ -10,7 +10,7 @@ using UnityEngine.UI;
 /// - Faint(): 화면 암전 → "플레이어가 기절했다." → 하트 1개 감소 → 다시 밝아짐
 /// - 하트(HP)가 0이 되면 이유와 상관없이 게임 오버 창을 띄웁니다.
 /// - 게임 오버: 암전 → 여자친구 "우리는 평생 함께야... ♡" → GAME OVER 창
-/// - 게임 오버 창: [다시하기] 지금 씬을 처음부터, [로비로 돌아가기] 시작 화면으로
+/// - 게임 오버·엔딩 창: [다시 시작] 지금 씬을 처음부터, [로비로] 시작 화면으로, [게임 종료]
 /// UI는 실행 중에 자동으로 만들어집니다.
 /// </summary>
 [DefaultExecutionOrder(230)]
@@ -134,7 +134,7 @@ public sealed class PlayerFaintController : MonoBehaviour
     }
 
     /// <summary>
-    /// 엔딩 화면을 띄웁니다. (게임 오버와 같은 연출: 암전 → 여자친구 마지막 대사 → 제목·설명 + [다시하기]/[로비로 돌아가기])
+    /// 엔딩 화면을 띄웁니다. (게임 오버와 같은 연출: 암전 → 여자친구 마지막 대사 → 제목·설명 + [다시 시작]/[로비로]/[게임 종료])
     /// 예: 거실 물약 기믹 실패 → 순응 엔딩
     /// </summary>
     public void ShowEnding(string girlfriendLine, string title, string subtitle)
@@ -229,10 +229,20 @@ public sealed class PlayerFaintController : MonoBehaviour
         SceneManager.LoadScene(LobbySceneName);
     }
 
+    public void QuitGame()
+    {
+#if UNITY_EDITOR
+        UnityEditor.EditorApplication.isPlaying = false;
+#else
+        Application.Quit();
+#endif
+    }
+
     // 씬을 다시 불러와도 남아 있는 진행 상황을 지웁니다.
     private static void ResetRunState()
     {
         InspectionState.ResetAll();
+        EXOD.Walk.PhoneBoothProgress.ResetAll();   // 전화 부스 기믹 진행도 처음부터
 
         if (QuickSlotInventory.Instance != null)
             QuickSlotInventory.Instance.Clear();
@@ -361,8 +371,10 @@ public sealed class PlayerFaintController : MonoBehaviour
         subtitleRect.anchoredPosition = new Vector2(0f, 40f);
         gameOverSubtitle.gameObject.SetActive(false);
 
-        CreateButton("다시하기", new Vector2(-190f, -110f), Restart);
-        CreateButton("로비로 돌아가기", new Vector2(190f, -110f), BackToLobby);
+        // 모든 엔딩·게임 오버 화면 공통 버튼 (전화 부스 탈출 엔딩도 같은 세 버튼)
+        CreateButton("다시 시작", new Vector2(-380f, -110f), Restart);
+        CreateButton("로비로", new Vector2(0f, -110f), BackToLobby);
+        CreateButton("게임 종료", new Vector2(380f, -110f), QuitGame);
 
         gameOverPanel.SetActive(false);
     }
