@@ -517,7 +517,7 @@ public sealed class DangerLevel : MonoBehaviour
 
             LockBackInBedroom();
             PlayCutscene(Stage1Dialogues.VisitLockedAgain(), FinishAppear);
-        }), false);
+        }), false, ScreenAberration.HouseCutscene);
     }
 
     private static void PlayCutscene(List<DialogueLine> lines, System.Action onFinished)
@@ -762,7 +762,7 @@ public sealed class DangerLevel : MonoBehaviour
             bool caught = walkYandere != null && walkYandere.State == EXOD.Walk.YandereState.Caught;
             // 들킨 순간 화면 색수차 (들킨 대사가 끝날 때까지)
             if (caught && !walkCaughtFxPlayed)
-                ScreenAberration.Play(null, true);
+                ScreenAberration.Play(null, true, ScreenAberration.WalkCutscene);
             walkCaughtFxPlayed = caught;
 
             if (walkYandere == null)
