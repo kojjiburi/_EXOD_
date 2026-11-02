@@ -146,7 +146,8 @@ public sealed class Stage2HouseLink : MonoBehaviour
             return;
         }
 
-        if (DayCycleController.Instance != null && DayCycleController.Instance.RemainingSeconds <= MinRemainingToWalkSeconds)
+        // [이지] 외출 시간 제한 없음 (사용자 요청 2026-11-03)
+        if (!GameDifficulty.IsEasy && DayCycleController.Instance != null && DayCycleController.Instance.RemainingSeconds <= MinRemainingToWalkSeconds)
         {
             DialogueManager.Instance?.StartDialogue(Stage1Dialogues.WalkTooLate());
             return;
@@ -256,7 +257,13 @@ public sealed class Stage2HouseLink : MonoBehaviour
 
         // 산책은 성공이든 실패든 1스테이지 하루(3분)에서 1분을 씁니다.
         if (DayCycleController.Instance != null)
-            DayCycleController.Instance.ConsumeTime(WalkTimeCostSeconds);
+        {
+            // [이지] 외출 제한이 없으므로, 돌아오자마자 일차가 넘어가 꼬이지 않게 5초는 남겨 둠
+            float cost = WalkTimeCostSeconds;
+            if (GameDifficulty.IsEasy)
+                cost = Mathf.Min(cost, Mathf.Max(0f, DayCycleController.Instance.RemainingSeconds - 5f));
+            DayCycleController.Instance.ConsumeTime(cost);
+        }
 
         yield return WalkFade.FadeIn();
         isTransitioning = false;
