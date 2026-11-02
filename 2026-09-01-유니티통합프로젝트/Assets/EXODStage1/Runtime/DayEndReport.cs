@@ -6,7 +6,8 @@ using UnityEngine.SceneManagement;
 /// <summary>
 /// 일차가 넘어갈 때 컷신 (2026-11-02)
 /// 일차를 넘기기 직전(아이템 점검·초기화 전)에 제자리에 없는 물건을 적어 두었다가,
-/// 'DAY-n' 화면이 끝나고 밝아지면 여자친구가 말해 줍니다.
+/// 일차 넘김 검은 화면 위에서 여자친구가 말해 주고, 그 뒤에 'DAY-n'이 나옵니다 (DayController가 TryPlayNow를 부름).
+/// 검은 화면 연출이 없거나 산책 중이었으면 아래 Update가 나중에 말해 줍니다.
 ///  - 안 돌려놓은 물건이 있으면: "이거, 왜 제자리에 없어? 「황금 열쇠, 손전등」" (하트 감소는 ItemPositionManager가 함)
 ///  - 다 제자리면: "좋은 아침, 자기야~ 오늘도 얌전히 있었네? ♡"
 /// 대사: Stage1Dialogues.DayReportMissing / DayReportClean
@@ -67,6 +68,45 @@ public sealed class DayEndReport : MonoBehaviour
         }
 
         pendingReport = string.Join(", ", names);
+    }
+
+    /// <summary>
+    /// 일차 넘김 검은 화면 위에서 바로 말해 줍니다 (DayController가 부름, kojjiburi 2026-11-02).
+    /// 말할 게 없거나 게임 오버·산책 중이면 false (산책 중이면 돌아온 뒤 Update가 말함).
+    /// </summary>
+    public static bool TryPlayNow(System.Action onFinished)
+    {
+        if (pendingReport == null || Stage2HouseLink.IsInStage2)
+            return false;
+
+        string report = pendingReport;
+        pendingReport = null;
+        if (PlayerFaintController.Instance != null && PlayerFaintController.Instance.IsBusy)
+            return false;
+
+        List<DialogueLine> lines = report.Length > 0
+            ? Stage1Dialogues.DayReportMissing(report)
+            : Stage1Dialogues.DayReportClean();
+
+        if (Stage1StoryController.Instance != null)
+        {
+            Stage1StoryController.Instance.PlayCutscene(lines, onFinished);
+            return true;
+        }
+
+        DialogueManager dm = DialogueManager.Instance;
+        if (dm == null)
+            return false;
+
+        UnityEngine.Events.UnityAction once = null;
+        once = () =>
+        {
+            dm.onDialogueEnd.RemoveListener(once);
+            onFinished?.Invoke();
+        };
+        dm.onDialogueEnd.AddListener(once);
+        dm.StartDialogue(lines);
+        return true;
     }
 
     private void Update()

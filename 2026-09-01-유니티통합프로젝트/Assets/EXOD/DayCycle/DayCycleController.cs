@@ -151,7 +151,7 @@ public sealed class DayCycleController : MonoBehaviour
         // 화면이 천천히 검어졌다가 'DAY-n'을 보여주고 다시 투명해집니다 (DayController). 일차는 검은 화면일 때 넘어갑니다.
         if (DayController.IsTransitioning)
             return;
-        // 일차 끝 알림(제자리에 없던 물건)은 nicezzomaru의 DayEndReport가 'DAY-n' 화면 뒤에 보여 줍니다.
+        // 순서: 검은 화면 → 일차 끝 대사(nicezzomaru의 DayEndReport, 검은 화면 위) → 'DAY-n' → 밝아짐
         if (DayController.TryPlayDayTransition(AdvanceDayNow))
             return;
 
@@ -178,7 +178,7 @@ public sealed class DayCycleController : MonoBehaviour
             return;
         }
 
-        // 점검·초기화 전에 제자리에 없는 물건을 적어 두고, 화면이 밝아지면 여자친구가 말해 줌 (DayEndReport 컷신)
+        // 점검·초기화 전에 제자리에 없는 물건을 적어 두고, 검은 화면 위에서 여자친구가 말해 줌 (DayEndReport 컷신)
         DayEndReport.Prepare();
 
         dayManager.NextDay();

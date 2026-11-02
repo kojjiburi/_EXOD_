@@ -31,6 +31,10 @@ public class DayController : MonoBehaviour
     [Tooltip("다시 천천히 투명해지는 시간(초)")]
     public float fadeFromBlackSeconds = 1.5f;
     public string dayTitleFormat = "DAY-{0}";
+    [Tooltip("완전히 검어진 뒤 일차 끝 대사가 나오기까지 기다리는 시간(초)")]
+    public float reportDelaySeconds = 0.4f;
+
+    private const int ReportDialogueOrder = 32001;   // 검은 화면(32000) 위에 대화창
 
     private bool _dayCleared = false;
 
@@ -57,7 +61,7 @@ public class DayController : MonoBehaviour
     }
 
     /// <summary>
-    /// 일차 넘김 페이드: 천천히 검어짐 → (검은 화면에서) advance 실행 + "DAY-n" 표시 → 천천히 투명해짐.
+    /// 일차 넘김 페이드: 천천히 검어짐 → (검은 화면에서) advance 실행 → 일차 끝 대사(DayEndReport) → "DAY-n" 표시 → 천천히 투명해짐.
     /// 씬에 DayController가 없으면 false를 돌려주고 아무것도 하지 않습니다.
     /// </summary>
     public static bool TryPlayDayTransition(Action advance, Action onFinished = null)
@@ -83,6 +87,18 @@ public class DayController : MonoBehaviour
 
         // 화면이 완전히 검을 때 일차를 넘깁니다. (아이템 제자리 점검·초기화가 검은 화면 뒤에서 일어남)
         advance?.Invoke();
+
+        // 검은 화면 위에 대사 (물건이 제자리에 없을 때 / 다 정리해 놨을 때) → 다 읽으면 'DAY-n'
+        yield return new WaitForSecondsRealtime(reportDelaySeconds);
+        bool reportDone = false;
+        DialogueOnTop.Raise(ReportDialogueOrder);
+        if (DayEndReport.TryPlayNow(() => reportDone = true))
+        {
+            while (!reportDone)
+                yield return null;
+            yield return new WaitForSecondsRealtime(0.3f);   // 초상화가 사라질 시간
+        }
+        DialogueOnTop.Lower(ReportDialogueOrder);
 
         int day = GManager.Instance != null ? GManager.Instance.Day : dayNumber + 1;
         _fadeTitle.text = string.Format(dayTitleFormat, day);

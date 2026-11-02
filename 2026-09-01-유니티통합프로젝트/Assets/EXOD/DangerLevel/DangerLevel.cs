@@ -110,6 +110,7 @@ public sealed class DangerLevel : MonoBehaviour
     private SliderManager slider;
     private Yan yan;
     private EXOD.Walk.WalkYandere walkYandere;
+    private bool walkCaughtFxPlayed;
     private Sprite safeIcon, normalIcon, dangerIcon, appearedIcon;
     // 검은 눈 아이콘: 나올 때 그림 1~7(글리치 6장 + 원래 그림)을 한 번, 그 뒤로는 4~7을 계속 반복해 지지직거림
     private const int GlitchFrameCount = 6;
@@ -191,6 +192,9 @@ public sealed class DangerLevel : MonoBehaviour
     private void Update()
     {
         UpdateIcon();
+#if UNITY_EDITOR
+        UpdateEditorTestKeys();
+#endif
 
         int day = GManager.Instance != null ? GManager.Instance.Day : 1;
         if (day != lastDay)
@@ -283,6 +287,21 @@ public sealed class DangerLevel : MonoBehaviour
             return frontDoor != null && frontDoor.IsPasswordSolved ? 2 : 1;
         }
     }
+
+#if UNITY_EDITOR
+    // 에디터 테스트용 단축키 (빌드에는 안 들어감): F8 일차 넘기기, F9 여자친구 등장(방 밖에서 들킨 것으로), F10 산책 나가기, F12 게임 화면 스크린샷(프로젝트 폴더)
+    private void UpdateEditorTestKeys()
+    {
+        if (Input.GetKeyDown(KeyCode.F8) && DayCycleController.Instance != null)
+            DayCycleController.Instance.AdvanceDay();
+        if (Input.GetKeyDown(KeyCode.F9) && !Stage2HouseLink.IsInStage2)
+            Appear(true);
+        if (Input.GetKeyDown(KeyCode.F10) && !Stage2HouseLink.IsInStage2)
+            Stage2HouseLink.RequestEnter();
+        if (Input.GetKeyDown(KeyCode.F12))
+            ScreenCapture.CaptureScreenshot("Screenshot_" + System.DateTime.Now.ToString("HHmmss") + ".png");
+    }
+#endif
 
     private bool CountsNow()
     {
@@ -466,12 +485,12 @@ public sealed class DangerLevel : MonoBehaviour
         EXODSound.Play(FootstepSound);
     }
 
-    private void Appear()
+    private void Appear(bool forceCaught = false)
     {
         if (appearing)
             return;
 
-        bool inRoom = slider != null && slider.CurrentRoom == BedroomName;
+        bool inRoom = !forceCaught && slider != null && slider.CurrentRoom == BedroomName;
         appearing = true;
         value = 0;
         UpdateIcon();
@@ -482,9 +501,10 @@ public sealed class DangerLevel : MonoBehaviour
             return;
         }
 
-        // 침실 밖에서 들킴 → 하트 -1 → (게임 오버가 아니면) 침실로 끌려가 다시 갇힘
-        PlayCutscene(Stage1Dialogues.VisitCaught(), () =>
+        // 침실 밖에서 들킴 → (들킨 대사 동안 화면 색수차) → 하트 -1 → (게임 오버가 아니면) 침실로 끌려가 다시 갇힘
+        ScreenAberration.Play(() => PlayCutscene(Stage1Dialogues.VisitCaught(), () =>
         {
+            ScreenAberration.Stop();
             HeartManager hearts = FindFirstObjectByType<HeartManager>(FindObjectsInactive.Include);
             if (hearts != null)
                 hearts.HPM();
@@ -497,7 +517,7 @@ public sealed class DangerLevel : MonoBehaviour
 
             LockBackInBedroom();
             PlayCutscene(Stage1Dialogues.VisitLockedAgain(), FinishAppear);
-        });
+        }), false);
     }
 
     private static void PlayCutscene(List<DialogueLine> lines, System.Action onFinished)
@@ -739,9 +759,15 @@ public sealed class DangerLevel : MonoBehaviour
             // 산책 중: 그녀 상태 (앞을 봄 초록 / 말풍선 노랑 / 뒤돌아봄 빨강 / 들킴 검정)
             if (walkYandere == null)
                 walkYandere = FindFirstObjectByType<EXOD.Walk.WalkYandere>();
+            bool caught = walkYandere != null && walkYandere.State == EXOD.Walk.YandereState.Caught;
+            // 들킨 순간 화면 색수차 (들킨 대사가 끝날 때까지)
+            if (caught && !walkCaughtFxPlayed)
+                ScreenAberration.Play(null, true);
+            walkCaughtFxPlayed = caught;
+
             if (walkYandere == null)
                 icon = safeIcon;
-            else if (walkYandere.State == EXOD.Walk.YandereState.Caught)
+            else if (caught)
                 icon = appearedIcon;
             else if (walkYandere.State == EXOD.Walk.YandereState.Watching)
                 icon = dangerIcon;
@@ -753,6 +779,7 @@ public sealed class DangerLevel : MonoBehaviour
         else
         {
             walkYandere = null;
+            walkCaughtFxPlayed = false;
             icon = appearing ? appearedIcon
                  : value <= 30 ? safeIcon
                  : value <= 50 ? normalIcon

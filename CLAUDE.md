@@ -72,4 +72,6 @@
 - 등장: 침실이면 `VisitSafe`, 아니면 `VisitCaught` → 하트 -1 → 침실로 끌려가 방문 다시 잠김 + 황금 열쇠 서랍으로 → `VisitLockedAgain` (대사는 Stage1Dialogues, nicezzomaru 작성).
 - 2스테이지(산책)에선 수치 변화 없음. 아이콘: 초록 뒤돌아 있음 / 노랑 말풍선 / 빨강 보는 중 / 검정 걸림.
 - 기믹을 새로 만들면: 기믹 창 열기 전 `if (DangerLevel.WarnBeforeGimmick()) return; DangerLevel.UiOpened();`, 성공 시 `DangerLevel.GimmickSolved()`, 실패 시 `DangerLevel.GimmickFailed()`.
-- 일차 끝: 친구의 DayEndReport 대사 뒤에 "…정리하지 못했던 물건이 있었다." 또는 "오늘은 무사히 넘긴 것 같다."
+- 일차 끝 순서: 화면이 천천히 검어짐 → 검은 화면 위에 일차 끝 대사(DayEndReport: 물건이 제자리에 없을 때 / 다 정리했을 때, 끝에 "…정리하지 못했던 물건이 있었다." 또는 "오늘은 무사히 넘긴 것 같다.") → 'DAY-n' → 밝아짐 (`DayController`).
+- 들켰을 때(1스테이지 침실 밖, 2스테이지 산책) 화면 색수차: `Assets/EXOD/ScreenFx/ScreenAberration.cs` (가운데 약하게, 가장자리 세게). 대화창은 `DialogueOnTop`으로 효과 위에 그려짐.
+- 에디터 테스트 단축키(빌드 제외, DangerLevel): F8 일차 넘기기 / F9 방 밖에서 들킨 등장 / F10 산책 나가기 / F12 게임 화면 스크린샷.
