@@ -111,6 +111,15 @@ public sealed class DangerLevel : MonoBehaviour
     private Yan yan;
     private EXOD.Walk.WalkYandere walkYandere;
     private Sprite safeIcon, normalIcon, dangerIcon, appearedIcon;
+    // 검은 눈 아이콘: 나올 때 그림 1~7(글리치 6장 + 원래 그림)을 한 번, 그 뒤로는 4~7을 계속 반복해 지지직거림
+    private const int GlitchFrameCount = 6;
+    private const float GlitchFrameSeconds = 0.07f;
+    private const int CleanFrame = -1;   // 원래 눈 그림 (7번)
+    private static readonly int[] GlitchIntro = { 0, 1, 2, 3, 4, 5, CleanFrame };
+    private static readonly int[] GlitchLoop = { 3, 4, 5, CleanFrame };
+    private readonly Sprite[] glitchIcons = new Sprite[GlitchFrameCount];
+    private bool showingAppearedIcon;
+    private float appearedIconStartTime;
 
     // ═══════════════════════════════════════════════════
     //  설치
@@ -151,6 +160,8 @@ public sealed class DangerLevel : MonoBehaviour
         normalIcon = Resources.Load<Sprite>(IconFolder + "Danger_Normal_Yellow");
         dangerIcon = Resources.Load<Sprite>(IconFolder + "Danger_Danger_Red");
         appearedIcon = Resources.Load<Sprite>(IconFolder + "Danger_Appeared_Eyes");
+        for (int i = 0; i < GlitchFrameCount; i++)
+            glitchIcons[i] = Resources.Load<Sprite>(IconFolder + "Danger_Appeared_Glitch" + i);
     }
 
     private void Start()
@@ -747,7 +758,34 @@ public sealed class DangerLevel : MonoBehaviour
                  : value <= 50 ? normalIcon
                  : dangerIcon;
         }
+        icon = ApplyAppearGlitch(icon);
         if (icon != null && yan.StateRenderer.sprite != icon)
             yan.StateRenderer.sprite = icon;
+    }
+
+    // 검은 눈 아이콘이면 글리치 그림을 돌림 (처음 1~7 한 번, 그 뒤 4~7 반복)
+    private Sprite ApplyAppearGlitch(Sprite icon)
+    {
+        if (icon == null || icon != appearedIcon)
+        {
+            showingAppearedIcon = false;
+            return icon;
+        }
+
+        if (!showingAppearedIcon)
+        {
+            showingAppearedIcon = true;
+            appearedIconStartTime = Time.unscaledTime;
+        }
+
+        int step = (int)((Time.unscaledTime - appearedIconStartTime) / GlitchFrameSeconds);
+        int frameIndex = step < GlitchIntro.Length
+            ? GlitchIntro[step]
+            : GlitchLoop[(step - GlitchIntro.Length) % GlitchLoop.Length];
+        if (frameIndex == CleanFrame)
+            return icon;
+
+        Sprite frame = glitchIcons[frameIndex];
+        return frame != null ? frame : icon;
     }
 }
