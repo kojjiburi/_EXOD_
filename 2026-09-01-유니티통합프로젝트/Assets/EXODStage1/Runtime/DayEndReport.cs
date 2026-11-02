@@ -96,6 +96,20 @@ public sealed class DayEndReport : MonoBehaviour
             ? Stage1Dialogues.DayReportMissing(report)
             : Stage1Dialogues.DayReportClean();
 
+        // 전날 팔다리를 다 돌려줬으면 곰돌이 보답도 이어서 (아래 Update와 같은 규칙)
+        BearLimbGimmickManager bear = FindFirstObjectByType<BearLimbGimmickManager>();
+        if (bear != null && bear.IsRewardPending && !BearGiftDelivered)
+        {
+            lines.AddRange(Stage1Dialogues.BearMorningGift());
+            BearGiftDelivered = true;
+            System.Action afterReport = onFinished;
+            onFinished = () =>
+            {
+                bear.GiveRewardNote();
+                afterReport?.Invoke();
+            };
+        }
+
         if (Stage1StoryController.Instance != null)
         {
             Stage1StoryController.Instance.PlayCutscene(lines, onFinished);
