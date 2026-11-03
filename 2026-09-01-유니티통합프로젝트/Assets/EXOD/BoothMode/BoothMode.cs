@@ -177,13 +177,18 @@ public static class BoothMode
         TextMeshProUGUI name = Txt("이름", card, easy ? "이지" : "하드", 64f, accent, font, FontStyles.Normal);
         Top(name.rectTransform, 20f, 80f);
 
-        TextMeshProUGUI big = Txt("제한시간", card, easy ? "제한시간 5분." : "제한시간 10분.", 48f, Color.white, font, FontStyles.Bold);
+        // 픽셀 폰트라 Bold(가짜 굵게)를 쓰면 글자가 뭉개짐 → 굵게 없이 크기로만 강조 (2026-11-04)
+        TextMeshProUGUI big = Txt("제한시간", card, easy ? "제한시간 5분." : "제한시간 10분.", 52f, Color.white, font, FontStyles.Normal);
         Top(big.rectTransform, 105f, 64f);
 
         float y = 180f;
         if (!easy)
         {
-            TextMeshProUGUI warn = Txt("경고", card, "실패하면 간식, 보상을 받지 못해요!", 31f, WarnColor, font, FontStyles.Bold);
+            TextMeshProUGUI warn = Txt("경고", card, "실패하면 간식, 보상을 받지 못해요!", 30f, WarnColor, font, FontStyles.Normal);
+            warn.enableWordWrapping = false;   // 한 줄로 (두 줄로 넘치면 아래 설명과 겹침)
+            warn.enableAutoSizing = true;
+            warn.fontSizeMin = 20f;
+            warn.fontSizeMax = 30f;
             Top(warn.rectTransform, y, 48f);
             warn.gameObject.AddComponent<BoothShake>();
             y += 58f;
