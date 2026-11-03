@@ -122,7 +122,8 @@ public sealed class MemoZoom : MonoBehaviour
         viewer.SetActive(true);
     }
 
-    private void Close()
+    // 여자친구 등장 등으로 강제로 닫을 때도 씀 (GimmickInterrupt)
+    public void Close()
     {
         viewer.SetActive(false);
     }

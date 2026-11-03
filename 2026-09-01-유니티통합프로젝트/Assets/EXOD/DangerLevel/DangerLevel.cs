@@ -596,6 +596,7 @@ public sealed class DangerLevel : MonoBehaviour
         if (appearing)
             return;
 
+        GimmickInterrupt.CloseAll();
         appearing = true;
         value = 0;
         UpdateIcon();
@@ -627,10 +628,47 @@ public sealed class DangerLevel : MonoBehaviour
         });
     }
 
+    // 하루 시간이 다 됐는데 침대로 넘기지 않았을 때 (DayCycleController): 침실 안이면 '아직도 안 자?' 방문, 밖이면 들킴 → 끝나면 then (다음 일차)
+    private System.Action afterAppear;
+
+    public static bool TryAppearAtDayEnd(System.Action then)
+    {
+        DangerLevel d = Instance;
+        if (d == null || d.appearing || Stage2HouseLink.IsInStage2 || DayController.IsTransitioning)
+            return false;
+        if (PlayerFaintController.Instance != null && PlayerFaintController.Instance.IsBusy)
+            return false;
+
+        d.afterAppear = then;
+        if (d.InBedroom)
+        {
+            GimmickInterrupt.CloseAll();
+            d.appearing = true;
+            d.value = 0;
+            d.UpdateIcon();
+            d.StartCoroutine(d.BedtimeRoutine());
+        }
+        else
+        {
+            d.Appear(true);
+        }
+        return true;
+    }
+
+    private System.Collections.IEnumerator BedtimeRoutine()
+    {
+        EXODSound.Play(FootstepShortSound);
+        yield return new WaitForSecondsRealtime(1.5f);
+        PlayCutscene(Stage1Dialogues.VisitBedtime(), FinishAppear);
+    }
+
     private void Appear(bool forceCaught = false)
     {
         if (appearing)
             return;
+
+        // 열려 있던 기믹 창·조사 화면은 닫음 (실패 아님)
+        GimmickInterrupt.CloseAll();
 
         bool inRoom = !forceCaught && slider != null && slider.CurrentRoom == BedroomName;
         appearing = true;
@@ -654,6 +692,7 @@ public sealed class DangerLevel : MonoBehaviour
             if (hearts != null && hearts.HP <= 0)
             {
                 ScreenAberration.Stop();
+                afterAppear = null;   // 게임 오버면 다음 일차로 넘기지 않음
                 FinishAppear();
                 return;
             }
@@ -758,6 +797,11 @@ public sealed class DangerLevel : MonoBehaviour
             tutorialWaitingForRoom = false;
             HideHintUnlocked = true;
         }
+
+        // 하루 시간이 다 돼서 온 경우: 끝나면 다음 일차로
+        System.Action then = afterAppear;
+        afterAppear = null;
+        then?.Invoke();
     }
 
     // ── 화면 열림 / 빈 곳 클릭 ───────────────────────────
@@ -880,6 +924,7 @@ public sealed class DangerLevel : MonoBehaviour
 
         tutorialShown = true;
         tutorialWaitingForRoom = true;
+        GimmickInterrupt.CloseAll();
         PlayFootsteps();
         DialogueManager.Instance?.StartDialogue(Stage1Dialogues.Thought(TutorialLines));
     }

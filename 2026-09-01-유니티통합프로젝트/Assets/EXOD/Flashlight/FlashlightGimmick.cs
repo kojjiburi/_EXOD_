@@ -22,6 +22,9 @@ public sealed class FlashlightGimmick : MonoBehaviour
 
     public const string FlashlightItemId = "flashlight";
 
+    /// <summary>손전등으로 종이를 비췄을 때 (종이 아이템 ID). 이지 모드 행동 요령 힌트에서 씀 (EasyHelpTips)</summary>
+    public static event System.Action<string> PaperLit;
+
     private const string ResourceFolder = "EXODFlashlight/";
 
     private const string SelectTargetText = "비출 물건을 선택하자.";
@@ -139,6 +142,7 @@ public sealed class FlashlightGimmick : MonoBehaviour
                 if (GameDifficulty.IsEasy && itemId == "paper_a")
                     imageName = "ABCDElight";
                 ShowLightImage(imageName);
+                PaperLit?.Invoke(itemId);
             }
             else
                 Think(WrongTargetText);
@@ -221,7 +225,8 @@ public sealed class FlashlightGimmick : MonoBehaviour
         EXODSound.Play("ui_click");
     }
 
-    private void CloseViewer()
+    // 여자친구 등장 등으로 강제로 닫을 때도 씀 (GimmickInterrupt)
+    public void CloseViewer()
     {
         if (viewerRoot != null)
             viewerRoot.SetActive(false);

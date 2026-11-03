@@ -338,6 +338,7 @@ public static class Stage1Dialogues
 
     public static List<DialogueLine> Stage2EnterFirstAfter() => new List<DialogueLine>
     {
+        Say(Player, "...?"),   // (사용자 요청 2026-11-03)
         Say(Girlfriend, "마침 잘됐다. 우리 같이 산책하자 ♡"),
     };
 
@@ -376,6 +377,17 @@ public static class Stage1Dialogues
     // 화면 가운데 큰 경고 (2초)
     public const string VisitWarningTitle = "…누군가의 발소리다.";
     public const string VisitWarningSub = "방으로 돌아가자!";
+
+    // 침대로 일차를 넘기지 않고 하루 시간이 다 됐을 때, 침실 안에 있었으면 (DangerLevel, 사용자 요청 2026-11-03)
+    // 구두 소리 → 이 대사 → 다음 일차
+    public static List<DialogueLine> VisitBedtime() => new List<DialogueLine>
+    {
+        Say(Girlfriend, "뭐야? 아직도 안 자는 거야?"),
+        Say(Girlfriend, "늦게 자면 건강에 안 좋으니까 얼른 자 ♡"),
+    };
+
+    // 1일차 남은 시간 5초까지 침대를 누르지 않았을 때 (DayCycleController)
+    public const string FirstDayBedWarning = "침대로 들어가 있지 않으면 여자친구가 올 것이다.";
 
     // 침실 안에서 위험도가 72 이상이 될 행동을 하려 할 때 (DangerLevel, 사용자 요청 2026-11-03)
     // 구두 소리 조금 → 방문 벌컥 → 이 대사 → 구두 소리. 여자친구 그림은 기본(웃는 얼굴 아님)

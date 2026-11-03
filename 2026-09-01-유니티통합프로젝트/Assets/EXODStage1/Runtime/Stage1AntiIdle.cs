@@ -167,6 +167,7 @@ public sealed class Stage1AntiIdle : MonoBehaviour
     private static bool BlockedBySomethingElse()
     {
         return DangerLevel.IsAppearing
+            || GimmickInterrupt.JustClosed   // 여자친구 등장·일차 끝 안내 때문에 닫힘
             || (PlayerFaintController.Instance != null && PlayerFaintController.Instance.IsBusy)
             || DayController.IsTransitioning;
     }

@@ -6,7 +6,9 @@ using UnityEngine.UI;
 
 /// <summary>
 /// 일차 진행
-/// - 일차는 3분(1일차는 1분 30초)이 지나면 넘어갑니다. (대화·컷신·기절 연출 중에는 시간이 멈춤)
+/// - 일차는 3분(1일차는 1분 30초). 침대로 넘기지 않고 0초가 되면 여자친구가 바로 옴 → 끝나면 다음 일차 (2026-11-03)
+///   (침실 안이면 '아직도 안 자?' 대사, 밖이면 방 밖에서 들킨 컷신. 대화·컷신·기절 연출 중에는 시간이 멈춤)
+/// - 1일차: 남은 20초부터 행동 요령에 노란 글씨 안내, 5초 남을 때까지 침대를 안 눌렀으면 혼잣말
 /// - 오른쪽 위 장소 이름 아래에 이번 일차의 남은 시간(m:ss)을 표시합니다.
 ///   2스테이지(산책)에 있는 동안에는 그 바로 아래에 2스테이지 1분 타이머(DayClock)도 표시합니다.
 /// - 2스테이지에 가 있어도 이 3분 타이머는 초기화되지 않고 계속 흐릅니다.
@@ -65,6 +67,10 @@ public sealed class DayCycleController : MonoBehaviour
     };
 
     private float elapsed;
+    private bool dayEndHandled;        // 0초가 돼서 여자친구 등장 → 다음 일차를 이미 시작함
+    private bool bedClickedToday;      // 오늘 침대를 한 번이라도 눌렀는지
+    private bool bedWarningShown;      // 1일차 5초 남았을 때 안내를 보였는지
+    private const float FirstDayBedWarningRemaining = 5f;   // (사용자 요청 2026-11-03)
     private bool keyObtained;
     private bool firstWarningShown;
     private bool secondWarningShown;
@@ -129,6 +135,7 @@ public sealed class DayCycleController : MonoBehaviour
         if (keyObtained && !firstWarningShown && RemainingSeconds <= FirstWarningRemaining)
         {
             firstWarningShown = true;
+            GimmickInterrupt.CloseAll();
             Think(FirstWarningLines);
             return;
         }
@@ -136,12 +143,28 @@ public sealed class DayCycleController : MonoBehaviour
         if (keyObtained && !secondWarningShown && RemainingSeconds <= SecondWarningRemaining)
         {
             secondWarningShown = true;
+            GimmickInterrupt.CloseAll();
             Think(SecondWarningLines);
             return;
         }
 
-        if (elapsed >= DayLengthSeconds)
-            AdvanceDay();
+        // 1일차: 5초 남을 때까지 침대를 안 눌렀으면 안내 (사용자 요청 2026-11-03)
+        bool firstDay = GManager.Instance == null || GManager.Instance.Day <= 1;
+        if (firstDay && !bedClickedToday && !bedWarningShown && RemainingSeconds <= FirstDayBedWarningRemaining)
+        {
+            bedWarningShown = true;
+            GimmickInterrupt.CloseAll();
+            Think(new[] { Stage1Dialogues.FirstDayBedWarning });
+            return;
+        }
+
+        // 침대로 넘기지 않고 0초가 되면: 여자친구가 바로 옴 (침실 안이면 '아직도 안 자?', 밖이면 들킴) → 끝나면 다음 일차
+        if (elapsed >= DayLengthSeconds && !dayEndHandled && !DangerLevel.IsAppearing)
+        {
+            dayEndHandled = true;
+            if (!DangerLevel.TryAppearAtDayEnd(AdvanceDay))
+                AdvanceDay();
+        }
     }
 
     // ═══════════════════════════════════════════════════
@@ -172,6 +195,9 @@ public sealed class DayCycleController : MonoBehaviour
     private void AdvanceDayNow()
     {
         elapsed = 0f;
+        dayEndHandled = false;
+        bedClickedToday = false;
+        bedWarningShown = false;
 
         // 열쇠 안내는 열쇠를 얻은 뒤 처음 맞는 일차 끝에만 나옵니다.
         if (keyObtained)
@@ -200,6 +226,8 @@ public sealed class DayCycleController : MonoBehaviour
     {
         if (IsBusy())
             return;
+
+        bedClickedToday = true;
 
         // 열쇠를 얻은 뒤 아직 안내를 다 못 봤으면, 남은 안내를 바로 보여 주고 이번 한 번만 넘김을 막습니다.
         if (keyObtained && (!firstWarningShown || !secondWarningShown))

@@ -95,7 +95,7 @@ public sealed class Stage1HelpBar : MonoBehaviour
         if (!watching && (shownTips == null || Time.unscaledTime >= nextTipRefreshTime))
         {
             nextTipRefreshTime = Time.unscaledTime + 0.5f;
-            SetTips(inWalk ? WalkTips : BuildHouseTips());
+            SetTips(inWalk ? BuildWalkTips() : BuildHouseTips());
         }
 
         if (watching)
@@ -260,12 +260,37 @@ public sealed class Stage1HelpBar : MonoBehaviour
     // 1일차 튜토리얼(여자친구 첫 등장)을 본 뒤 추가되는 행동 요령
     private const string HideTip = "여자친구가 올 것 같으면 방에 들어가 있자.";
 
+    // 1일차 남은 20초부터 (사용자 요청 2026-11-03, kojjiburi)
+    private const float FirstDayBedTipRemaining = 20f;
+    private const string FirstDayBedTip = "일차가 얼마 남지 않았다면 침대를 눌러 다음 일자로 넘어가자.";
+
+    private static string Yellow(string text) => $"<color=#{ColorUtility.ToHtmlStringRGB(GoalColor)}>{text}</color>";
+
+    // 산책 중: 기본 안내 + [이지] 노란 힌트 (EasyHelpTips)
+    private static string[] BuildWalkTips()
+    {
+        List<string> tips = new List<string>();
+        foreach (string tip in EasyHelpTips.WalkTips())
+            tips.Add(Yellow(tip));
+        tips.AddRange(WalkTips);
+        return tips.ToArray();
+    }
+
     private static string[] BuildHouseTips()
     {
         List<string> tips = new List<string>();
+
+        bool firstDay = GManager.Instance == null || GManager.Instance.Day <= 1;
+        if (firstDay && DayCycleController.Instance != null && DayCycleController.Instance.RemainingSeconds <= FirstDayBedTipRemaining)
+            tips.Add(Yellow(FirstDayBedTip));
+
         string goal = GetCurrentGoal();
         if (!string.IsNullOrEmpty(goal))
             tips.Add($"<color=#{ColorUtility.ToHtmlStringRGB(GoalColor)}>목표: {goal}</color>");
+
+        // [이지] 노란 힌트 (EasyHelpTips)
+        foreach (string tip in EasyHelpTips.HouseTips())
+            tips.Add(Yellow(tip));
 
         // 손전등을 얻었고 화장실 금고가 아직 안 열렸으면: 종이를 비춰 보라는 안내 (사용자 요청 2026-11-02)
         if (HasFlashlight() && (RestroomGimmick.Instance == null || !RestroomGimmick.Instance.IsSafeUnlocked))
