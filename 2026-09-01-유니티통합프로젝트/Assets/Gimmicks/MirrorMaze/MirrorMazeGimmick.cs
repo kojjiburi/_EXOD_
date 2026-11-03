@@ -385,7 +385,10 @@ public class MirrorMazeGimmick : MonoBehaviour
         canvasGo = new GameObject("MirrorMazeUI");
         canvasGo.transform.SetParent(transform, false);
         var canvas = canvasGo.AddComponent<Canvas>();
-        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        // [통합] URP에서는 미로 카메라가 화면 위 UI(Overlay)를 덮어 안내·X 버튼이 안 보였음 → 미로 카메라에 붙여 그림 (nicezzomaru 2026-11-03)
+        canvas.renderMode = RenderMode.ScreenSpaceCamera;
+        canvas.worldCamera = cam;
+        canvas.planeDistance = 1f;
         canvas.sortingOrder = canvasSortingOrder;
         var scaler = canvasGo.AddComponent<CanvasScaler>();
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
@@ -497,7 +500,7 @@ public class MirrorMazeGimmick : MonoBehaviour
         }
         else return;
 
-        if (pressed && RectTransformUtility.RectangleContainsScreenPoint(closeButton, screen, null)) { Close(); return; }
+        if (pressed && RectTransformUtility.RectangleContainsScreenPoint(closeButton, screen, cam)) { Close(); return; }
 
         Vector2 world = cam.ScreenToWorldPoint(new Vector3(screen.x, screen.y, 10f));
         if (pressed && keySr != null && keySr.gameObject.activeSelf && keyTakeT < 0f &&

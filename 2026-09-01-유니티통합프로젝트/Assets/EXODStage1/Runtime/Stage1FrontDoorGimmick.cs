@@ -78,13 +78,15 @@ public sealed class Stage1FrontDoorGimmick : MonoBehaviour
 
     private void ShowKeypad()
     {
-        Stage1Keypad.Show(Stage1Dialogues.FrontDoorPassword, OnPasswordCorrect, OnPasswordWrong);
+        // 틀리면 기믹 실패 +10 대신 +20 (OnPasswordWrong)
+        Stage1Keypad.Show(Stage1Dialogues.FrontDoorPassword, OnPasswordCorrect, OnPasswordWrong, false);
     }
 
     // 경보가 울리고 여자친구에게 들켜 기절합니다.
     // (2026-11-03 사용자 요청) 방 밖에서 들켰을 때와 같은 연출(UI 가림·색수차·컷신 이미지, 여자친구 초상화 없음) 위에서 대사 → 기절
     private void OnPasswordWrong()
     {
+        DangerLevel.FrontDoorPasswordWrong();
         ScreenAberration.Play(() => Stage1Room.PlayCutscene(Stage1Dialogues.FrontDoorWrongPassword(), () =>
         {
             ScreenAberration.Stop();

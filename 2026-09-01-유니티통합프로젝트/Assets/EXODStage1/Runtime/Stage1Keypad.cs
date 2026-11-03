@@ -30,6 +30,7 @@ public sealed class Stage1Keypad : MonoBehaviour
     private bool isChecking;
     private Action onCorrect;
     private Action onWrong;
+    private bool countAsGimmickFail = true;
 
     public static bool IsOpen => instance != null && instance.root != null && instance.root.activeSelf;
 
@@ -37,7 +38,8 @@ public sealed class Stage1Keypad : MonoBehaviour
     /// 키패드를 엽니다. 맞으면 창을 닫고 onCorrect를 호출합니다.
     /// 틀렸을 때 onWrong이 있으면 창을 닫고 onWrong을 호출하고, 없으면 다시 입력받습니다.
     /// </summary>
-    public static void Show(string password, Action onCorrect, Action onWrong = null)
+    /// <param name="countAsGimmickFail">false면 틀려도 기믹 실패(+10)를 더하지 않음 (현관문은 따로 +20)</param>
+    public static void Show(string password, Action onCorrect, Action onWrong = null, bool countAsGimmickFail = true)
     {
         // [위험도] 틀리면 100이 될 상황이면 경고만 하고 이번엔 열지 않음
         if (DangerLevel.WarnBeforeGimmick())
@@ -47,6 +49,7 @@ public sealed class Stage1Keypad : MonoBehaviour
         if (instance == null)
             instance = new GameObject("키패드").AddComponent<Stage1Keypad>();
 
+        instance.countAsGimmickFail = countAsGimmickFail;
         instance.Open(password, onCorrect, onWrong);
     }
 
@@ -152,7 +155,8 @@ public sealed class Stage1Keypad : MonoBehaviour
         }
 
         EXODSound.Play("keypad_error");
-        DangerLevel.GimmickFailed();
+        if (countAsGimmickFail)
+            DangerLevel.GimmickFailed();
         for (int i = 0; i < 3; i++)
         {
             screenText.text = "ERROR";

@@ -10,6 +10,8 @@ using UnityEngine.SceneManagement;
 ///
 /// [오르는 경우]
 ///  - 시간: 2초마다 40% 확률로 +1 (대화·컷신·기절·산책·일차 넘김 페이드 중에는 멈춤)
+///          71 이상이면 대신 1초마다 +1 (위험도가 0으로 돌아가면 다시 2초마다 40%) (2026-11-03 사용자 요청)
+///  - 현관문 비밀번호 틀림: +20 (기믹 실패 +10 대신, FrontDoorPasswordWrong)
 ///  - 방 이동: +4 (위험도 71 이상이면 +1, 침실로 들어갈 땐 0) ※ 2배 적용 안 함
 ///  - 물건 얻기: +5 (같은 물건은 하루에 한 번만, 산책 중에 얻은 건 0)
 ///  - 기믹 성공 +5 / 기믹 실패 +10 (각 기믹 코드가 GimmickSolved/GimmickFailed 호출)
@@ -19,7 +21,7 @@ using UnityEngine.SceneManagement;
 ///  - 첫 등장 이벤트(튜토리얼)가 끝나기 전에는 오르지 않음
 ///
 /// [여자친구 등장]
-///  - 65 이상: 구두 발소리 (10초마다 다시 들림). 발소리가 들릴 때 침실에 들어가면 바로 등장 (방 안이라 안전)
+///  - 71 이상: 구두 발소리 (10초마다 다시 들림). 발소리가 들릴 때 침실에 들어가면 바로 등장 (방 안이라 안전) (2026-11-03: 65 → 71)
 ///  - 72 이상: 위험도가 오를 때마다 5초 간격으로 확률 판정. 확률 = 10% - (72 - 위험도) x 2% → 72는 10%, 80은 26%, 90은 46%, 99는 64% (2026-11-03 사용자 요청)
 ///  - 100: 바로 등장 (위 확률 판정과 같이 돌아감)
 ///  - 등장했을 때 침실에 없으면 걸림 → 하트 -1 → 침실로 끌려가 방문이 다시 잠기고 황금 열쇠는 서랍 안으로
@@ -39,6 +41,7 @@ using UnityEngine.SceneManagement;
 ///  - 침실 밖에 처음 나간 뒤 게임 타이머(멈춘 시간 빼고)로 20초가 지나면 발소리 + "방으로 들어가 있자"
 ///    → 침실에 들어가면 여자친구 등장(안전). 이 이벤트가 끝나기 전에는 위험도가 오르지 않음
 ///  - 그 뒤로 행동 요령 띠에 "여자친구가 올 것 같으면 방에 들어가 있자" 표시 (HideHintUnlocked)
+///  - 아이콘: 발소리 뒤 침실에 들어가기 전까지 빨강 고정 → 등장(이벤트) 중 검정 → 끝나면 원래대로 (2026-11-03 사용자 요청)
 ///
 /// 1스테이지 씬(SliderManager가 있는 씬)에 자동으로 붙습니다.
 /// </summary>
@@ -59,7 +62,10 @@ public sealed class DangerLevel : MonoBehaviour
     private const int EmptyClickAmount = 1;
     private const int EmptyClickBurstCount = 5;
     private const float EmptyClickBurstSeconds = 2f;
-    private const int FootstepThreshold = 65;   // 발소리, 이때 침실에 들어가면 등장
+    private const int FootstepThreshold = 71;   // 발소리, 이때 침실에 들어가면 등장 (2026-11-03: 65 → 71)
+    private const int FastTickThreshold = 71;   // 이 이상이면 2초마다 40% 대신 1초마다 +1
+    private const float FastTickSeconds = 1f;
+    private const int FrontDoorWrongAmount = 20;
     private const float FootstepRepeatSeconds = 10f;
     private const int HighThreshold = 72;       // 확률 판정 시작 (2026-11-03 사용자 요청: 76 → 72, 게임 전체)
     private const int WarnFromOutside = 82;     // 방 밖: 이 값 이상이 될 상황이면 경고 (원래 100)
@@ -257,13 +263,24 @@ public sealed class DangerLevel : MonoBehaviour
         if (value >= FootstepThreshold && Time.time >= nextFootstepTime)
             PlayFootsteps();
 
-        // 시간: 2초마다 40% 확률로 +1
+        // 시간: 2초마다 40% 확률로 +1 / 71 이상이면 1초마다 +1 (사용자 요청 2026-11-03)
         tickTimer += Time.deltaTime;
-        while (tickTimer >= TickSeconds)
+        if (value >= FastTickThreshold)
         {
-            tickTimer -= TickSeconds;
-            if (Random.value < TickChance)
-                Add(Scaled(1));
+            while (tickTimer >= FastTickSeconds)
+            {
+                tickTimer -= FastTickSeconds;
+                Add(1);
+            }
+        }
+        else
+        {
+            while (tickTimer >= TickSeconds)
+            {
+                tickTimer -= TickSeconds;
+                if (Random.value < TickChance)
+                    Add(Scaled(1));
+            }
         }
 
         // 산책 후 대기 시간이 끝났는데 이미 100이면 바로 등장
@@ -394,7 +411,7 @@ public sealed class DangerLevel : MonoBehaviour
                 return;
             }
 
-            // 발소리가 들릴 때(65 이상) 침실에 들어가면 바로 등장
+            // 발소리가 들릴 때(71 이상) 침실에 들어가면 바로 등장
             if (CountsNow() && value >= FootstepThreshold && CanAppear())
                 Appear();
             return;
@@ -519,6 +536,14 @@ public sealed class DangerLevel : MonoBehaviour
     }
 
     /// <summary>기믹을 틀렸을 때 (+10, 현관문 연 뒤 2배)</summary>
+    /// <summary>현관문 비밀번호를 틀렸을 때: +20 (기믹 실패 +10은 따로 안 더함, 사용자 요청 2026-11-03)</summary>
+    public static void FrontDoorPasswordWrong()
+    {
+        FailedCount++;
+        if (Instance != null && Instance.CountsNow())
+            Instance.Add(FrontDoorWrongAmount);
+    }
+
     public static void GimmickFailed()
     {
         FailedCount++;
@@ -974,6 +999,7 @@ public sealed class DangerLevel : MonoBehaviour
             walkYandere = null;
             walkCaughtFxPlayed = false;
             icon = appearing ? appearedIcon
+                 : tutorialWaitingForRoom ? dangerIcon   // 첫 등장 이벤트: 발소리 뒤 빨강 고정
                  : value <= GreenMax ? safeIcon
                  : value < RedFrom ? normalIcon
                  : dangerIcon;

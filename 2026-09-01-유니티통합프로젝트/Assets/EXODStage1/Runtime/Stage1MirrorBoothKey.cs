@@ -121,6 +121,72 @@ public sealed class Stage1MirrorBoothKey : MonoBehaviour
             maze.mazeHeight = 5;
             maze.maxBumps = 6;
         }
+        if (maze != null)
+            StartCoroutine(DecorateMazeUi(maze));
+    }
+
+    // ─── 거울 미로 화면 손보기 (사용자 요청 2026-11-03) ──────────────
+    // - 조작 안내(WASD)·X 버튼이 안 보이던 문제는 미로 UI를 미로 카메라에 붙여 해결 (MirrorMazeGimmick.BuildUI)
+    //   여기서는 안내 문구의 부딪힘 횟수를 실제 값(이지 6번)으로 맞춤
+    // - 미로 중에도 하루 시간은 흐름 → 남은 시간을 미로 화면 오른쪽 위에 보여 줌
+    private const int MazeCanvasOrder = 650;   // 하트 HUD(600)·행동 요령(610) 위, 키패드(700)·대화창 아래
+
+    private IEnumerator DecorateMazeUi(MirrorMazeGimmick maze)
+    {
+        GameObject ui = null;
+        while (maze != null && (ui = FindMazeUi(maze)) == null)
+            yield return null;
+        if (maze == null || ui == null)
+            yield break;
+
+        Canvas canvas = ui.GetComponent<Canvas>();
+        if (canvas != null)
+            canvas.sortingOrder = MazeCanvasOrder;
+
+        Transform guide = ui.transform.Find("Guide");
+        if (guide != null)
+        {
+            Text text = guide.GetComponent<Text>();
+            if (text != null)
+            {
+                text.text = "손거울을 끌어 반대편을 비춰보자   ·   WASD / 방향키: 이동   ·   벽에 " + maze.maxBumps + "번 부딪히면 실패   ·   ESC: 나가기";
+                text.color = Color.white;
+                text.fontSize = 30;
+            }
+        }
+
+        // 남은 시간
+        GameObject timeGo = new GameObject("남은 시간", typeof(RectTransform), typeof(CanvasRenderer), typeof(Text), typeof(Shadow));
+        timeGo.transform.SetParent(ui.transform, false);
+        RectTransform timeRect = (RectTransform)timeGo.transform;
+        timeRect.anchorMin = timeRect.anchorMax = new Vector2(1f, 1f);
+        timeRect.pivot = new Vector2(1f, 1f);
+        timeRect.anchoredPosition = new Vector2(-40f, -130f);   // 닫기(X) 버튼 아래
+        timeRect.sizeDelta = new Vector2(360f, 60f);
+        Text timeText = timeGo.GetComponent<Text>();
+        timeText.font = guide != null && guide.GetComponent<Text>() != null ? guide.GetComponent<Text>().font : Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        timeText.fontSize = 36;
+        timeText.alignment = TextAnchor.MiddleRight;
+        timeText.raycastTarget = false;
+        timeGo.GetComponent<Shadow>().effectColor = new Color(0f, 0f, 0f, 0.85f);
+
+        while (maze != null && timeGo != null)
+        {
+            DayCycleController cycle = DayCycleController.Instance;
+            if (cycle != null)
+            {
+                int seconds = Mathf.CeilToInt(cycle.RemainingSeconds);
+                timeText.text = "남은 시간 " + (seconds / 60) + ":" + (seconds % 60).ToString("00");
+                timeText.color = seconds <= 30 ? new Color(1f, 0.45f, 0.45f, 1f) : Color.white;
+            }
+            yield return null;
+        }
+    }
+
+    private static GameObject FindMazeUi(MirrorMazeGimmick maze)
+    {
+        Transform t = maze.transform.Find("MirrorMazeUI");
+        return t != null ? t.gameObject : null;
     }
 
     private bool solvedCounted;
