@@ -22,7 +22,7 @@ public static class Stage1Dialogues
     {
         Narrate("(눈을 뜨니, 이마 위에 차가운 수건이 얹혀 있다.)"),
         Say(Girlfriend, "깼어? 사흘이나 열이 안 내렸어."),
-        Say(Girlfriend, "자기가 자꾸 집 안을 돌아다니니까 아픈 거야."),
+        DialoguePortrait.WithWalkCaught(Say(Girlfriend, "자기가 자꾸 집 안을 돌아다니니까 아픈 거야.")),   // 칼 든 검은 그림 (2026-11-04)
         Say(Girlfriend, "이제 침대에서 안 나가도 돼. 내가 다 해 줄게 ♡"),
         Narrate("(몸을 일으키려 했지만, 팔다리에 힘이 들어가지 않는다.)"),
         Narrate("(…발목에 무언가 묶여 있다.)"),
