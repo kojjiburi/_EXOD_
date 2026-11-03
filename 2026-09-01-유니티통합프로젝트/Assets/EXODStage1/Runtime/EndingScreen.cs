@@ -373,8 +373,10 @@ public sealed class EndingScreen : MonoBehaviour
         switch (style)
         {
             case EndingStyle.Submission:
-            case EndingStyle.Proposal:
                 EXODSound.PlayAmbience("music_box", 0.45f, 2f);
+                break;
+            case EndingStyle.Proposal:
+                EXODSound.Play("proposal_trumpet");
                 break;
             case EndingStyle.Escape:
                 EXODSound.Play("door_creak", 0.5f);

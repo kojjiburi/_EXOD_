@@ -79,6 +79,7 @@ public sealed class HudToggle : MonoBehaviour
         if (Input.GetKeyDown(ToggleKey) && !IsTypingInInputField())
         {
             hideLevel = (hideLevel + 1) % HideLevelCount;
+            EXODSound.Play("ui_hover");
             RefreshTargets();
             Apply();
         }

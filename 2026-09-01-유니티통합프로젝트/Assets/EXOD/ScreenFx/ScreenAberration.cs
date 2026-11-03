@@ -129,6 +129,10 @@ public sealed class ScreenAberration : MonoBehaviour
         float t = 0f;
         Vector2 jitter = Vector2.zero;
 
+        // 방 밖에서 들킴·산책 중 들킴 컷신 효과음 (1/4 볼륨)
+        if (cutsceneResource == HouseCutscene || cutsceneResource == WalkCutscene)
+            EXODSound.Play("do_not_open", 0.25f);
+
         // 컷신 이미지가 천천히 다 나타난 뒤에 대사 시작
         if (cutscene != null)
         {

@@ -423,6 +423,7 @@ namespace EXOD.Walk
             ItemData item = Booth == null ? null : number == 1 ? Booth.DialButton1 : Booth.DialButton2;
             if (number == 2 && item != null && WalkItems.IsUsing(item) && DialButtonWetness.IsWet(WalkItems.Selected))
             {
+                EXODSound.Play("electric_zap");
                 Say(wetButton2Lines);
                 return;
             }

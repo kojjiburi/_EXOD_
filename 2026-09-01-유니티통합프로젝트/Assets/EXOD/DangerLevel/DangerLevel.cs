@@ -136,6 +136,7 @@ public sealed class DangerLevel : MonoBehaviour
     private Yan yan;
     private EXOD.Walk.WalkYandere walkYandere;
     private bool walkCaughtFxPlayed;
+    private bool redIconSoundPlayed;   // 위험도 아이콘이 붉은색이 되는 순간 i_see_you 한 번
     private Sprite safeIcon, normalIcon, dangerIcon, appearedIcon;
     // 검은 눈 아이콘: 나올 때 그림 1~7(글리치 6장 + 원래 그림)을 한 번, 그 뒤로는 4~7을 계속 반복해 지지직거림
     private const int GlitchFrameCount = 6;
@@ -1002,6 +1003,11 @@ public sealed class DangerLevel : MonoBehaviour
                  : value <= GreenMax ? safeIcon
                  : value < RedFrom ? normalIcon
                  : dangerIcon;
+
+            bool red = icon == dangerIcon;
+            if (red && !redIconSoundPlayed)
+                EXODSound.Play("i_see_you", 0.5f);
+            redIconSoundPlayed = red;
         }
         icon = ApplyAppearGlitch(icon);
         if (icon != null && yan.StateRenderer.sprite != icon)

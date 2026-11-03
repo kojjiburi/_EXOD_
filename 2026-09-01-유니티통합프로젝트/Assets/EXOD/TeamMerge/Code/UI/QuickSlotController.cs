@@ -218,6 +218,9 @@ public sealed class QuickSlotController : MonoBehaviour
             return false;
         }
 
+        if (entry.ItemData.ItemId != "golden_key")
+            EXODSound.Play("inspect");
+
         return inventory.TryRemove(entry);
     }
 

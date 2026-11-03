@@ -102,6 +102,7 @@ public class DayController : MonoBehaviour
         {
             // 컷신 내내 색수차 (방 밖에서 들켰을 때·2스테이지처럼, 사용자 요청 2026-11-03)
             missingFx = StartCoroutine(AnimateMissingFx());
+            EXODSound.Play("do_not_open", 0.25f);   // 물건 걸린 컷신 효과음 (1/4 볼륨)
             yield return FadeCutsceneImage(0f, 1f, missingImageFadeSeconds);
         }
 

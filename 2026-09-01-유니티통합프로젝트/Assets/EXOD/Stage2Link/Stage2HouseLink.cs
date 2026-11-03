@@ -425,7 +425,10 @@ public sealed class Stage2HouseLink : MonoBehaviour
             QuickSlotInventory inventory = QuickSlotInventory.Instance != null
                 ? QuickSlotInventory.Instance
                 : FindFirstObjectByType<QuickSlotInventory>();
-            return inventory != null && inventory.TryAdd(item);
+            bool added = inventory != null && inventory.TryAdd(item);
+            if (added && item != null && item.ItemId != null && item.ItemId.StartsWith("paper"))
+                EXODSound.Play("paper_pickup");
+            return added;
         };
 
         // 전화 부스 기믹: 퀵슬롯 아이템은 끌어다 놓아서 쓴다 (WalkQuickSlotDropBridge → WalkGameManager.HandleItemDrop)
