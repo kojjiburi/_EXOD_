@@ -34,6 +34,8 @@ public static class BoothMode
     public static bool GiveUpDeclined;
     /// <summary>손전등 + 종이 A~E(이지는 A)를 모두 가진 채 화장실 금고를 누른 적 있음 → 청혼 엔딩</summary>
     public static bool SafeTriedWithClues;
+    /// <summary>현관문을 처음으로 열고 나간 적 있음 (Stage1FrontDoorGimmick.LeaveHouse) → [이지] 순응 엔딩 조건에 추가 (사용자 요청 2026-11-04)</summary>
+    public static bool FrontDoorOpened;
 
     private static void ResetRunFlags()
     {
@@ -41,6 +43,7 @@ public static class BoothMode
         ForcingEnding = false;
         GiveUpDeclined = false;
         SafeTriedWithClues = false;
+        FrontDoorOpened = false;
     }
 
     /// <summary>화장실 금고를 누를 때 (RestroomGimmick.OpenKeypad)</summary>
@@ -56,12 +59,25 @@ public static class BoothMode
             SafeTriedWithClues = true;
     }
 
+    /// <summary>손전등 + 종이 A~E(이지는 종이 A만)를 지금 퀵슬롯에 가지고 있는지</summary>
+    public static bool HasFlashlightAndPapers()
+    {
+        QuickSlotInventory inventory = QuickSlotInventory.Instance;
+        if (inventory == null)
+            return false;
+        HashSet<string> ids = new HashSet<string>(inventory.Entries
+            .Where(e => e != null && e.ItemData != null).Select(e => e.ItemData.ItemId));
+        string[] papers = GameDifficulty.IsEasy ? new[] { "paper_a" } : new[] { "paper_a", "paper_b", "paper_c", "paper_d", "paper_e" };
+        return ids.Contains(FlashlightGimmick.FlashlightItemId) && papers.All(ids.Contains);
+    }
+
     public static List<FateEnding> AvailableEndings()
     {
         List<FateEnding> list = new List<FateEnding>();
-        if (GameDifficulty.IsEasy && GiveUpDeclined)
+        if (GameDifficulty.IsEasy && GiveUpDeclined && FrontDoorOpened)
             list.Add(FateEnding.Submission);
-        if (SafeTriedWithClues && !ProposalEnding.HasPlayed)
+        // 청혼: 손전등 + 종이 A~E(이지는 A)를 지금 가지고 있으면 (2026-11-04 사용자 요청: 금고를 눌러 봤는지는 안 봄)
+        if ((SafeTriedWithClues || HasFlashlightAndPapers()) && !ProposalEnding.HasPlayed)
             list.Add(FateEnding.Proposal);
         bool repaired = GameDifficulty.IsEasy
             ? EXOD.Walk.PhoneBoothProgress.PhoneRepaired

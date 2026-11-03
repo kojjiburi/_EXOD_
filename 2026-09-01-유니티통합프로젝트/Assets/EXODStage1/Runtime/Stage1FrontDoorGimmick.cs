@@ -127,6 +127,7 @@ public sealed class Stage1FrontDoorGimmick : MonoBehaviour
     private void LeaveHouse()
     {
         isCleared = true;
+        BoothMode.FrontDoorOpened = true;   // 부스 모드 '운명의 갈림길' [이지] 순응 엔딩 조건
         Stage2HouseLink.RequestEnter();
     }
 

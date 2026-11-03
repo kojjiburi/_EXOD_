@@ -79,7 +79,9 @@ public sealed class EasyGiveUpPrompt : MonoBehaviour
             if (choice != 0)
             {
                 BoothMode.GiveUpDeclined = true;   // 부스 모드 '이미 볼 수 있는 엔딩'(순응) 조건
-                return;   // [아니요] → 계속
+                // [아니요] → 계속. 선택지 컷신은 끝나도 방이 잠긴 채라 짧은 대사로 이어서 풀어 줌 (방 이동 먹통 수정, 2026-11-04)
+                Stage1Room.PlayCutscene(Stage1Dialogues.EasyGiveUpDeclined());
+                return;
             }
 
             if (PlayerFaintController.Instance != null)

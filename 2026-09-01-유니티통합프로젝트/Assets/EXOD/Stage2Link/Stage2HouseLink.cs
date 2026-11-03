@@ -219,15 +219,10 @@ public sealed class Stage2HouseLink : MonoBehaviour
             return;
         }
 
-        // [이지] 1일차에는 외출 금지 (사용자 요청 2026-11-03)
-        if (GameDifficulty.IsEasy && GManager.Instance != null && GManager.Instance.Day <= 1)
-        {
-            DialogueManager.Instance?.StartDialogue(Stage1Dialogues.WalkFirstDayBlocked());
-            return;
-        }
-
-        // 하루 남은 시간 1분 20초 이하면 외출 불가 (이지·하드 같음)
-        if (DayCycleController.Instance != null && DayCycleController.Instance.RemainingSeconds <= MinRemainingToWalkSeconds)
+        // [이지] 1일차 외출 금지 / 하루 남은 시간 1분 20초 이하면 외출 불가 (이지·하드 같음)
+        // 둘 다 같은 연출 (그녀가 했던 말 + 산책 들킴 그림, 같은 날 다시 누르면 그녀 모습이 아른거림) — 2026-11-04 사용자 요청
+        bool easyFirstDay = GameDifficulty.IsEasy && GManager.Instance != null && GManager.Instance.Day <= 1;
+        if (easyFirstDay || (DayCycleController.Instance != null && DayCycleController.Instance.RemainingSeconds <= MinRemainingToWalkSeconds))
         {
             int today = GManager.Instance != null ? GManager.Instance.Day : 0;
             if (tooLateShownDay != today)
@@ -235,7 +230,7 @@ public sealed class Stage2HouseLink : MonoBehaviour
                 // 하루 한 번: 그녀가 했던 말이 떠오름 (여자친구 줄은 산책 들킴 그림)
                 tooLateShownDay = today;
                 DialoguePortrait.UseWalkCaughtForNextDialogue();
-                DialogueManager.Instance?.StartDialogue(Stage1Dialogues.WalkTooLate());
+                DialogueManager.Instance?.StartDialogue(easyFirstDay ? Stage1Dialogues.WalkFirstDayBlocked() : Stage1Dialogues.WalkTooLate());
             }
             else if (DialogueManager.Instance != null)
             {

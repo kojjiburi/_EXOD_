@@ -452,6 +452,13 @@ namespace EXOD.Walk
             Say(lines);
         }
 
+        void OnCallPanelDrop()
+        {
+            var address = Booth != null ? Booth.AddressNote : null;
+            if (call == CallState.Connected && address != null && WalkItems.IsUsing(address))
+                StartReport();
+        }
+
         void OnHandset()
         {
             switch (call)
@@ -690,6 +697,16 @@ namespace EXOD.Walk
             var panel = WalkUi.CreateImage("통화 창", root, WalkUi.NameBoxSprite, new Color(0.12f, 0.02f, 0.03f, 0.85f));
             if (WalkUi.NameBoxSprite != null) panel.type = Image.Type.Sliced;
             SetAnchors(panel.rectTransform, callArea);
+
+            // 오른쪽 통화 창('위치 말하는 중')에 주소지를 끌어다 놓아도 수화기에 놓은 것과 같게 (nicezzomaru 2026-11-04, 사용자 요청)
+            // 그냥 클릭했을 때는 아무 일도 없음 (주소지를 놓았을 때만)
+            hotspots.Add(new Hotspot
+            {
+                id = "통화 창",
+                rect = panel.rectTransform,
+                image = null,
+                onClick = OnCallPanelDrop
+            });
 
             callTitle = WalkUi.CreateText("제목", panel.rectTransform, 34, WalkUi.NameTextColor, TextAnchor.UpperCenter);
             SetAnchors(callTitle.rectTransform, new Rect(0.05f, 0.8f, 0.9f, 0.16f));

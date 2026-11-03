@@ -56,7 +56,7 @@ public sealed class Stage1HelpBar : MonoBehaviour
     // 오른쪽 가장자리에 세로로 긴 모양 (사용자 그림 2026-11-02: 가로 줄이고 오른쪽 아래로 길게)
     private const float ExpandedWidth = 720f;
     private const float MinExpandedHeight = 160f;
-    private const float MaxExpandedHeight = 420f;
+    private const float MaxExpandedHeight = 520f;   // 2026-11-04: [이지] 힌트 줄이 많아 420 → 520
     private const float CollapsedWidth = 450f;
     private const float CollapsedHeight = 62f;
 
@@ -328,6 +328,10 @@ public sealed class Stage1HelpBar : MonoBehaviour
         if (!string.IsNullOrEmpty(goal))
             tips.Add($"<color=#{ColorUtility.ToHtmlStringRGB(GoalColor)}>목표: {goal}</color>");
 
+        // 침대 안내는 목표 바로 아래 (맨 아래에 두면 [이지] 힌트가 많을 때 띠 높이를 넘어 잘려 안 보였음, 2026-11-04)
+        if (!string.IsNullOrEmpty(goal))
+            tips.Add(BedTip);
+
         // [이지] 노란 힌트 (EasyHelpTips)
         foreach (string tip in EasyHelpTips.HouseTips())
             tips.Add(Yellow(tip));
@@ -340,8 +344,6 @@ public sealed class Stage1HelpBar : MonoBehaviour
         tips.Add(HouseRules[1]);
         if (DangerLevel.HideHintUnlocked)
             tips.Add(HideTip);
-        if (!string.IsNullOrEmpty(goal))
-            tips.Add(BedTip);
 
         return tips.ToArray();
     }

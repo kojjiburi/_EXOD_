@@ -574,11 +574,21 @@ public static class Stage1Dialogues
         Narrate("여기까지 하시겠습니까?"),
     };
 
+    // [이지] '여기까지 하시겠습니까?'에서 [아니요]
+    public static List<DialogueLine> EasyGiveUpDeclined() => new List<DialogueLine>
+    {
+        Think("…아직이야. 여기서 포기할 순 없어."),
+    };
+
     // [이지] 1일차에 현관문으로 나가려 하면 (Stage2HouseLink)
+    // (2026-11-04) 늦은 시간 현관문과 같은 연출(그녀가 했던 말 + 산책 들킴 그림, 다시 누르면 아른거림)로 나옴
     public static List<DialogueLine> WalkFirstDayBlocked() => new List<DialogueLine>
     {
-        Think("…아직 첫날이야. 지금 나가면 바로 들킬 것 같아."),
-        Think("오늘은 집 안부터 살펴보자."),
+        Narrate("산책을 나가려다가 멈췄다."),
+        Think("그녀가 언젠가 말했던 게 떠올랐다."),
+        Say(Girlfriend, "첫날부터 밖에 나가려고? 나 화낼꺼야."),
+        Think("....."),
+        Think("…아직 첫날이야. 오늘은 집 안부터 살펴보자."),
     };
 
     // 하루 남은 시간이 1분 20초 이하일 때 현관문으로 나가려 하면 (Stage2HouseLink) — 하루 첫 번째 (사용자 대사 2026-11-03)

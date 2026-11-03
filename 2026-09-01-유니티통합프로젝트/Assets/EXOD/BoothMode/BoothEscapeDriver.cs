@@ -70,25 +70,40 @@ public sealed class BoothEscapeDriver : MonoBehaviour
     }
 
     // 대화창이 있는 캔버스만 남기고 UI 클릭을 막음 (대사 넘기기만 가능)
+    // (nicezzomaru 2026-11-04 수정) 대화창 [다음] 버튼은 대화창 안쪽의 중첩 캔버스(자체 Raycaster)에 있어서,
+    // 맨 위 캔버스만 남기면 [다음]이 눌리지 않아 산책 첫 대사에서 멈췄음 → 대화창이 들어 있는 캔버스와 그 안의 캔버스는 모두 남김
     private void BlockUiClicks()
     {
-        Canvas keep = null;
-        if (DialogueManager.Instance != null && DialogueManager.Instance.DialoguePanelRect != null)
+        Transform panel = DialogueManager.Instance != null && DialogueManager.Instance.DialoguePanelRect != null
+            ? DialogueManager.Instance.DialoguePanelRect
+            : null;
+
+        // 예전에 막았는데 지금은 대화창 쪽이면 다시 켬 (대화창이 다른 캔버스로 옮겨졌을 때)
+        for (int i = disabledRaycasters.Count - 1; i >= 0; i--)
         {
-            Canvas c = DialogueManager.Instance.DialoguePanelRect.GetComponentInParent<Canvas>();
-            keep = c != null ? c.rootCanvas : null;
+            BaseRaycaster r = disabledRaycasters[i];
+            if (r != null && IsDialogueRaycaster(r, panel))
+            {
+                r.enabled = true;
+                disabledRaycasters.RemoveAt(i);
+            }
         }
 
         foreach (BaseRaycaster r in FindObjectsByType<BaseRaycaster>(FindObjectsSortMode.None))
         {
-            if (!r.enabled)
-                continue;
-            Canvas own = r.GetComponent<Canvas>();
-            if (keep != null && own == keep)
+            if (!r.enabled || IsDialogueRaycaster(r, panel))
                 continue;
             r.enabled = false;
             disabledRaycasters.Add(r);
         }
+    }
+
+    // 대화창을 품고 있는 캔버스이거나, 대화창 안에 있는 캔버스
+    private static bool IsDialogueRaycaster(BaseRaycaster r, Transform panel)
+    {
+        if (panel == null)
+            return false;
+        return panel.IsChildOf(r.transform) || r.transform.IsChildOf(panel);
     }
 
     private static bool DialogueOpen() =>
