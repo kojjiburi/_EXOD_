@@ -96,11 +96,14 @@ public sealed class DialoguePortrait : MonoBehaviour
     private Sprite walkCaughtSprite;
     private bool showingWalkCaught;
 
-    // 칼 든 검은 그림: 그림 폭이 넓어 얼굴이 오른쪽으로 치우치므로, 기본 초상화 얼굴 위치에 맞춰 왼쪽으로 옮기고 20 올리고 10% 작게 (사용자 요청 2026-11-03)
+    // 칼 든 검은 그림: 그림 폭이 넓어 얼굴이 오른쪽으로 치우치므로, 기본 초상화 얼굴 위치에 맞춰 왼쪽으로 옮기고 정수리 높이를 맞추고 10% 작게 (사용자 요청 2026-11-03·04)
     // 얼굴 가운데: 기본 초상화 = 높이의 0.178배 지점, 칼 그림 = (0.9배 크기에서) 높이의 0.437배 지점
     private const float WalkCaughtScale = 0.9f;
     private const float WalkCaughtShiftX = -0.259f;   // × 기본 초상화 높이
-    private const float WalkCaughtRaiseY = 20f;
+    // 정수리 맞추기: 기본 초상화는 그림 맨 위(0px)가 정수리, 칼 그림은 1012px 중 위에서 32px 지점이 정수리.
+    // 둘 다 아래 끝을 같은 자리에 두므로, 칼 그림을 (기본 높이 - 칼 그림 정수리 높이)만큼 올림 (사용자 요청 2026-11-04)
+    private const float WalkCaughtHeadTopRatio = 1f - 32f / 1012f;
+    private float WalkCaughtRaiseY => girlfriendHeight * (1f - WalkCaughtScale * WalkCaughtHeadTopRatio);
 
     /// <summary>켜 두면 여자친구 대사여도 초상화를 띄우지 않습니다. (들켰을 때 컷신 — ScreenAberration이 켬)</summary>
     public static bool HideGirlfriend { get; set; }
