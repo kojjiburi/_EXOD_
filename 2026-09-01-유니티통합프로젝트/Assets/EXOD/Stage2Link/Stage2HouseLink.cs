@@ -42,6 +42,8 @@ public sealed class Stage2HouseLink : MonoBehaviour
     public const float MinRemainingToWalkSeconds = 80f;
 
     public static bool IsInStage2 => Instance != null && Instance.inStage2;
+    /// <summary>이번 판에 현관문 밖(산책)에 한 번이라도 나가 봤는지</summary>
+    public static bool HasBeenOutside => Instance != null && Instance.hasEnteredOnce;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
     private static void RegisterSceneHandler()

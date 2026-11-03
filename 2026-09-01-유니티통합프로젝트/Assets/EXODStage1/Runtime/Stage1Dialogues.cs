@@ -463,11 +463,14 @@ public static class Stage1Dialogues
 
     // 미로 출구에 도착했을 때 (이 대사 뒤 부스 열쇠가 퀵슬롯에 들어옴)
     // 미로 안에서 떨어진 열쇠를 주운 뒤 미로를 닫으면 (줍기·"얻었다" 문구는 친구 미로 기믹이 보여 줌, 2026-11-02)
-    public static List<DialogueLine> MirrorKeyFound() => new List<DialogueLine>
+    // 아직 밖에 나가 본 적이 없으면 전화 부스 추측 대사는 빼기 (사용자 요청 2026-11-03)
+    public static List<DialogueLine> MirrorKeyFound()
     {
-        Narrate("열쇠고리에 'TELEPHONE'이라고 적혀 있다."),
-        Think("전화…? 밖에 있는 빨간 전화 부스 열쇠인가?"),
-    };
+        var lines = new List<DialogueLine> { Narrate("열쇠고리에 'TELEPHONE'이라고 적혀 있다.") };
+        if (Stage2HouseLink.HasBeenOutside)
+            lines.Add(Think("전화…? 밖에 있는 빨간 전화 부스 열쇠인가?"));
+        return lines;
+    }
 
     // 벽에 너무 많이 부딪혀 닫혔을 때
     public static List<DialogueLine> MirrorFailed() => new List<DialogueLine>
