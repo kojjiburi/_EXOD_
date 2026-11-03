@@ -70,6 +70,7 @@ public sealed class DialoguePortrait : MonoBehaviour
         walkCaughtRequested = false;
         walkCaughtActive = false;
         walkCaughtLines.Clear();
+        ExtraWalkCaughtVignette = false;
     }
 
     [Header("=== 배치 (Canvas 기준 크기) ===")]
@@ -101,6 +102,12 @@ public sealed class DialoguePortrait : MonoBehaviour
     private const float WalkCaughtScale = 1f;
     private const float WalkCaughtShiftX = -0.004f;   // × 기본 초상화 높이
     private float WalkCaughtRaiseY => 0f;
+
+    // 칼 든 그림이 떠 있는 동안 화면 가장자리가 천천히 어두워짐 (전화 부스 뒤돌기 경고와 같은 비네트, 깜빡임 없음 — 사용자 요청 2026-11-04)
+    /// <summary>대화 초상화가 아니어도 비네트를 켜고 싶을 때 (늦은 시간 현관문 아른거림)</summary>
+    public static bool ExtraWalkCaughtVignette { get; set; }
+    private const float VignetteFadeSeconds = 0.8f;
+    private Image vignette;
 
     /// <summary>켜 두면 여자친구 대사여도 초상화를 띄우지 않습니다. (들켰을 때 컷신 — ScreenAberration이 켬)</summary>
     public static bool HideGirlfriend { get; set; }
@@ -155,6 +162,8 @@ public sealed class DialoguePortrait : MonoBehaviour
 
     private void LateUpdate()
     {
+        UpdateVignette();
+
         if (portrait == null || !portrait.gameObject.activeSelf)
             return;
 
@@ -170,6 +179,7 @@ public sealed class DialoguePortrait : MonoBehaviour
         if (walkCaughtRequested)
             walkCaughtActive = true;
         bool lineWalkCaught = walkCaughtLines.Remove(line);
+        bool wasWalkCaught = showingWalkCaught;
         showingWalkCaught = false;
 
         bool isGirlfriend = speaker == Stage1Dialogues.Unknown || speaker == Stage1Dialogues.Girlfriend || speaker == "얀데레" || speaker == "여주";
@@ -180,6 +190,8 @@ public sealed class DialoguePortrait : MonoBehaviour
         else if (speaker == Stage1Dialogues.Girlfriend || speaker == "얀데레" || speaker == "여주")
         {
             showingWalkCaught = (walkCaughtActive || lineWalkCaught) && walkCaughtSprite != null;
+            if (showingWalkCaught && !wasWalkCaught)
+                EXODSound.Play("cursed_horror");   // 검은 그림이 나올 때 (사용자 요청 2026-11-04)
             if (showingWalkCaught)
                 Show(walkCaughtSprite, Color.white, girlfriendHeight * WalkCaughtScale, girlfriendHiddenBelow);
             else
@@ -250,6 +262,68 @@ public sealed class DialoguePortrait : MonoBehaviour
             portrait.gameObject.SetActive(false);
 
         fadeCoroutine = null;
+    }
+
+    private void UpdateVignette()
+    {
+        bool want = (showingWalkCaught && isShown) || ExtraWalkCaughtVignette;
+        if (vignette == null)
+        {
+            if (!want || portrait == null)
+                return;
+            GameObject go = new GameObject("칼 그림 가장자리 어둡게", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            go.transform.SetParent(portrait.transform.parent, false);
+            RectTransform r = (RectTransform)go.transform;
+            r.anchorMin = Vector2.zero;
+            r.anchorMax = Vector2.one;
+            r.offsetMin = r.offsetMax = Vector2.zero;
+            vignette = go.GetComponent<Image>();
+            vignette.sprite = CreateVignetteSprite();
+            vignette.raycastTarget = false;
+            vignette.color = new Color(1f, 1f, 1f, 0f);
+        }
+
+        Color c = vignette.color;
+        c.a = Mathf.MoveTowards(c.a, want ? 1f : 0f, Time.unscaledDeltaTime / VignetteFadeSeconds);
+        vignette.color = c;
+        bool visible = c.a > 0.001f;
+        if (vignette.gameObject.activeSelf != visible)
+            vignette.gameObject.SetActive(visible);
+        if (visible)
+        {
+            // 초상화·대화창·이름표보다 뒤, 게임 화면 위
+            Transform parent = vignette.transform.parent;
+            int index = portrait.transform.GetSiblingIndex();
+            RectTransform box = DialogueManager.Instance != null ? DialogueManager.Instance.DialoguePanelRect : null;
+            if (box != null && box.parent == parent)
+                index = Mathf.Min(index, box.GetSiblingIndex());
+            int mine = vignette.transform.GetSiblingIndex();
+            if (mine != index - 1)
+                vignette.transform.SetSiblingIndex(mine < index ? index - 1 : index);
+        }
+    }
+
+    // 가장자리만 검고 가운데는 투명한 그림 (WalkBoothTurnWarning과 같은 모양)
+    private static Sprite CreateVignetteSprite()
+    {
+        const int w = 256, h = 144;
+        Texture2D tex = new Texture2D(w, h, TextureFormat.RGBA32, false);
+        tex.wrapMode = TextureWrapMode.Clamp;
+        Color[] px = new Color[w * h];
+        for (int y = 0; y < h; y++)
+        {
+            for (int x = 0; x < w; x++)
+            {
+                float dx = (x / (w - 1f) - 0.5f) * 2f;
+                float dy = (y / (h - 1f) - 0.5f) * 2f;
+                float d = Mathf.Sqrt(dx * dx * 0.85f + dy * dy * 0.85f);
+                float a = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.55f, 1.15f, d)) * 0.95f;
+                px[y * w + x] = new Color(0f, 0f, 0f, a);
+            }
+        }
+        tex.SetPixels(px);
+        tex.Apply();
+        return Sprite.Create(tex, new Rect(0, 0, w, h), new Vector2(0.5f, 0.5f));
     }
 
     // 이름표 바로 뒤(대화창·이름표보다 먼저) 그려지도록 순서를 맞춥니다.

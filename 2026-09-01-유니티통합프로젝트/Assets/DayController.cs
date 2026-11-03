@@ -102,11 +102,14 @@ public class DayController : MonoBehaviour
         {
             // 컷신 내내 색수차 (방 밖에서 들켰을 때·2스테이지처럼, 사용자 요청 2026-11-03)
             missingFx = StartCoroutine(AnimateMissingFx());
-            EXODSound.Play("do_not_open");   // 물건 걸린 컷신 효과음
+            EXODSound.Play("horror_sting");   // 물건 걸린 컷신 효과음 (사용자 요청 2026-11-04)
             yield return FadeCutsceneImage(0f, 1f, missingImageFadeSeconds);
         }
 
         bool reportDone = false;
+        // 물건 걸림 컷신 동안은 대화창에 여자친구 초상화를 띄우지 않음 (방 밖 들킴과 같음, 사용자 요청 2026-11-04)
+        if (showMissingImage)
+            DialoguePortrait.HideGirlfriend = true;
         DialogueOnTop.Raise(ReportDialogueOrder);
         if (DayEndReport.TryPlayNow(() => reportDone = true))
         {
@@ -115,6 +118,8 @@ public class DayController : MonoBehaviour
             yield return new WaitForSecondsRealtime(0.3f);   // 초상화가 사라질 시간
         }
         DialogueOnTop.Lower(ReportDialogueOrder);
+        if (showMissingImage)
+            DialoguePortrait.HideGirlfriend = false;
 
         if (showMissingImage)
         {

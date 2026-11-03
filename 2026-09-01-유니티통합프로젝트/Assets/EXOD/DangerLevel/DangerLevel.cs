@@ -215,8 +215,63 @@ public sealed class DangerLevel : MonoBehaviour
     //  매 프레임
     // ═══════════════════════════════════════════════════
 
+    // ─── 공포 효과음 (사용자 요청 2026-11-04) ───
+    // 2초 안에 위험도가 15 이상 오르면 horror_sting / 집 안에서 게임 시간 15초마다 20% 확률로 kikiki
+    private const float SpikeWindowSeconds = 2f;
+    private const int SpikeAmount = 15;
+    private const float AmbientScareInterval = 15f;
+    private const float AmbientScareChance = 0.2f;
+    private readonly System.Collections.Generic.Queue<(float time, int value)> recentValues = new System.Collections.Generic.Queue<(float, int)>();
+    private float spikeCooldownUntil;
+    private bool spikeLineShown;     // 처음 한 번만 대사
+    private bool spikeLinePending;
+    private static readonly string[] SpikeFirstLines = { "으스스한 기분이든다.", "여자친구가 올만한 행동을 너무 많이했나?" };
+    private float ambientScareTimer;
+
+    private void UpdateScareSounds()
+    {
+        float now = Time.unscaledTime;
+        recentValues.Enqueue((now, value));
+        while (recentValues.Count > 0 && now - recentValues.Peek().time > SpikeWindowSeconds)
+            recentValues.Dequeue();
+        int min = value;
+        foreach (var v in recentValues)
+            if (v.value < min)
+                min = v.value;
+        if (value - min >= SpikeAmount && now >= spikeCooldownUntil)
+        {
+            EXODSound.Play("horror_sting");
+            spikeCooldownUntil = now + SpikeWindowSeconds;
+            recentValues.Clear();
+            if (!spikeLineShown)
+            {
+                spikeLineShown = true;
+                spikeLinePending = true;
+            }
+        }
+
+        // 처음 급상승했을 때 대사 (다른 대화·연출이 끝난 뒤에)
+        if (spikeLinePending && !appearing && !DayController.IsTransitioning && DialogueManager.Instance != null
+            && !DialogueManager.Instance.IsDialogueOpen && !(PlayerFaintController.Instance != null && PlayerFaintController.Instance.IsBusy))
+        {
+            spikeLinePending = false;
+            DialogueManager.Instance.StartDialogue(Stage1Dialogues.Thought(SpikeFirstLines));
+        }
+
+        // 집 안·시간이 흐를 때만 (산책·대화·컷신·연출 중엔 안 셈)
+        if (Stage2HouseLink.IsInStage2 || appearing || DayController.IsTransitioning || DayCycleController.IsTimePaused())
+            return;
+        ambientScareTimer += Time.deltaTime;
+        if (ambientScareTimer < AmbientScareInterval)
+            return;
+        ambientScareTimer = 0f;
+        if (Random.value < AmbientScareChance)
+            EXODSound.Play("kikiki");
+    }
+
     private void Update()
     {
+        UpdateScareSounds();
         UpdateIcon();
 #if UNITY_EDITOR
         UpdateEditorTestKeys();
@@ -759,6 +814,7 @@ public sealed class DangerLevel : MonoBehaviour
 
         // 침실 밖에서 들킴 → (들킨 대사 동안 화면 색수차) → 하트 -1 → (게임 오버가 아니면) 침실로 끌려가 다시 갇힘
         // 색수차는 끌려가 다시 갇히는 대사까지 컷신 내내 유지 (사용자 요청 2026-11-03)
+        ScreenAberration.NextSound = "horror_sting";   // 방 밖에서 들킴 (사용자 요청 2026-11-04)
         ScreenAberration.Play(() => PlayCutscene(Stage1Dialogues.VisitCaught(), () =>
         {
             HeartManager hearts = FindFirstObjectByType<HeartManager>(FindObjectsInactive.Include);
@@ -1030,7 +1086,10 @@ public sealed class DangerLevel : MonoBehaviour
             bool caught = walkYandere != null && walkYandere.State == EXOD.Walk.YandereState.Caught;
             // 들킨 순간 화면 색수차 (들킨 대사가 끝날 때까지)
             if (caught && !walkCaughtFxPlayed)
+            {
+                ScreenAberration.NextSound = "cursed_horror";   // 산책에서 들킴 (사용자 요청 2026-11-04)
                 ScreenAberration.Play(null, true, ScreenAberration.WalkCutscene);
+            }
             walkCaughtFxPlayed = caught;
 
             if (walkYandere == null)

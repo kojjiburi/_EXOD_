@@ -54,6 +54,9 @@ public sealed class ScreenAberration : MonoBehaviour
 
     public static bool IsPlaying => instance != null && instance.routine != null;
 
+    /// <summary>다음 Play 한 번에 쓸 효과음 (비우면 do_not_open). 부르는 쪽마다 소리가 달라서 (사용자 요청 2026-11-04)</summary>
+    public static string NextSound { get; set; }
+
     /// <summary>
     /// 화면을 찍고 색수차를 켭니다. 찍은 뒤 afterCapture를 부릅니다 (여기서 대사를 시작하면 찍힌 화면에 대사창이 안 들어감).
     /// stopWhenDialogueCloses가 true면 대사가 열렸다가 닫힐 때 저절로 꺼지고, false면 Stop()을 불러야 꺼집니다.
@@ -129,9 +132,11 @@ public sealed class ScreenAberration : MonoBehaviour
         float t = 0f;
         Vector2 jitter = Vector2.zero;
 
-        // 방 밖에서 들킴·산책 중 들킴 컷신 효과음
+        // 들킴 컷신 효과음 (방 밖 들킴 = horror_sting, 산책 들킴·처음 현관 = cursed_horror, 그 외 = do_not_open)
+        string sound = string.IsNullOrEmpty(NextSound) ? "do_not_open" : NextSound;
+        NextSound = null;
         if (cutsceneResource == HouseCutscene || cutsceneResource == WalkCutscene)
-            EXODSound.Play("do_not_open");
+            EXODSound.Play(sound);
 
         // 컷신 이미지가 천천히 다 나타난 뒤에 대사 시작
         if (cutscene != null)

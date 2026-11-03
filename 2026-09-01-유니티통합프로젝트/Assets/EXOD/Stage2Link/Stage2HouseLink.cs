@@ -145,6 +145,8 @@ public sealed class Stage2HouseLink : MonoBehaviour
 
         hauntImage.color = new Color(1f, 1f, 1f, 0f);
         hauntImage.gameObject.SetActive(true);
+        DialoguePortrait.ExtraWalkCaughtVignette = true;   // 화면 가장자리도 천천히 어둡게
+        EXODSound.Play("cursed_horror");   // 검은 그림이 나올 때 소리
         float t = 0f;
         while (!ended && dm != null && dm.IsDialogueOpen)
         {
@@ -156,6 +158,7 @@ public sealed class Stage2HouseLink : MonoBehaviour
         if (dm != null)
             dm.onDialogueEnd.RemoveListener(onEnd);
         hauntImage.gameObject.SetActive(false);
+        DialoguePortrait.ExtraWalkCaughtVignette = false;
         hauntRoutine = null;
     }
 
@@ -258,6 +261,7 @@ public sealed class Stage2HouseLink : MonoBehaviour
         if (first)
         {
             // 처음 나갈 때: '방 밖에서 들킴' 연출 위에서 "…들켰다"까지 → 연출이 사라지고 정상 화면 → 나머지 대사 (사용자 요청 2026-11-03)
+            ScreenAberration.NextSound = "cursed_horror";   // 첫 대사 직전 소리 (사용자 요청 2026-11-04)
             ScreenAberration.Play(() => PlayStoryCutscene(Stage1Dialogues.Stage2EnterFirstCaught(), () =>
             {
                 ScreenAberration.Stop();
