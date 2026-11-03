@@ -57,7 +57,7 @@ namespace EXOD.Walk
         {
             new WalkLine(Her, "오늘부터 하루에 한 번은 나랑 같이 산책하는 거야."),
             new WalkLine(Her, "집 대문에서 저 길 끝까지, 한 번만 갔다 오고 들어가자."),
-            new WalkLine("", "(길은 저절로 걷는다. 그녀가 뒤돌아봤을 때 무언가를 건드리면 안 된다.)")
+            new WalkLine("", "(그녀에게 끌려가며 이동한다. 그녀가 당신을 볼 때 무언가를 건드리면 안 된다.)")
         };
         [SerializeField] WalkLine[] introLines = { new WalkLine(Her, "오늘도 같이 걷자.") };
         [SerializeField] WalkLine[] completedLines = { new WalkLine(Her, "오늘 산책 즐거웠어. 이제 들어가자.") };
@@ -74,7 +74,7 @@ namespace EXOD.Walk
         [SerializeField] WalkLine[] caughtLines =
         {
             new WalkLine(Her, "…지금 뭐 하는 거야?"),
-            new WalkLine(Her, "들어가자. 오늘은 이제 밖에 안 나갈 거야.")
+            new WalkLine(Her, "들어가. 오늘은 이제 밖에 안 나갈 거야.")
         };
         [SerializeField] WalkLine[] dayEndedLines = { new WalkLine(Her, "늦었다. 이만 들어가자.") };
 

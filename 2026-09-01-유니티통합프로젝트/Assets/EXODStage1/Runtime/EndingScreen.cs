@@ -373,7 +373,7 @@ public sealed class EndingScreen : MonoBehaviour
         switch (style)
         {
             case EndingStyle.Submission:
-                EXODSound.PlayAmbience("music_box", 0.45f, 2f);
+                EXODSound.Play("do_not_open");   // 순응 엔딩 (사용자 요청 2026-11-03, 원래 오르골)
                 break;
             case EndingStyle.Proposal:
                 EXODSound.Play("proposal_trumpet");

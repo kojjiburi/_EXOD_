@@ -84,6 +84,7 @@ public static class Stage1Dialogues
         lines.Add(Say(Girlfriend, "이따 밥 가져올게. 그때까지 얌전히 기다려야 해 ♡"));
         lines.Add(Narrate("철컥. 밖에서 문 잠기는 소리가 들렸다."));
         lines.Add(Think("…좋아. 그녀가 다시 오기 전에, 이 방부터 빠져나가자."));
+        lines.Add(Narrate("(무엇을 할지 모르겠으면 행동요령의 노란 글씨를 잘 보자)"));
         return lines;
     }
 
@@ -305,13 +306,13 @@ public static class Stage1Dialogues
     // 질문 1에서 '예'를 골랐을 때 (기절)
     public static List<DialogueLine> FrontDoorQuestion1Fail() => new List<DialogueLine>
     {
-        Say(Girlfriend, "…뭐라고?"),
+        DialoguePortrait.WithWalkCaught(Say(Girlfriend, "…뭐라고?")),   // 칼 든 검은 그림
     };
 
     // 질문 2에서 '아니요'를 골랐을 때 (기절)
     public static List<DialogueLine> FrontDoorQuestion2Fail() => new List<DialogueLine>
     {
-        Say(Girlfriend, "괜찮아. 이제부터… 천천히 알게 될 거야."),
+        DialoguePortrait.WithWalkCaught(Say(Girlfriend, "괜찮아. 이제부터… 천천히 알게 될 거야.")),   // 칼 든 검은 그림
     };
 
     public static List<DialogueLine> FrontDoorPassed() => new List<DialogueLine>
@@ -333,7 +334,7 @@ public static class Stage1Dialogues
         Narrate("끼익— 현관문이 열렸다."),
         Narrate("문 앞에… 누군가 서 있다."),
         Say(Girlfriend, "어머, 자기야. 마중 나와 준 거야?"),
-        Think("…들켰다. 심장이 멎는 줄 알았어."),
+        Think("들켰다....."),
         Say(Player, "...?"),   // (사용자 요청 2026-11-03) 이 줄까지 들킨 연출 위, 다음 줄부터 정상 화면
     };
 
@@ -597,6 +598,13 @@ public static class Stage1Dialogues
     {
         Think("그녀의 모습이 아른거린다..."),
         Think("내일 나가자."),
+    };
+
+    // 산책에서 돌아왔는데 하루 남은 시간이 30초 미만일 때 (Stage2HouseLink, 뛰는 발소리와 함께)
+    public static List<DialogueLine> WalkReturnHurry() => new List<DialogueLine>
+    {
+        Think("시간이 아슬아슬하다."),
+        Think("얼른 정리하고 자러가자."),
     };
 
     // 10의 배수 일차 아침: 하트 +1 (DayEndReport)

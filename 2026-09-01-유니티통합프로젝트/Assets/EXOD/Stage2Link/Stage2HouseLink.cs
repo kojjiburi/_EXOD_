@@ -386,7 +386,19 @@ public sealed class Stage2HouseLink : MonoBehaviour
         WalkSession.LastResult = WalkResult.None;
         if (!string.IsNullOrEmpty(message))
             DialogueManager.Instance?.StartDialogue(Stage1Dialogues.Thought(message));
+
+        // 돌아왔는데 하루 남은 시간이 30초도 안 남았으면: 뛰는 발소리 + 서두르자 (사용자 요청 2026-11-03)
+        DayCycleController day = DayCycleController.Instance;
+        if (day != null && day.RemainingSeconds > 0f && day.RemainingSeconds < HurryRemainingSeconds)
+        {
+            while (DialogueManager.Instance != null && DialogueManager.Instance.IsDialogueOpen)
+                yield return null;
+            EXODSound.Play("footsteps");
+            DialogueManager.Instance?.StartDialogue(Stage1Dialogues.WalkReturnHurry());
+        }
     }
+
+    private const float HurryRemainingSeconds = 30f;
 
     // ═══════════════════════════════════════════════════
     //  1스테이지 화면 숨기기 / 되돌리기

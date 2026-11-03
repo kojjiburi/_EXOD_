@@ -229,7 +229,7 @@ internal sealed class BearLimbGimmickManager : MonoBehaviour
 
         if (FindEntry(inventory, Stage1Dialogues.FridgeNoteItemId) == null && !inventory.TryAdd(rewardItem))
         {
-            Say(Stage1Dialogues.Bear, "보답할 게 있는데… 받을 자리가 없네요. 퀵슬롯을 조금 비우고 거실의 저를 눌러 주세요.");
+            Say(Stage1Dialogues.Bear, "보답할 게 있는데… 받을 자리가 없네요. 퀵슬롯을 조금 비우고 저를 불러 주세요.");
             return false;
         }
 

@@ -83,7 +83,7 @@ public class PasswordDrawer : MonoBehaviour
 
             if (isKeyCollected)
             {
-                ShowDialogue(new[] { "열린 서랍이다.", "황금 열쇠는 이미 챙겼다." });
+                // 열쇠를 이미 챙긴 뒤 다시 누르면 대사 없음 (사용자 요청 2026-11-03)
             }
             else
             {
@@ -130,7 +130,7 @@ public class PasswordDrawer : MonoBehaviour
             {
                 "철컥, 잠금장치가 풀렸다.",
                 "서랍 안에서 황금 열쇠를 발견했다.",
-                "대사가 끝난 뒤 열쇠가 놓인 서랍 그림을 눌러서 줍자."
+                "서랍에 놓인 열쇠를 줍자."
             });
         }
         else
