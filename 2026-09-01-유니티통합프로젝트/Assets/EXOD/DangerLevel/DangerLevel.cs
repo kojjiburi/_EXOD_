@@ -70,7 +70,7 @@ public sealed class DangerLevel : MonoBehaviour
     private const int HighThreshold = 76;       // 확률 판정 시작 (2026-11-03 사용자 요청: 76 → 72 → 다시 76)
     private const int WarnFromOutside = 82;     // 방 밖: 이 값 이상이 될 상황이면 경고 (원래 100)
     private const int WarnFromInBedroom = 72;   // 침실 안: 이 값 이상이 될 상황이면 여자친구가 확인하러 옴
-    private const string FootstepShortSound = "footsteps_heels_short";
+    private const string FootstepShortSound = "footsteps";
     private const string DoorBurstSound = "door_burst";
     private const float RollCooldown = 5f;
     private const float RollChance = 0.1f;          // 76일 때 10%
