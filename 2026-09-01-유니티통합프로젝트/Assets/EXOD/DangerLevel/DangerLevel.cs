@@ -20,7 +20,7 @@ using UnityEngine.SceneManagement;
 ///
 /// [여자친구 등장]
 ///  - 65 이상: 구두 발소리 (10초마다 다시 들림). 발소리가 들릴 때 침실에 들어가면 바로 등장 (방 안이라 안전)
-///  - 76 이상(침실 안에서는 72 이상): 위험도가 오를 때마다 5초 간격으로 확률 판정. 확률 = 10% - (기준 - 위험도) x 2% → 기준에서 10%, +2마다 +4% (2026-11-03 사용자 요청)
+///  - 72 이상: 위험도가 오를 때마다 5초 간격으로 확률 판정. 확률 = 10% - (72 - 위험도) x 2% → 72는 10%, 80은 26%, 90은 46%, 99는 64% (2026-11-03 사용자 요청)
 ///  - 100: 바로 등장 (위 확률 판정과 같이 돌아감)
 ///  - 등장했을 때 침실에 없으면 걸림 → 하트 -1 → 침실로 끌려가 방문이 다시 잠기고 황금 열쇠는 서랍 안으로
 ///  - 대사: Stage1Dialogues.VisitSafe / VisitCaught / VisitLockedAgain (nicezzomaru)
@@ -32,6 +32,7 @@ using UnityEngine.SceneManagement;
 /// [경고]
 ///  - 방 밖: 방 이동·기믹으로 위험도가 82 이상이 될 상황이면 "지금 이 행동을 하면 위험할 것 같다. 방으로 돌아갈까?" (2026-11-03: 100 → 82)
 ///  - 침실 안: 기믹으로 72 이상이 될 상황이면 경고 대신 여자친구가 방문을 벌컥 열고 확인하러 옴 → 위험도 0 (Stage1Dialogues.VisitRoomCheck)
+///    구두 소리가 나는 동안(문 열리기 전)은 조작 가능. 그 사이 침실 밖으로 나가면 방 밖에서 들킨 컷신으로 바뀜
 ///    (기믹은 실패 +10 기준) 이 대사 뒤로는 방 이동으로 위험도가 오르지 않음
 ///
 /// [첫 등장 이벤트(튜토리얼)] (2026-11-02 사용자 결정: 1일차 남은 1분 → 방 밖에 처음 나간 뒤 20초)
@@ -60,22 +61,21 @@ public sealed class DangerLevel : MonoBehaviour
     private const float EmptyClickBurstSeconds = 2f;
     private const int FootstepThreshold = 65;   // 발소리, 이때 침실에 들어가면 등장
     private const float FootstepRepeatSeconds = 10f;
-    private const int HighThreshold = 76;       // 확률 판정 시작 (방 밖)
-    private const int HighThresholdInBedroom = 72;   // 침실 안에서는 72부터 (2026-11-03 사용자 요청)
+    private const int HighThreshold = 72;       // 확률 판정 시작 (2026-11-03 사용자 요청: 76 → 72, 게임 전체)
     private const int WarnFromOutside = 82;     // 방 밖: 이 값 이상이 될 상황이면 경고 (원래 100)
     private const int WarnFromInBedroom = 72;   // 침실 안: 이 값 이상이 될 상황이면 여자친구가 확인하러 옴
     private const string FootstepShortSound = "footsteps_heels_short";
     private const string DoorBurstSound = "door_burst";
     private const float RollCooldown = 5f;
-    private const float RollChance = 0.1f;          // 76일 때 10%
-    private const float RollChancePerPoint = 0.02f; // 76보다 1 높을 때마다 +2%
+    private const float RollChance = 0.1f;          // 72일 때 10%
+    private const float RollChancePerPoint = 0.02f; // 72보다 1 높을 때마다 +2%
 
-    // 등장 확률 = 10% - (76 - 위험도) x 2%  (사용자 요청 2026-11-03)
+    // 등장 확률 = 10% - (72 - 위험도) x 2%  (사용자 요청 2026-11-03)
     private float CurrentRollChance =>
         Mathf.Clamp01(RollChance - (RollThreshold - value) * RollChancePerPoint);
 
     private bool InBedroom => slider != null && slider.CurrentRoom == BedroomName;
-    private int RollThreshold => InBedroom ? HighThresholdInBedroom : HighThreshold;
+    private int RollThreshold => HighThreshold;
     private int WarnFrom => InBedroom ? WarnFromInBedroom : WarnFromOutside;
     private const float PostWalkGraceSeconds = 15f;
     private const float TutorialDelayAfterLeavingSeconds = 20f;   // 침실 밖에 처음 나간 뒤 게임 타이머 20초에 첫 등장 이벤트
@@ -368,7 +368,7 @@ public sealed class DangerLevel : MonoBehaviour
             return;
         }
 
-        // 76 이상: 오를 때마다 5초 간격으로 확률 판정 (위험도가 높을수록 잘 나옴)
+        // 72 이상: 오를 때마다 5초 간격으로 확률 판정 (위험도가 높을수록 잘 나옴)
         if (value >= RollThreshold && Time.time >= lastRollTime + RollCooldown)
         {
             lastRollTime = Time.time;
@@ -604,8 +604,20 @@ public sealed class DangerLevel : MonoBehaviour
 
     private System.Collections.IEnumerator RoomCheckRoutine()
     {
+        // 구두 소리가 나는 동안은 조작을 막지 않음. 그 사이 침실 밖으로 나가면 방 밖에서 들킨 것으로 (뒤 대사는 취소)
         EXODSound.Play(FootstepShortSound);
-        yield return new WaitForSecondsRealtime(1.5f);
+        float waited = 0f;
+        while (waited < 1.5f)
+        {
+            if (!InBedroom)
+            {
+                appearing = false;
+                Appear(true);
+                yield break;
+            }
+            waited += Time.unscaledDeltaTime;
+            yield return null;
+        }
         EXODSound.Play(DoorBurstSound);
         yield return new WaitForSecondsRealtime(0.5f);
         PlayCutscene(Stage1Dialogues.VisitRoomCheck(), () =>
