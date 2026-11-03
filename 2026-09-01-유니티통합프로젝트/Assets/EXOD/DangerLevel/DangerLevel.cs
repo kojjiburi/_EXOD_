@@ -70,7 +70,7 @@ public sealed class DangerLevel : MonoBehaviour
     private const int HighThreshold = 76;       // 확률 판정 시작 (2026-11-03 사용자 요청: 76 → 72 → 다시 76)
     private const int WarnFromOutside = 82;     // 방 밖: 이 값 이상이 될 상황이면 경고 (원래 100)
     private const int WarnFromInBedroom = 72;   // 침실 안: 이 값 이상이 될 상황이면 여자친구가 확인하러 옴
-    private const string FootstepShortSound = "footsteps";
+    private const string FootstepShortSound = "footsteps_heels";   // 침실 확인·잘 시간 방문: 긴 구두 발소리를 앞부분만 틀고 줄임
     private const string DoorBurstSound = "door_burst";
     private const float RollCooldown = 5f;
     private const float RollChance = 0.1f;          // 76일 때 10%
@@ -364,7 +364,7 @@ public sealed class DangerLevel : MonoBehaviour
     public static DangerColor IconColor { get; private set; }
 
     private const int GreenMax = 35;
-    private static int RedFrom => GameDifficulty.IsEasy ? 71 : 65;
+    private static int RedFrom => 71;   // 이지·하드 모두 71부터 빨강 (2026-11-03)
 
     private bool CountsNow()
     {
@@ -636,12 +636,13 @@ public sealed class DangerLevel : MonoBehaviour
     private System.Collections.IEnumerator RoomCheckRoutine()
     {
         // 구두 소리가 나는 동안은 조작을 막지 않음. 그 사이 침실 밖으로 나가면 방 밖에서 들킨 것으로 (뒤 대사는 취소)
-        EXODSound.Play(FootstepShortSound);
+        PlayVisitFootsteps();
         float waited = 0f;
         while (waited < 1.5f)
         {
             if (!InBedroom)
             {
+                StopVisitFootsteps(0.3f);
                 appearing = false;
                 Appear(true);
                 yield break;
@@ -649,6 +650,7 @@ public sealed class DangerLevel : MonoBehaviour
             waited += Time.unscaledDeltaTime;
             yield return null;
         }
+        StopVisitFootsteps(0.4f);
         EXODSound.Play(DoorBurstSound);
         yield return new WaitForSecondsRealtime(0.5f);
         PlayCutscene(Stage1Dialogues.VisitRoomCheck(), () =>
@@ -687,9 +689,53 @@ public sealed class DangerLevel : MonoBehaviour
 
     private System.Collections.IEnumerator BedtimeRoutine()
     {
-        EXODSound.Play(FootstepShortSound);
+        PlayVisitFootsteps();
         yield return new WaitForSecondsRealtime(1.5f);
+        StopVisitFootsteps(0.4f);
         PlayCutscene(Stage1Dialogues.VisitBedtime(), FinishAppear);
+    }
+
+    // 방문 직전 구두 소리: 긴 구두 발소리를 틀었다가 문이 열릴 때 서서히 끔
+    private AudioSource visitStepSource;
+    private Coroutine visitStepFade;
+
+    private void PlayVisitFootsteps()
+    {
+        AudioClip clip = Resources.Load<AudioClip>("EXODStage1/Sfx/" + FootstepShortSound);
+        if (clip == null)
+            return;
+        if (visitStepSource == null)
+        {
+            visitStepSource = gameObject.AddComponent<AudioSource>();
+            visitStepSource.playOnAwake = false;
+            visitStepSource.spatialBlend = 0f;
+        }
+        if (visitStepFade != null)
+            StopCoroutine(visitStepFade);
+        visitStepSource.clip = clip;
+        visitStepSource.volume = 1f;   // 전체 볼륨은 AudioListener가 적용
+        visitStepSource.Play();
+    }
+
+    private void StopVisitFootsteps(float fadeSeconds)
+    {
+        if (visitStepSource == null || !visitStepSource.isPlaying)
+            return;
+        if (visitStepFade != null)
+            StopCoroutine(visitStepFade);
+        visitStepFade = StartCoroutine(FadeVisitFootsteps(fadeSeconds));
+    }
+
+    private System.Collections.IEnumerator FadeVisitFootsteps(float seconds)
+    {
+        float start = visitStepSource.volume;
+        for (float t = 0f; t < seconds; t += Time.unscaledDeltaTime)
+        {
+            visitStepSource.volume = Mathf.Lerp(start, 0f, t / seconds);
+            yield return null;
+        }
+        visitStepSource.Stop();
+        visitStepFade = null;
     }
 
     private void Appear(bool forceCaught = false)
