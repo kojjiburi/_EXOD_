@@ -358,6 +358,10 @@ public sealed class DangerLevel : MonoBehaviour
 #endif
 
     // 아이콘 색 기준 (사용자 요청 2026-11-03): 초록 0~35 (이지·하드 같음), 빨강 하드 65 이상 / 이지 71 이상
+    /// <summary>집(1스테이지)에서 지금 아이콘 색 — 화면 가장자리 깜빡임(Stage1DangerVignette)이 씀</summary>
+    public enum DangerColor { Green, Yellow, Red, Appeared }
+    public static DangerColor IconColor { get; private set; }
+
     private const int GreenMax = 35;
     private static int RedFrom => GameDifficulty.IsEasy ? 71 : 65;
 
@@ -1002,6 +1006,8 @@ public sealed class DangerLevel : MonoBehaviour
                  : value <= GreenMax ? safeIcon
                  : value < RedFrom ? normalIcon
                  : dangerIcon;
+            IconColor = icon == normalIcon ? DangerColor.Yellow : icon == dangerIcon ? DangerColor.Red
+                      : icon == appearedIcon ? DangerColor.Appeared : DangerColor.Green;
         }
         icon = ApplyAppearGlitch(icon);
         if (icon != null && yan.StateRenderer.sprite != icon)
