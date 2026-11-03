@@ -48,7 +48,7 @@ public static class DifficultyPicker
         outline.effectDistance = new Vector2(3f, -3f);
 
         TextMeshProUGUI heading = Txt("제목", window.rectTransform, "난이도 선택", 52f, TitleColor);
-        Place(heading.rectTransform, new Vector2(800f, 90f), new Vector2(0f, booth ? 290f : 230f));
+        Place(heading.rectTransform, new Vector2(800f, 90f), new Vector2(0f, booth ? 335f : 230f));
 
         if (booth)
         {
@@ -56,6 +56,7 @@ public static class DifficultyPicker
                 new Color(0.55f, 0.85f, 0.65f, 1f), () => Pick(onPicked, true), true);
             Card(window.rectTransform, new Vector2(290f, 5f), "하드", null,
                 new Color(0.88f, 0.12f, 0.18f, 1f), () => Pick(onPicked, false), false);
+            BoothMode.AddStaffNote(window.rectTransform, EXODUiAssets.Font);
         }
         else
         {
@@ -65,7 +66,7 @@ public static class DifficultyPicker
                 new Color(0.88f, 0.12f, 0.18f, 1f), () => Pick(onPicked, false));
         }
 
-        Button back = Btn(window.rectTransform, "뒤로", new Vector2(200f, 64f), new Vector2(0f, booth ? -305f : -240f));
+        Button back = Btn(window.rectTransform, "뒤로", new Vector2(200f, 64f), new Vector2(0f, booth ? -350f : -240f));
         back.onClick.AddListener(Close);
     }
 

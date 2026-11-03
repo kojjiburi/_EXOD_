@@ -73,6 +73,8 @@ public sealed class Stage1HelpBar : MonoBehaviour
 
     private void Update()
     {
+        BoothMode.CheckTimeUp();   // 부스 운영 모드 제한시간 끝 → 시간 초과 게임 오버
+
         bool hidden = (DialogueManager.Instance != null && DialogueManager.Instance.IsDialogueOpen)
             || HudToggle.IsStatusHidden
             || (PlayerFaintController.Instance != null && PlayerFaintController.Instance.IsBusy)

@@ -234,6 +234,101 @@ public sealed class PlayerFaintController : MonoBehaviour
         endingScreen.Show(pendingTitle, pendingSubtitle, pendingStyle);
     }
 
+    // ═══════════════════════════════════════════════════
+    //  부스 운영 모드: 제한시간 초과 (사용자 요청 2026-11-03)
+    //  암전 + 트럼펫 → 대화창에 두 줄 → "Game Over" 뒤에 1초마다 점 하나씩(5초) → 대화창 위 [타이틀 화면으로 가기]
+    // ═══════════════════════════════════════════════════
+
+    private const string TimeUpLine = "당신은 탈출하지도, 다른 결말을 찾지도 못했습니다.";
+
+    public void ShowBoothTimeUp()
+    {
+        if (isGameOver)
+            return;
+
+        isFainting = false;
+        isGameOver = true;
+        StopAllCoroutines();
+        CloseOtherUi();
+
+        overlayRoot.SetActive(true);
+        overlayRoot.GetComponent<Canvas>().sortingOrder = 31000;   // 산책 화면·들킴 연출보다도 위
+        faintText.gameObject.SetActive(false);
+        endingScreen.Hide();
+        StartCoroutine(BoothTimeUpRoutine());
+    }
+
+    private IEnumerator BoothTimeUpRoutine()
+    {
+        EXODSound.StopAmbience(0.5f);
+        EXODSound.StopHeartbeat(0.3f);
+        EXODSound.Play("proposal_trumpet");
+        yield return Fade(blackout, 0f, 1f, 0.8f);
+
+        // 대화창만 (초상화·이름표 없음)
+        gameOverLineRoot.SetActive(true);
+        MatchTeamDialogueBox();
+        if (gameOverPortrait != null)
+            gameOverPortrait.gameObject.SetActive(false);
+        gameOverNameBox.gameObject.SetActive(false);
+        gameOverLineText.text = TimeUpLine;
+        gameOverLineText.maxVisibleCharacters = 0;
+        yield return FadeGroup(gameOverLineGroup, 0f, 1f, 0.5f);
+
+        gameOverLineText.ForceMeshUpdate();
+        int length = gameOverLineText.textInfo.characterCount;
+        for (int i = 1; i <= length; i++)
+        {
+            gameOverLineText.maxVisibleCharacters = i;
+            if (!char.IsWhiteSpace(gameOverLineText.textInfo.characterInfo[i - 1].character))
+                EXODSound.Play("type_tick", 0.5f);
+            yield return new WaitForSecondsRealtime(0.06f);
+        }
+        yield return new WaitForSecondsRealtime(1.6f);
+
+        // Game Over + 1초마다 점 하나 (5초)
+        gameOverLineText.maxVisibleCharacters = 99999;
+        gameOverLineText.text = "<b>Game Over</b>";
+        for (int dots = 1; dots <= 5; dots++)
+        {
+            yield return new WaitForSecondsRealtime(1f);
+            gameOverLineText.text = "<b>Game Over</b>" + new string('.', dots);
+        }
+
+        BuildTimeUpChoice();
+    }
+
+    // 대화창 바로 위 선택지 하나: [타이틀 화면으로 가기]
+    private void BuildTimeUpChoice()
+    {
+        GameObject go = new GameObject("타이틀 화면으로 가기", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Button));
+        go.transform.SetParent(gameOverLineRoot.transform, false);
+        RectTransform box = gameOverLineBox.rectTransform;
+        RectTransform rect = (RectTransform)go.transform;
+        rect.anchorMin = box.anchorMin;
+        rect.anchorMax = box.anchorMax;
+        rect.pivot = new Vector2(0.5f, 0f);
+        rect.sizeDelta = new Vector2(520f, 80f);
+        rect.anchoredPosition = box.anchoredPosition + new Vector2(0f, box.sizeDelta.y * (1f - box.pivot.y) + 30f);
+
+        Image image = go.GetComponent<Image>();
+        image.color = new Color(0.12f, 0.08f, 0.09f, 0.95f);
+        Outline outline = go.AddComponent<Outline>();
+        outline.effectColor = new Color(0.62f, 0.04f, 0.08f, 1f);
+        outline.effectDistance = new Vector2(3f, -3f);
+
+        Button button = go.GetComponent<Button>();
+        ColorBlock colors = button.colors;
+        colors.highlightedColor = new Color(1f, 0.75f, 0.8f, 1f);
+        colors.pressedColor = new Color(0.8f, 0.8f, 0.8f, 1f);
+        button.colors = colors;
+        button.onClick.AddListener(BackToLobby);
+        EXODSound.AttachUiSounds(go);
+
+        TextMeshProUGUI label = CreateText("글자", go.transform, "타이틀 화면으로 가기", 36f, Color.white);
+        Stretch(label.rectTransform);
+    }
+
     // [다시 시작]: 이지/하드를 다시 고른 뒤 처음부터 (사용자 요청 2026-11-03)
     public void Restart()
     {

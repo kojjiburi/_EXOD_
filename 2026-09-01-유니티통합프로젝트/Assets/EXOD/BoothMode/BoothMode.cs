@@ -21,6 +21,7 @@ public static class BoothMode
     private static bool isOn;
 
     private static bool timerRunning;
+    private static bool timeUpFired;
     private static float timerStart;
     private static float timerLimit;
 
@@ -66,6 +67,7 @@ public static class BoothMode
     public static void StartTimer(bool easy)
     {
         timerRunning = IsOn;
+        timeUpFired = false;
         timerStart = Time.realtimeSinceStartup;
         timerLimit = easy ? EasyLimitSeconds : HardLimitSeconds;
     }
@@ -74,6 +76,18 @@ public static class BoothMode
 
     public static float RemainingSeconds =>
         timerRunning ? Mathf.Max(0f, timerLimit - (Time.realtimeSinceStartup - timerStart)) : 0f;
+
+    /// <summary>제한시간이 다 되면 한 번: 암전 + 트럼펫 + Game Over 대사 → [타이틀 화면으로 가기] (Stage1HelpBar가 매 프레임 부름)</summary>
+    public static void CheckTimeUp()
+    {
+        if (!TimerVisible || timeUpFired || RemainingSeconds > 0f)
+            return;
+        PlayerFaintController faint = PlayerFaintController.Instance;
+        if (faint == null || faint.IsBusy)
+            return;
+        timeUpFired = true;
+        faint.ShowBoothTimeUp();
+    }
 
     public static string TimerText()
     {
@@ -84,7 +98,7 @@ public static class BoothMode
     // ─── 난이도 카드 내용 ───────────────────────────────
 
     public static readonly Vector2 BoothCardSize = new Vector2(540f, 430f);
-    public static readonly Vector2 BoothWindowSize = new Vector2(1250f, 720f);
+    public static readonly Vector2 BoothWindowSize = new Vector2(1250f, 820f);
 
     private static readonly Color BodyColor = new Color(0.78f, 0.74f, 0.76f, 1f);
     private static readonly Color WarnColor = new Color(1f, 0.15f, 0.2f, 1f);
@@ -119,6 +133,18 @@ public static class BoothMode
         r.anchorMax = new Vector2(1f, 1f);
         r.offsetMin = new Vector2(24f, 18f);
         r.offsetMax = new Vector2(-24f, -y);
+    }
+
+    /// <summary>난이도 창 가운데 아래 (두 카드와 [뒤로] 사이) 노란 안내</summary>
+    public static void AddStaffNote(RectTransform window, TMP_FontAsset font)
+    {
+        TextMeshProUGUI note = Txt("부스 안내", window,
+            "*기믹 푸는법 물어보면 부스 직원이 친절히 답해드립니다. 모르겠는건 많이 물어봐주세요",
+            27f, new Color(1f, 0.85f, 0.25f, 1f), font, FontStyles.Normal);
+        RectTransform r = note.rectTransform;
+        r.anchorMin = r.anchorMax = new Vector2(0.5f, 0.5f);
+        r.sizeDelta = new Vector2(1180f, 56f);
+        r.anchoredPosition = new Vector2(0f, -268f);
     }
 
     private static void Top(RectTransform r, float fromTop, float height)

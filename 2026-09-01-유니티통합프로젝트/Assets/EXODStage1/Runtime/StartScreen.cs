@@ -143,6 +143,7 @@ public sealed class StartScreen : MonoBehaviour
                 new Color(0.55f, 0.85f, 0.65f, 1f), () => StartWithDifficulty(true), true);
             CreateDifficultyCard(window.rectTransform, new Vector2(290f, 5f), "하드", null,
                 new Color(0.88f, 0.12f, 0.18f, 1f), () => StartWithDifficulty(false), false);
+            BoothMode.AddStaffNote(window.rectTransform, font);
         }
         else
         {
