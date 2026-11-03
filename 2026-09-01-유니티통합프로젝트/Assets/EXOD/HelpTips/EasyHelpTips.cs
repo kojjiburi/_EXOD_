@@ -99,7 +99,7 @@ public sealed class EasyHelpTips : MonoBehaviour
             return tips;
 
         if (instance.walkedOnce && (instance.restroomClueDay < 0 || CurrentDay < instance.restroomClueDay + 2))
-            tips.Add("화장실에 있는 단서들을 조사해 볼까?");
+            tips.Add("화장실에 있는 단서들을 조사해 볼까? (안 보이는 곳은 Tab을 눌러 UI를 숨기고 조사해 보자)");
 
         if (!instance.paperALit && Has(PaperAId) && Has(RestroomGimmick.TowelItemId) && Has(FlashlightGimmick.FlashlightItemId))
             tips.Add("물건끼리 상호작용시켜 보자(클릭). 무슨 일이 생길지도?");
