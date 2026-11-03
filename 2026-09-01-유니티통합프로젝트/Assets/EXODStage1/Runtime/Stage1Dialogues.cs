@@ -557,6 +557,12 @@ public static class Stage1Dialogues
         Think("…너무 오래 망설였다. 이러다 들키겠어."),
     };
 
+    // [이지] 하트가 1 깎였을 때 (EasyGiveUpPrompt) — [예]면 순응 엔딩, [아니요]면 계속
+    public static List<DialogueLine> EasyGiveUpQuestion() => new List<DialogueLine>
+    {
+        Narrate("여기까지 하시겠습니까?"),
+    };
+
     // [이지] 1일차에 현관문으로 나가려 하면 (Stage2HouseLink)
     public static List<DialogueLine> WalkFirstDayBlocked() => new List<DialogueLine>
     {
