@@ -216,10 +216,10 @@ public sealed class DangerLevel : MonoBehaviour
     // ═══════════════════════════════════════════════════
 
     // ─── 공포 효과음 (사용자 요청 2026-11-04) ───
-    // 2초 안에 위험도가 15 이상 오르면 horror_sting / 집 안에서 게임 시간 15초마다 20% 확률로 kikiki
+    // 2초 안에 위험도가 15 이상 오르면 horror_sting / 집 안에서 게임 시간 25초마다 20% 확률로 kikiki
     private const float SpikeWindowSeconds = 2f;
     private const int SpikeAmount = 15;
-    private const float AmbientScareInterval = 15f;
+    private const float AmbientScareInterval = 25f;
     private const float AmbientScareChance = 0.2f;
     private readonly System.Collections.Generic.Queue<(float time, int value)> recentValues = new System.Collections.Generic.Queue<(float, int)>();
     private float spikeCooldownUntil;
