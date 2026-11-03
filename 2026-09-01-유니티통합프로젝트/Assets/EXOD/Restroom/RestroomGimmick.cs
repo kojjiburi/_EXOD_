@@ -670,6 +670,14 @@ public sealed class RestroomGimmick : MonoBehaviour
         enteredNumbers.Add(number);
         EXODSound.Play("safe_click");   // 금고 버튼 딸깍딸깍 (Resources/EXODStage1/Sfx/safe_click.wav)
 
+        // 냉장고 쪽지 번호(0214)를 눌러 보면 (0 버튼이 없어 2·1·4): 실패 아님, 창 닫고 한마디 (사용자 요청 2026-11-03)
+        if (enteredNumbers.Count == 3 && enteredNumbers[0] == 2 && enteredNumbers[1] == 1 && enteredNumbers[2] == 4)
+        {
+            CloseKeypad();
+            DialogueManager.Instance?.StartDialogue(Stage1Dialogues.SafeWrongNote());
+            return;
+        }
+
         if (enteredNumbers.Count < Answer.Length)
             return;
 

@@ -72,7 +72,7 @@ public static class Stage1Dialogues
         List<DialogueLine> lines = choice == 0
             ? new List<DialogueLine>
             {
-                Say(Girlfriend, "아무것도? …그럼 내 생각은 안 했다는 거야?"),
+                DialoguePortrait.WithWalkCaught(Say(Girlfriend, "아무것도? …그럼 내 생각은 안 했다는 거야?")),   // 칼 든 검은 그림 (2026-11-03)
                 Say(Player, "아, 아니! 당연히 네 생각 했지! 사, 사랑해… 하하."),
                 Say(Girlfriend, "후훗. 알면 됐어."),
             }
@@ -471,6 +471,13 @@ public static class Stage1Dialogues
             lines.Add(Think("전화…? 밖에 있는 빨간 전화 부스 열쇠인가?"));
         return lines;
     }
+
+    // 화장실 금고에 곰돌이 쪽지 번호(0214)를 눌러 보려 할 때 — 버튼에 0이 없어서 2·1·4를 처음 세 번 누르면 (RestroomGimmick)
+    public static List<DialogueLine> SafeWrongNote() => new List<DialogueLine>
+    {
+        Think("아.. 여긴 아닌거같다."),
+        Think("애초에 버튼 9개 다 누르지 않으면 안열리는 구조같다."),
+    };
 
     // 벽에 너무 많이 부딪혀 닫혔을 때
     public static List<DialogueLine> MirrorFailed() => new List<DialogueLine>

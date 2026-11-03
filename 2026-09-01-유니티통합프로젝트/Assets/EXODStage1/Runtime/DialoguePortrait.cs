@@ -32,6 +32,16 @@ public sealed class DialoguePortrait : MonoBehaviour
 
     internal static Sprite LoadWalkCaughtPortrait() => LoadSprite(WalkCaughtResourcePath);
 
+    // 대사 한 줄만 산책 들킴 그림으로 (인트로 "아무것도? …" 줄, 2026-11-03)
+    private static readonly System.Collections.Generic.HashSet<DialogueLine> walkCaughtLines = new System.Collections.Generic.HashSet<DialogueLine>();
+
+    public static DialogueLine WithWalkCaught(DialogueLine line)
+    {
+        if (line != null)
+            walkCaughtLines.Add(line);
+        return line;
+    }
+
     // ── 한 장면만 다른 그림·위치로 (방에 잘 있을 때 방문, 청혼 엔딩) ──
     private static bool sweetRequested;      // 다음 대화부터 쓰도록 요청됨
     private static bool sweetActive;         // 지금 대화에 쓰는 중
@@ -59,6 +69,7 @@ public sealed class DialoguePortrait : MonoBehaviour
         centerRequested = false;
         walkCaughtRequested = false;
         walkCaughtActive = false;
+        walkCaughtLines.Clear();
     }
 
     [Header("=== 배치 (Canvas 기준 크기) ===")]
@@ -151,6 +162,7 @@ public sealed class DialoguePortrait : MonoBehaviour
             sweetActive = true;
         if (walkCaughtRequested)
             walkCaughtActive = true;
+        bool lineWalkCaught = walkCaughtLines.Remove(line);
 
         bool isGirlfriend = speaker == Stage1Dialogues.Unknown || speaker == Stage1Dialogues.Girlfriend || speaker == "얀데레" || speaker == "여주";
         if (isGirlfriend && HideGirlfriend)
@@ -158,7 +170,7 @@ public sealed class DialoguePortrait : MonoBehaviour
         else if (speaker == Stage1Dialogues.Unknown)
             Show(girlfriendSprite, silhouetteColor, girlfriendHeight, girlfriendHiddenBelow);
         else if (speaker == Stage1Dialogues.Girlfriend || speaker == "얀데레" || speaker == "여주")
-            Show(walkCaughtActive && walkCaughtSprite != null ? walkCaughtSprite
+            Show((walkCaughtActive || lineWalkCaught) && walkCaughtSprite != null ? walkCaughtSprite
                  : sweetActive && sweetSprite != null ? sweetSprite : girlfriendSprite, Color.white, girlfriendHeight, girlfriendHiddenBelow);
         else if (speaker == Stage1Dialogues.BearUnknown)
             Show(bearTornSprite, Color.white, bearHeight, bearHiddenBelow);
