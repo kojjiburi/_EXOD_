@@ -573,11 +573,23 @@ public static class Stage1Dialogues
         Think("오늘은 집 안부터 살펴보자."),
     };
 
-    // 하루 남은 시간이 1분 20초 이하일 때 현관문으로 나가려 하면 (Stage2HouseLink, 사용자 선택 2026-11-03)
+    // 하루 남은 시간이 1분 20초 이하일 때 현관문으로 나가려 하면 (Stage2HouseLink) — 하루 첫 번째 (사용자 대사 2026-11-03)
+    // 여자친구 줄은 산책 들킴 그림으로 (DialoguePortrait.UseWalkCaughtForNextDialogue)
     public static List<DialogueLine> WalkTooLate() => new List<DialogueLine>
     {
-        Think("…지금 나가면 그녀가 오기 전에 돌아오지 못할 것 같아."),
-        Think("오늘은 여기까지만 하자."),
+        Narrate("산책을 나가려다가 멈췄다."),
+        Think("그녀가 언젠가 말했던 게 떠올랐다."),
+        Say(Girlfriend, "지금 나가면 나 화낼꺼야."),
+        Say(Girlfriend, "잠자는 시간인데 밖에 나갈거야?"),
+        Think("....."),
+        Think("지금 나가면 자는 시간까지 돌아오지 못할 것 같다."),
+    };
+
+    // 같은 날 다시 현관문을 누르면 (산책 들킴 그림이 대사 위로 75%까지 서서히 나타남)
+    public static List<DialogueLine> WalkTooLateAgain() => new List<DialogueLine>
+    {
+        Think("그녀의 모습이 아른거린다..."),
+        Think("내일 나가자."),
     };
 
     // 10의 배수 일차 아침: 하트 +1 (DayEndReport)

@@ -18,6 +18,19 @@ public sealed class DialoguePortrait : MonoBehaviour
     private const string BearTornResourcePath = "EXODStage1/Bear_Portrait_Torn";
     private const string BearResourcePath = "EXODStage1/Bear_Portrait";
     private const string SweetResourcePath = "EXODStage1/Girlfriend_Portrait_Sweet";   // 볼 빨간 웃는 얼굴 (사용자 그림)
+    private const string WalkCaughtResourcePath = "EXODStage1/Girlfriend_Portrait_WalkCaught";   // 산책 중 들켰을 때 그림 (Yandere_Caught)
+
+    // 다음 대화(한 번) 동안 여자친구 그림을 산책 들킴 그림으로 (늦은 시간 현관문, 2026-11-03)
+    private static bool walkCaughtRequested;
+    private static bool walkCaughtActive;
+
+    public static void UseWalkCaughtForNextDialogue()
+    {
+        walkCaughtRequested = true;
+        walkCaughtActive = false;
+    }
+
+    internal static Sprite LoadWalkCaughtPortrait() => LoadSprite(WalkCaughtResourcePath);
 
     // ── 한 장면만 다른 그림·위치로 (방에 잘 있을 때 방문, 청혼 엔딩) ──
     private static bool sweetRequested;      // 다음 대화부터 쓰도록 요청됨
@@ -44,6 +57,8 @@ public sealed class DialoguePortrait : MonoBehaviour
         sweetRequested = false;
         sweetActive = false;
         centerRequested = false;
+        walkCaughtRequested = false;
+        walkCaughtActive = false;
     }
 
     [Header("=== 배치 (Canvas 기준 크기) ===")]
@@ -67,6 +82,7 @@ public sealed class DialoguePortrait : MonoBehaviour
     private Sprite bearTornSprite;
     private Sprite bearSprite;
     private Sprite sweetSprite;
+    private Sprite walkCaughtSprite;
 
     /// <summary>켜 두면 여자친구 대사여도 초상화를 띄우지 않습니다. (들켰을 때 컷신 — ScreenAberration이 켬)</summary>
     public static bool HideGirlfriend { get; set; }
@@ -84,6 +100,7 @@ public sealed class DialoguePortrait : MonoBehaviour
         bearTornSprite = LoadSprite(BearTornResourcePath);
         bearSprite = LoadSprite(BearResourcePath);
         sweetSprite = LoadSprite(SweetResourcePath);
+        walkCaughtSprite = LoadSprite(WalkCaughtResourcePath);
 
         CreatePortrait(dm.DialoguePanelRect.parent);
 
@@ -95,6 +112,11 @@ public sealed class DialoguePortrait : MonoBehaviour
     // 요청한 장면의 대화가 끝나면 원래 그림·위치로
     private static void ClearSweetAfterDialogue()
     {
+        if (walkCaughtActive)
+        {
+            walkCaughtActive = false;
+            walkCaughtRequested = false;
+        }
         if (!sweetActive)
             return;
         sweetActive = false;
@@ -127,6 +149,8 @@ public sealed class DialoguePortrait : MonoBehaviour
         string speaker = line.speakerName != null ? line.speakerName.Trim() : string.Empty;
         if (sweetRequested)
             sweetActive = true;
+        if (walkCaughtRequested)
+            walkCaughtActive = true;
 
         bool isGirlfriend = speaker == Stage1Dialogues.Unknown || speaker == Stage1Dialogues.Girlfriend || speaker == "얀데레" || speaker == "여주";
         if (isGirlfriend && HideGirlfriend)
@@ -134,7 +158,8 @@ public sealed class DialoguePortrait : MonoBehaviour
         else if (speaker == Stage1Dialogues.Unknown)
             Show(girlfriendSprite, silhouetteColor, girlfriendHeight, girlfriendHiddenBelow);
         else if (speaker == Stage1Dialogues.Girlfriend || speaker == "얀데레" || speaker == "여주")
-            Show(sweetActive && sweetSprite != null ? sweetSprite : girlfriendSprite, Color.white, girlfriendHeight, girlfriendHiddenBelow);
+            Show(walkCaughtActive && walkCaughtSprite != null ? walkCaughtSprite
+                 : sweetActive && sweetSprite != null ? sweetSprite : girlfriendSprite, Color.white, girlfriendHeight, girlfriendHiddenBelow);
         else if (speaker == Stage1Dialogues.BearUnknown)
             Show(bearTornSprite, Color.white, bearHeight, bearHiddenBelow);
         else if (speaker == Stage1Dialogues.Bear)

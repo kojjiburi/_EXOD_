@@ -32,6 +32,9 @@ public sealed class Stage2HouseLink : MonoBehaviour
 
     private bool isTransitioning;
     private bool hasEnteredOnce;
+    private int tooLateShownDay = -1;   // 늦은 시간 현관문 대사(긴 버전)를 본 날
+    private Coroutine hauntRoutine;
+    private UnityEngine.UI.Image hauntImage;
     private bool inStage2;
     private readonly List<GameObject> hiddenObjects = new();
     private Camera hiddenCamera;
@@ -125,6 +128,70 @@ public sealed class Stage2HouseLink : MonoBehaviour
     //  입장
     // ═══════════════════════════════════════════════════
 
+    // 늦은 시간 현관문 두 번째부터: 산책 들킴 그림이 대사 위로 서서히 75%까지, 대화가 끝나면 사라짐
+    private const float HauntMaxAlpha = 0.75f;
+    private const float HauntFadeSeconds = 1.5f;
+
+    private IEnumerator HauntRoutine()
+    {
+        if (!EnsureHauntImage())
+            yield break;
+
+        bool ended = false;
+        UnityEngine.Events.UnityAction onEnd = () => ended = true;
+        DialogueManager dm = DialogueManager.Instance;
+        dm.onDialogueEnd.AddListener(onEnd);
+
+        hauntImage.color = new Color(1f, 1f, 1f, 0f);
+        hauntImage.gameObject.SetActive(true);
+        float t = 0f;
+        while (!ended && dm != null && dm.IsDialogueOpen)
+        {
+            t += Time.unscaledDeltaTime;
+            hauntImage.color = new Color(1f, 1f, 1f, Mathf.Clamp01(t / HauntFadeSeconds) * HauntMaxAlpha);
+            yield return null;
+        }
+
+        if (dm != null)
+            dm.onDialogueEnd.RemoveListener(onEnd);
+        hauntImage.gameObject.SetActive(false);
+        hauntRoutine = null;
+    }
+
+    private bool EnsureHauntImage()
+    {
+        if (hauntImage != null)
+            return true;
+
+        Sprite sprite = DialoguePortrait.LoadWalkCaughtPortrait();
+        if (sprite == null || DialogueManager.Instance == null)
+            return false;
+
+        GameObject canvasGo = new GameObject("WalkHauntOverlay", typeof(Canvas), typeof(UnityEngine.UI.CanvasScaler));
+        canvasGo.transform.SetParent(transform, false);
+        Canvas canvas = canvasGo.GetComponent<Canvas>();
+        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        canvas.sortingOrder = 29000;   // 대사창 위 (들킴 연출 30000 아래)
+        UnityEngine.UI.CanvasScaler scaler = canvasGo.GetComponent<UnityEngine.UI.CanvasScaler>();
+        scaler.uiScaleMode = UnityEngine.UI.CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        scaler.referenceResolution = new Vector2(1920f, 1080f);
+        scaler.matchWidthOrHeight = 1f;
+
+        GameObject imageGo = new GameObject("Haunt", typeof(RectTransform), typeof(UnityEngine.UI.Image));
+        imageGo.transform.SetParent(canvasGo.transform, false);
+        hauntImage = imageGo.GetComponent<UnityEngine.UI.Image>();
+        hauntImage.sprite = sprite;
+        hauntImage.preserveAspect = true;
+        hauntImage.raycastTarget = false;   // 클릭은 대사창으로 그대로
+        RectTransform rt = hauntImage.rectTransform;
+        rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
+        rt.pivot = new Vector2(0.5f, 0.5f);
+        rt.sizeDelta = new Vector2(980f, 1010f);
+        rt.anchoredPosition = new Vector2(0f, 40f);
+        imageGo.SetActive(false);
+        return true;
+    }
+
     /// <summary>현관문을 나설 때 호출합니다. (Stage1FrontDoorGimmick)</summary>
     public static void RequestEnter()
     {
@@ -158,7 +225,22 @@ public sealed class Stage2HouseLink : MonoBehaviour
         // 하루 남은 시간 1분 20초 이하면 외출 불가 (이지·하드 같음)
         if (DayCycleController.Instance != null && DayCycleController.Instance.RemainingSeconds <= MinRemainingToWalkSeconds)
         {
-            DialogueManager.Instance?.StartDialogue(Stage1Dialogues.WalkTooLate());
+            int today = GManager.Instance != null ? GManager.Instance.Day : 0;
+            if (tooLateShownDay != today)
+            {
+                // 하루 한 번: 그녀가 했던 말이 떠오름 (여자친구 줄은 산책 들킴 그림)
+                tooLateShownDay = today;
+                DialoguePortrait.UseWalkCaughtForNextDialogue();
+                DialogueManager.Instance?.StartDialogue(Stage1Dialogues.WalkTooLate());
+            }
+            else if (DialogueManager.Instance != null)
+            {
+                // 같은 날 다시: 그녀 모습이 대사 위로 아른거림
+                DialogueManager.Instance.StartDialogue(Stage1Dialogues.WalkTooLateAgain());
+                if (hauntRoutine != null)
+                    StopCoroutine(hauntRoutine);
+                hauntRoutine = StartCoroutine(HauntRoutine());
+            }
             return;
         }
 
