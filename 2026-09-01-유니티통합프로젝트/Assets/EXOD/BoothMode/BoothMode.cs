@@ -1,4 +1,6 @@
 using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
 using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -22,6 +24,52 @@ public static class BoothMode
 
     private static bool timerRunning;
     private static bool timeUpFired;
+
+    // ─── 제한시간 초과 때 '이미 볼 수 있는 엔딩' (사용자 요청 2026-11-03) ───
+    public enum FateEnding { Submission, Proposal, Escape }
+
+    /// <summary>엔딩을 강제로 진행 중 (하루 시간·위험도·여자친구 등장 멈춤)</summary>
+    public static bool ForcingEnding;
+    /// <summary>[이지] '여기까지 하시겠습니까?'에서 [아니요]를 고른 적 있음 → 순응 엔딩</summary>
+    public static bool GiveUpDeclined;
+    /// <summary>손전등 + 종이 A~E(이지는 A)를 모두 가진 채 화장실 금고를 누른 적 있음 → 청혼 엔딩</summary>
+    public static bool SafeTriedWithClues;
+
+    private static void ResetRunFlags()
+    {
+        timeUpFired = false;
+        ForcingEnding = false;
+        GiveUpDeclined = false;
+        SafeTriedWithClues = false;
+    }
+
+    /// <summary>화장실 금고를 누를 때 (RestroomGimmick.OpenKeypad)</summary>
+    public static void NoteSafeInteraction()
+    {
+        QuickSlotInventory inventory = QuickSlotInventory.Instance;
+        if (inventory == null)
+            return;
+        HashSet<string> ids = new HashSet<string>(inventory.Entries
+            .Where(e => e != null && e.ItemData != null).Select(e => e.ItemData.ItemId));
+        string[] papers = GameDifficulty.IsEasy ? new[] { "paper_a" } : new[] { "paper_a", "paper_b", "paper_c", "paper_d", "paper_e" };
+        if (ids.Contains(FlashlightGimmick.FlashlightItemId) && papers.All(ids.Contains))
+            SafeTriedWithClues = true;
+    }
+
+    public static List<FateEnding> AvailableEndings()
+    {
+        List<FateEnding> list = new List<FateEnding>();
+        if (GameDifficulty.IsEasy && GiveUpDeclined)
+            list.Add(FateEnding.Submission);
+        if (SafeTriedWithClues && !ProposalEnding.HasPlayed)
+            list.Add(FateEnding.Proposal);
+        bool repaired = GameDifficulty.IsEasy
+            ? EXOD.Walk.PhoneBoothProgress.PhoneRepaired
+            : EXOD.Walk.PhoneBoothProgress.CordFixed && EXOD.Walk.PhoneBoothProgress.Button1Installed;   // 하드는 선 + [1]만
+        if (EXOD.Walk.PhoneBoothProgress.AddressObtained && repaired)
+            list.Add(FateEnding.Escape);
+        return list;
+    }
     private static float timerStart;
     private static float timerLimit;
 
@@ -50,6 +98,7 @@ public static class BoothMode
     {
         loaded = false;
         timerRunning = false;
+        ResetRunFlags();
         SceneManager.sceneLoaded -= OnSceneLoaded;
         SceneManager.sceneLoaded += OnSceneLoaded;
     }
@@ -58,7 +107,10 @@ public static class BoothMode
     private static void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
         if (scene.name == TitleSceneName)
+        {
             timerRunning = false;
+            ResetRunFlags();
+        }
     }
 
     // ─── 제한시간 타이머 ───────────────────────────────
@@ -67,7 +119,7 @@ public static class BoothMode
     public static void StartTimer(bool easy)
     {
         timerRunning = IsOn;
-        timeUpFired = false;
+        ResetRunFlags();
         timerStart = Time.realtimeSinceStartup;
         timerLimit = easy ? EasyLimitSeconds : HardLimitSeconds;
     }

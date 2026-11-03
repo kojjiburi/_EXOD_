@@ -368,7 +368,7 @@ public sealed class DangerLevel : MonoBehaviour
 
     private bool CountsNow()
     {
-        return HideHintUnlocked && !Stage2HouseLink.IsInStage2 && !appearing && !DayController.IsTransitioning;
+        return HideHintUnlocked && !Stage2HouseLink.IsInStage2 && !appearing && !DayController.IsTransitioning && !BoothMode.ForcingEnding;
     }
 
     private void Add(int amount)
@@ -604,7 +604,7 @@ public sealed class DangerLevel : MonoBehaviour
 
     private bool CanAppear()
     {
-        if (appearing || Stage2HouseLink.IsInStage2 || DayController.IsTransitioning)
+        if (appearing || Stage2HouseLink.IsInStage2 || DayController.IsTransitioning || BoothMode.ForcingEnding)
             return false;
         if (Time.time < graceUntil)
             return false;

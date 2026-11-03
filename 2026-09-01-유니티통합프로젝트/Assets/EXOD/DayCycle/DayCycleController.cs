@@ -428,6 +428,9 @@ public sealed class DayCycleController : MonoBehaviour
         if (FlashlightGimmick.Instance != null && FlashlightGimmick.Instance.IsViewerOpen)
             return true;
 
+        if (BoothMode.ForcingEnding)
+            return true;   // 부스 모드 강제 엔딩 진행 중
+
         return PlayerFaintController.Instance != null && PlayerFaintController.Instance.IsBusy;
     }
 

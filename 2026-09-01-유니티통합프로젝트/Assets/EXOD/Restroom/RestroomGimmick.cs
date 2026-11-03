@@ -637,6 +637,8 @@ public sealed class RestroomGimmick : MonoBehaviour
         if (safeUnlocked || IsBusy())
             return;
 
+        BoothMode.NoteSafeInteraction();   // 부스 모드 '이미 볼 수 있는 엔딩'(청혼) 조건
+
         // [위험도] 틀리면 100이 될 상황이면 경고만 하고 이번엔 열지 않음
         if (DangerLevel.WarnBeforeGimmick())
             return;
@@ -773,6 +775,30 @@ public sealed class RestroomGimmick : MonoBehaviour
                     TakeRingConfirmed();
                 else
                     Stage1Room.PlayCutscene(Stage1Dialogues.ProposalRingLeave());
+            });
+    }
+
+    /// <summary>부스 운영 모드 제한시간 초과 → [반지를 고른다]: 금고 뚜껑을 없애고, [그냥 둔다] 없이 반지를 집음</summary>
+    public void ForceRingForEnding()
+    {
+        if (!safeUnlocked)
+        {
+            safeUnlocked = true;
+            if (safeBlockButton != null)
+                Destroy(safeBlockButton);
+            CreateRingButton();
+        }
+
+        Stage1Room.PlayChoiceCutscene(
+            Stage1Dialogues.ProposalRingFound(),
+            new[] { Stage1Dialogues.ProposalRingChoices[0] },
+            _ =>
+            {
+                ringTaken = true;
+                if (ringButton != null)
+                    Destroy(ringButton);
+                EXODSound.Play("item_pickup");
+                ProposalEnding.Trigger();
             });
     }
 

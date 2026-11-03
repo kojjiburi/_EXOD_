@@ -313,6 +313,41 @@ public sealed class Stage2HouseLink : MonoBehaviour
     //  복귀
     // ═══════════════════════════════════════════════════
 
+    /// <summary>산책 중이면 연출 없이 바로 집으로 (부스 운영 모드 강제 엔딩, 사용자 요청 2026-11-03). 다 되면 done</summary>
+    public static void ForceLeaveWalk(System.Action done)
+    {
+        if (Instance == null || !Instance.inStage2)
+        {
+            done?.Invoke();
+            return;
+        }
+        Instance.StartCoroutine(Instance.ForceLeaveRoutine(done));
+    }
+
+    private IEnumerator ForceLeaveRoutine(System.Action done)
+    {
+        isTransitioning = true;
+        UnhookStage2();
+        Scene stage1 = gameObject.scene;
+        if (stage1.IsValid())
+            SceneManager.SetActiveScene(stage1);
+        Scene walkScene = SceneManager.GetSceneByName(WalkSceneName);
+        if (walkScene.IsValid() && walkScene.isLoaded)
+        {
+            AsyncOperation unload = SceneManager.UnloadSceneAsync(walkScene);
+            while (unload != null && !unload.isDone)
+                yield return null;
+        }
+        if (DayClock.Instance != null)
+            Destroy(DayClock.Instance.gameObject);
+        RestoreStage1();
+        inStage2 = false;
+        WalkSession.LastResult = WalkResult.None;
+        yield return WalkFade.FadeIn(0.05f);
+        isTransitioning = false;
+        done?.Invoke();
+    }
+
     private void OnWalkFinished(WalkResult result)
     {
         if (!inStage2)

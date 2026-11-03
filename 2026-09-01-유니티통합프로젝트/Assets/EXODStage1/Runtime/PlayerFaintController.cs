@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -262,28 +263,23 @@ public sealed class PlayerFaintController : MonoBehaviour
     {
         EXODSound.StopAmbience(0.5f);
         EXODSound.StopHeartbeat(0.3f);
+
+        // 이미 볼 수 있는 엔딩이 있으면 게임 오버 대신 '운명의 갈림길' (사용자 요청 2026-11-03)
+        List<BoothMode.FateEnding> fates = BoothMode.AvailableEndings();
+        if (fates.Count > 0)
+        {
+            EXODSound.Play("heaven_choir");
+            yield return Fade(blackout, 0f, 1f, 0.8f);
+            yield return FateRoutine(fates);
+            yield break;
+        }
+
         EXODSound.Play("proposal_trumpet");
         yield return Fade(blackout, 0f, 1f, 0.8f);
 
-        // 대화창만 (초상화·이름표 없음)
-        gameOverLineRoot.SetActive(true);
-        MatchTeamDialogueBox();
-        if (gameOverPortrait != null)
-            gameOverPortrait.gameObject.SetActive(false);
-        gameOverNameBox.gameObject.SetActive(false);
-        gameOverLineText.text = TimeUpLine;
-        gameOverLineText.maxVisibleCharacters = 0;
+        ShowLineBox(null);
         yield return FadeGroup(gameOverLineGroup, 0f, 1f, 0.5f);
-
-        gameOverLineText.ForceMeshUpdate();
-        int length = gameOverLineText.textInfo.characterCount;
-        for (int i = 1; i <= length; i++)
-        {
-            gameOverLineText.maxVisibleCharacters = i;
-            if (!char.IsWhiteSpace(gameOverLineText.textInfo.characterInfo[i - 1].character))
-                EXODSound.Play("type_tick", 0.5f);
-            yield return new WaitForSecondsRealtime(0.06f);
-        }
+        yield return TypeLine(TimeUpLine);
         yield return new WaitForSecondsRealtime(1.6f);
 
         // Game Over + 1초마다 점 하나 (5초)
@@ -295,21 +291,107 @@ public sealed class PlayerFaintController : MonoBehaviour
             gameOverLineText.text = "<b>Game Over</b>" + new string('.', dots);
         }
 
-        BuildTimeUpChoice();
+        yield return WaitChoice(new[] { "타이틀 화면으로 가기" });
+        BackToLobby();
     }
 
-    // 대화창 바로 위 선택지 하나: [타이틀 화면으로 가기]
-    private void BuildTimeUpChoice()
+    // ─── 대화창(게임 오버용 복제) 도우미 ───────────────────────────────
+
+    // speaker가 비어 있으면 이름표 없음. 초상화는 항상 숨김
+    private void ShowLineBox(string speaker)
     {
-        GameObject go = new GameObject("타이틀 화면으로 가기", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Button));
+        gameOverLineRoot.SetActive(true);
+        MatchTeamDialogueBox();
+        if (gameOverPortrait != null)
+            gameOverPortrait.gameObject.SetActive(false);
+        bool named = !string.IsNullOrEmpty(speaker);
+        gameOverNameBox.gameObject.SetActive(named);
+        if (named)
+            gameOverNameText.text = speaker;
+    }
+
+    // 다른 엔딩 연출에 넘기기 전 원래 모양으로
+    private void RestoreLineBox()
+    {
+        if (gameOverPortrait != null)
+            gameOverPortrait.gameObject.SetActive(true);
+        gameOverNameBox.gameObject.SetActive(true);
+        gameOverNameText.text = Stage1Dialogues.Girlfriend;
+        gameOverLineRoot.SetActive(false);
+        gameOverLineGroup.alpha = 0f;
+    }
+
+    private IEnumerator TypeLine(string text, float charDelay = 0.05f)
+    {
+        gameOverLineText.text = text;
+        gameOverLineText.maxVisibleCharacters = 0;
+        gameOverLineText.ForceMeshUpdate();
+        int length = gameOverLineText.textInfo.characterCount;
+        for (int i = 1; i <= length; i++)
+        {
+            gameOverLineText.maxVisibleCharacters = i;
+            if (!char.IsWhiteSpace(gameOverLineText.textInfo.characterInfo[i - 1].character))
+                EXODSound.Play("type_tick", 0.5f);
+            yield return new WaitForSecondsRealtime(charDelay);
+        }
+        gameOverLineText.maxVisibleCharacters = 99999;
+    }
+
+    private IEnumerator Say(string speaker, string text, float hold = 1.4f)
+    {
+        ShowLineBox(speaker);
+        gameOverLineGroup.alpha = 1f;
+        yield return TypeLine(text);
+        yield return new WaitForSecondsRealtime(hold);
+    }
+
+    // 대화창 바로 위 선택지 (위에서부터). autoPick >= 0이면 잠시 뒤 저절로 눌림
+    private readonly List<GameObject> choiceButtons = new List<GameObject>();
+    private int pickedChoice = -1;
+
+    private IEnumerator WaitChoice(string[] labels, int autoPick = -1, float autoDelay = 1.1f)
+    {
+        ClearChoices();
+        pickedChoice = -1;
+        List<Image> images = new List<Image>();
+        for (int i = 0; i < labels.Length; i++)
+            images.Add(BuildChoice(labels[i], i, labels.Length));
+
+        if (autoPick >= 0)
+        {
+            yield return new WaitForSecondsRealtime(autoDelay);
+            images[autoPick].color = new Color(0.45f, 0.16f, 0.20f, 0.95f);   // 눌리는 것처럼
+            EXODSound.Play("ui_click");
+            yield return new WaitForSecondsRealtime(0.35f);
+            pickedChoice = autoPick;
+        }
+
+        while (pickedChoice < 0)
+            yield return null;
+        ClearChoices();
+    }
+
+    private void ClearChoices()
+    {
+        foreach (GameObject go in choiceButtons)
+            if (go != null)
+                Destroy(go);
+        choiceButtons.Clear();
+    }
+
+    private Image BuildChoice(string text, int index, int count)
+    {
+        GameObject go = new GameObject("선택지 " + text, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Button));
         go.transform.SetParent(gameOverLineRoot.transform, false);
+        choiceButtons.Add(go);
         RectTransform box = gameOverLineBox.rectTransform;
         RectTransform rect = (RectTransform)go.transform;
         rect.anchorMin = box.anchorMin;
         rect.anchorMax = box.anchorMax;
         rect.pivot = new Vector2(0.5f, 0f);
-        rect.sizeDelta = new Vector2(520f, 80f);
-        rect.anchoredPosition = box.anchoredPosition + new Vector2(0f, box.sizeDelta.y * (1f - box.pivot.y) + 30f);
+        rect.sizeDelta = new Vector2(560f, 76f);
+        float top = box.anchoredPosition.y + box.sizeDelta.y * (1f - box.pivot.y) + 26f;
+        rect.anchoredPosition = new Vector2(box.anchoredPosition.x, top + (count - 1 - index) * 90f);
 
         Image image = go.GetComponent<Image>();
         image.color = new Color(0.12f, 0.08f, 0.09f, 0.95f);
@@ -322,11 +404,253 @@ public sealed class PlayerFaintController : MonoBehaviour
         colors.highlightedColor = new Color(1f, 0.75f, 0.8f, 1f);
         colors.pressedColor = new Color(0.8f, 0.8f, 0.8f, 1f);
         button.colors = colors;
-        button.onClick.AddListener(BackToLobby);
+        int captured = index;
+        button.onClick.AddListener(() => pickedChoice = captured);
         EXODSound.AttachUiSounds(go);
 
-        TextMeshProUGUI label = CreateText("글자", go.transform, "타이틀 화면으로 가기", 36f, Color.white);
+        TextMeshProUGUI label = CreateText("글자", go.transform, text, 34f, Color.white);
         Stretch(label.rectTransform);
+        return image;
+    }
+
+    // ═══════════════════════════════════════════════════
+    //  운명의 갈림길: 이미 볼 수 있는 엔딩 고르기 (부스 운영 모드 제한시간 초과)
+    // ═══════════════════════════════════════════════════
+
+    private const string FateLine = "운명의 갈림길에 섰다 어떤 길을 고를까?\n"
+        + "<size=72%><color=#3C3C3C>볼 수 있는 엔딩이 뜹니다. 게임 오버가 아니라서 보상을 받을 수 있어요</color></size>";
+
+    private IEnumerator FateRoutine(List<BoothMode.FateEnding> fates)
+    {
+        ShowLineBox(null);
+        yield return FadeGroup(gameOverLineGroup, 0f, 1f, 0.5f);
+
+        while (true)
+        {
+            yield return TypeLine(FateLine, 0.04f);
+            string[] labels = new string[fates.Count];
+            for (int i = 0; i < fates.Count; i++)
+                labels[i] = FateLabel(fates[i]);
+            yield return WaitChoice(labels);
+            BoothMode.FateEnding fate = fates[pickedChoice];
+
+            foreach (string line in FateIntro(fate))
+                yield return Say(null, line);
+            yield return TypeLine(FateQuestion(fate));
+            yield return WaitChoice(new[] { FateLabel(fate), "다시 생각해본다" });
+            if (pickedChoice != 0)
+                continue;   // 다시 생각해본다 → 갈림길로
+
+            BoothMode.ForcingEnding = true;
+            if (fate == BoothMode.FateEnding.Submission)
+                yield return BedEndingRoutine();
+            else if (fate == BoothMode.FateEnding.Proposal)
+                yield return RingEndingRoutine();
+            else
+                yield return AddressEndingRoutine();
+            yield break;
+        }
+    }
+
+    private static string FateLabel(BoothMode.FateEnding fate) =>
+        fate == BoothMode.FateEnding.Submission ? "침대를 고른다"
+        : fate == BoothMode.FateEnding.Proposal ? "반지를 고른다" : "주소지를 고른다";
+
+    private static string FateQuestion(BoothMode.FateEnding fate) =>
+        fate == BoothMode.FateEnding.Submission ? "침대를 고를까?"
+        : fate == BoothMode.FateEnding.Proposal ? "반지를 고를까?" : "주소지를 고를까?";
+
+    private static string[] FateIntro(BoothMode.FateEnding fate) =>
+        fate == BoothMode.FateEnding.Submission ? new[] { "침대다. 포근하고 안락하다. 평생 여기에 있고싶어진다." }
+        : fate == BoothMode.FateEnding.Proposal ? new[] { "반지다. 어딘가 꺼림칙한 기분이 든다." }
+        : new[] { "주소지다. 내가 가지고있던 것이다.", "이거 얻으려고 고생했는데.." };
+
+    // 산책 중이었으면 집으로 (연출 없이)
+    private IEnumerator LeaveWalk()
+    {
+        bool done = false;
+        Stage2HouseLink.ForceLeaveWalk(() => done = true);
+        while (!done)
+            yield return null;
+    }
+
+    // 다른 엔딩 연출에 넘기기 (검은 막·대화창 치우고 게임 오버 상태 풀기)
+    private void HandOff()
+    {
+        ClearChoices();
+        RestoreLineBox();
+        faintText.gameObject.SetActive(false);
+        SetAlpha(blackout, 0f);
+        overlayRoot.GetComponent<Canvas>().sortingOrder = 1000;
+        overlayRoot.SetActive(false);
+        isGameOver = false;
+    }
+
+    // ─── 1. 침대 → 순응 엔딩: 침실로 끌려가 저절로 5번 연속으로 잠 ───────────────
+
+    private static readonly string[] SleepLines =
+    {
+        null, null,
+        "자고 바로 또자서그런가? 몸이 약간 찌뿌둥하다",
+        "... 다시누울까?",
+        ".. 여기서 계속 사는것도 좋을지도?",
+        "여기서 살자.",
+    };
+
+    private IEnumerator BedEndingRoutine()
+    {
+        gameOverLineGroup.alpha = 0f;
+        yield return LeaveWalk();
+
+        ItemPositionManager items = ItemPositionManager.GetOrCreate();
+        if (items != null)
+            items.ResetItemsForNewDay();   // 아이템은 혹시 모르니 초기화
+        if (SliderManager.Instance != null)
+            SliderManager.Instance.GoToRoom("침실");
+
+        int day = GManager.Instance != null ? GManager.Instance.Day : 1;
+        for (int slept = 0; ; slept++)
+        {
+            faintText.gameObject.SetActive(false);
+            yield return Fade(blackout, 1f, 0f, 0.7f);
+
+            if (slept >= 2)
+                yield return Say(null, SleepLines[slept], 1.6f);
+            if (slept >= 5)
+                break;
+
+            // 침대를 누르고 [넘어간다]가 저절로 눌림
+            ShowLineBox(null);
+            gameOverLineGroup.alpha = 1f;
+            yield return TypeLine("다음 일차로 넘어갈까?", 0.03f);
+            yield return WaitChoice(new[] { "넘어간다", "아직 아니다" }, 0);
+            gameOverLineGroup.alpha = 0f;
+
+            yield return Fade(blackout, 0f, 1f, 0.6f);
+            day++;
+            faintText.text = "DAY " + day;
+            faintText.gameObject.SetActive(true);
+            yield return new WaitForSecondsRealtime(1.1f);
+        }
+
+        HandOff();
+        ShowEnding(Stage1Dialogues.PotionEndingLine, Stage1Dialogues.PotionEndingTitle,
+            Stage1Dialogues.PotionEndingSubtitle, EndingStyle.Submission);
+    }
+
+    // ─── 2. 반지 → 청혼 엔딩: 화장실, 금고 열린 채로 반지 (집지 않는다 없음) ───────────────
+
+    private IEnumerator RingEndingRoutine()
+    {
+        gameOverLineGroup.alpha = 0f;
+        yield return LeaveWalk();
+        if (SliderManager.Instance != null)
+            SliderManager.Instance.GoToRoom("화장실");
+        yield return new WaitForSecondsRealtime(0.3f);
+
+        RestroomGimmick restroom = FindFirstObjectByType<RestroomGimmick>(FindObjectsInactive.Include);
+        HandOff();
+        if (restroom != null)
+            restroom.ForceRingForEnding();
+        else
+            ProposalEnding.Trigger();
+    }
+
+    // ─── 3. 주소지 → 탈출 엔딩: 밤길 → 전화 부스, 119가 저절로 눌리고 주소지가 저절로 넘어감 ───────────────
+
+    private IEnumerator AddressEndingRoutine()
+    {
+        gameOverLineGroup.alpha = 0f;
+        yield return LeaveWalk();
+
+        Transform root = overlayRoot.transform;
+        RawImage street = CreateFullImage("밤길", root, "EXODBoothEnding/Street");
+        if (street != null)
+            street.uvRect = new Rect(1f / 3f, 0f, 1f / 3f, 1f);   // 5760 폭 중 가운데 한 화면
+        RawImage booth = CreateFullImage("전화 부스 안", root, "EXODBoothEnding/BoothInterior");
+        blackout.transform.SetAsLastSibling();
+        gameOverLineRoot.transform.SetAsLastSibling();
+
+        if (booth != null) booth.color = new Color(1f, 1f, 1f, 0f);
+        yield return Fade(blackout, 1f, 0f, 0.8f);
+        yield return new WaitForSecondsRealtime(1.4f);
+        if (booth != null)
+            yield return Fade(booth, 0f, 1f, 0.8f);   // 부스 안으로 (그녀는 계속 뒤돌지 않음)
+
+        // 전화기와 번호 표시창
+        Image phone = CreatePhone(root, out TextMeshProUGUI display);
+        gameOverLineRoot.transform.SetAsLastSibling();
+        yield return new WaitForSecondsRealtime(0.6f);
+        string dialed = "";
+        foreach (char c in "119")
+        {
+            dialed += c;
+            display.text = dialed;
+            EXODSound.Play("keypad_press");
+            yield return new WaitForSecondsRealtime(0.6f);
+        }
+        yield return new WaitForSecondsRealtime(0.6f);
+
+        yield return Say("119", "네, 119입니다. 무슨 일이세요? 지금 계신 곳이 어디입니까?");
+        EXODSound.Play("paper_pickup");
+        yield return Say(null, "(퀵슬롯의 [주소지]를 수화기에 건넸다.)");
+        yield return Say("119", "확인했습니다. 경찰에도 바로 알리고 함께 출동하겠습니다.");
+        yield return Say("119", "들키지 않게 평소처럼 행동하세요. 전화는 끊으셔도 됩니다.");
+        yield return Say(null, "(조용히 수화기를 내려놓았다.)");
+
+        gameOverLineGroup.alpha = 0f;
+        yield return Fade(blackout, 0f, 1f, 0.8f);
+        if (street != null) Destroy(street.gameObject);
+        if (booth != null) Destroy(booth.gameObject);
+        if (phone != null) Destroy(phone.gameObject);
+
+        EXOD.Walk.PhoneBoothProgress.Reported = true;
+        EXOD.Walk.PhoneBoothProgress.EndingShown = true;
+        HandOff();
+        Stage1Room.PlayCutscene(Stage1Dialogues.EscapeCutscene(), () =>
+            ShowEnding(Stage1Dialogues.EscapeEndingLine, Stage1Dialogues.EscapeEndingTitle,
+                Stage1Dialogues.EscapeEndingSubtitle, EndingStyle.Escape));
+    }
+
+    private static RawImage CreateFullImage(string name, Transform parent, string resource)
+    {
+        Texture2D tex = Resources.Load<Texture2D>(resource);
+        if (tex == null)
+            return null;
+        GameObject go = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(RawImage));
+        go.transform.SetParent(parent, false);
+        RawImage raw = go.GetComponent<RawImage>();
+        raw.texture = tex;
+        raw.raycastTarget = true;
+        RectTransform r = raw.rectTransform;
+        r.anchorMin = r.anchorMax = new Vector2(0.5f, 0.5f);
+        r.sizeDelta = new Vector2(1920f, 1080f);
+        AspectRatioFitter fit = go.AddComponent<AspectRatioFitter>();
+        fit.aspectMode = AspectRatioFitter.AspectMode.EnvelopeParent;
+        fit.aspectRatio = 16f / 9f;
+        return raw;
+    }
+
+    private Image CreatePhone(Transform parent, out TextMeshProUGUI display)
+    {
+        Image phone = CreateImage("전화기", parent, new Color(0.16f, 0.13f, 0.13f, 1f));
+        Texture2D tex = Resources.Load<Texture2D>("EXODBoothEnding/PhoneBody");
+        if (tex != null)
+            phone.sprite = Sprite.Create(tex, new Rect(0f, 0f, tex.width, tex.height), new Vector2(0.5f, 0.5f));
+        phone.preserveAspect = true;
+        RectTransform r = phone.rectTransform;
+        r.anchorMin = r.anchorMax = new Vector2(0.5f, 0.5f);
+        r.sizeDelta = new Vector2(420f, 620f);
+        r.anchoredPosition = new Vector2(0f, 120f);
+
+        Image screen = CreateImage("표시창", phone.transform, new Color(0.05f, 0.12f, 0.08f, 1f));
+        RectTransform sr = screen.rectTransform;
+        sr.anchorMin = new Vector2(0.08f, 0.86f);
+        sr.anchorMax = new Vector2(0.92f, 0.97f);
+        sr.offsetMin = sr.offsetMax = Vector2.zero;
+        display = CreateText("번호", screen.transform, "", 44f, new Color(0.55f, 1f, 0.6f, 1f));
+        Stretch(display.rectTransform);
+        return phone;
     }
 
     // [다시 시작]: 이지/하드를 다시 고른 뒤 처음부터 (사용자 요청 2026-11-03)

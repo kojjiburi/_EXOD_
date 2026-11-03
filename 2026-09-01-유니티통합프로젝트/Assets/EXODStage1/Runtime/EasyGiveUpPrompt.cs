@@ -77,7 +77,10 @@ public sealed class EasyGiveUpPrompt : MonoBehaviour
         {
             asking = false;
             if (choice != 0)
+            {
+                BoothMode.GiveUpDeclined = true;   // 부스 모드 '이미 볼 수 있는 엔딩'(순응) 조건
                 return;   // [아니요] → 계속
+            }
 
             if (PlayerFaintController.Instance != null)
                 PlayerFaintController.Instance.ShowEnding(
