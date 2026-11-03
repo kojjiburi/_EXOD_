@@ -160,7 +160,7 @@ public static class BoothMode
     public static string TimerText()
     {
         int total = Mathf.CeilToInt(RemainingSeconds);
-        return "제한시간: " + (total / 60) + "분/" + (total % 60).ToString("00") + "초";
+        return "제한시간: " + (total / 60) + "분 " + (total % 60).ToString("00") + "초";
     }
 
     // ─── 난이도 카드 내용 ───────────────────────────────

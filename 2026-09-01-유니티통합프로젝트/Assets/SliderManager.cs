@@ -255,6 +255,10 @@ public class SliderManager : MonoBehaviour
     /// </summary>
     public void LockBedroomAgain()
     {
+        // 방 밖에서 들켜 다시 갇혔다 = 이미 방 밖에 나가 봤음 → 다시 열 때 곰인형 첫 만남 장면은 안 나옴
+        // (열쇠가 아닌 다른 길로 처음 나갔던 경우에도, 2026-11-04 부스 이지 2일차 곰돌이가 다시 말 거는 문제)
+        bedroomDoorOpenedOnce = true;
+
         if (isUnlocked)
         {
             int bedroomIndex = _unlockedRooms.IndexOf("침실");
