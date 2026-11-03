@@ -36,9 +36,10 @@ public static class EndingCollection
         new Entry
         {
             Style = EndingStyle.GameOver,
-            Title = "GAME OVER",
-            Subtitle = string.Empty,
-            LastLine = Stage1Dialogues.GameOverLine,
+            // 하트가 0이 되면 나오는 엔딩 (2026-11-04: GAME OVER → 간호 엔딩)
+            Title = Stage1Dialogues.NursingEndingTitle,
+            Subtitle = Stage1Dialogues.NursingEndingSubtitle,
+            LastLine = Stage1Dialogues.NursingEndingLine,
             Accent = new Color(0.78f, 0.08f, 0.12f, 1f),
         },
         new Entry

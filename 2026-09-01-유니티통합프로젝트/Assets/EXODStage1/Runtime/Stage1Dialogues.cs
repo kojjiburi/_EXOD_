@@ -15,6 +15,23 @@ public static class Stage1Dialogues
     public const string DoorLock = "도어락";
 
     public const string GameOverLine = "우리는 평생 함께야... ♡";
+
+    // ═══ 간호 엔딩 (하트가 0이 되면 GAME OVER 대신, 사용자 결정 2026-11-04 'A안') ═══
+    // 암전 → 이 대사(검은 화면 위) → 마지막 한마디(대화창 위) → 엔딩 화면 (PlayerFaintController.NursingRoutine)
+    public static List<DialogueLine> NursingCutscene() => new List<DialogueLine>
+    {
+        Narrate("(눈을 뜨니, 이마 위에 차가운 수건이 얹혀 있다.)"),
+        Say(Girlfriend, "깼어? 사흘이나 열이 안 내렸어."),
+        Say(Girlfriend, "자기가 자꾸 집 안을 돌아다니니까 아픈 거야."),
+        Say(Girlfriend, "이제 침대에서 안 나가도 돼. 내가 다 해 줄게 ♡"),
+        Narrate("(몸을 일으키려 했지만, 팔다리에 힘이 들어가지 않는다.)"),
+        Narrate("(…발목에 무언가 묶여 있다.)"),
+        Say(Girlfriend, "아, 그거? 자기가 또 아플까 봐."),
+    };
+
+    public const string NursingEndingLine = "평생 내가 돌봐 줄게. 아무 데도 가지 마 ♡";
+    public const string NursingEndingTitle = "간호 엔딩 : 아프지 마, 자기야";
+    public const string NursingEndingSubtitle = "몸은 나았다. 하지만 다시는 침대 밖으로 나갈 수 없었다.";
     public const string FaintText = "플레이어가 기절했다.";
 
     // 곰인형 보상 아이템 (냉장고 키패드 비밀번호가 적힌 쪽지)

@@ -132,9 +132,50 @@ public sealed class PlayerFaintController : MonoBehaviour
     //  게임 오버
     // ═══════════════════════════════════════════════════
 
+    // 하트 0 → GAME OVER 대신 간호 엔딩 (사용자 결정 2026-11-04 'A안')
+    //  암전 → 검은 화면 위에 간호 대사(볼 빨간 여자친구 그림) → 마지막 한마디 → 엔딩 화면 "간호 엔딩 : 아프지 마, 자기야"
+    private const int NursingDialogueOrder = 1001;   // 기절 암전(1000) 위에 대화창
+
     private void ShowGameOver()
     {
-        ShowEndScreen(Stage1Dialogues.GameOverLine, "GAME OVER", string.Empty, EndingStyle.GameOver);
+        if (isGameOver)
+            return;
+
+        isFainting = false;
+        isGameOver = true;
+        StopAllCoroutines();
+        CloseOtherUi();
+
+        overlayRoot.SetActive(true);
+        faintText.gameObject.SetActive(false);
+        endingScreen.Hide();
+        StartCoroutine(NursingRoutine());
+    }
+
+    private IEnumerator NursingRoutine()
+    {
+        if (blackout.color.a < 0.99f)
+            yield return Fade(blackout, blackout.color.a, 1f, 0.8f);
+        EXODSound.StopAmbience(1.5f);
+        EXODSound.PlayHeartbeat(0.5f, 0.6f, 1.5f);   // 느린 심장 소리 (앓는 중)
+        yield return new WaitForSecondsRealtime(1.5f);
+
+        DialogueManager dm = DialogueManager.Instance;
+        if (dm != null)
+        {
+            DialogueOnTop.Raise(NursingDialogueOrder);
+            DialoguePortrait.UseSweetForNextDialogue(false);
+            dm.StartDialogue(Stage1Dialogues.NursingCutscene());
+            yield return null;
+            while (dm.IsDialogueOpen)
+                yield return null;
+            DialogueOnTop.Lower(NursingDialogueOrder);
+            yield return new WaitForSecondsRealtime(0.4f);
+        }
+
+        EXODSound.StopHeartbeat(0.5f);
+        ShowEndScreen(Stage1Dialogues.NursingEndingLine, Stage1Dialogues.NursingEndingTitle,
+            Stage1Dialogues.NursingEndingSubtitle, EndingStyle.GameOver);
     }
 
     /// <summary>
