@@ -100,6 +100,8 @@ namespace EXOD.Walk
         [SerializeField] WalkLine[] missingButton2Lines = { new WalkLine("", "(버튼 하나가 빠져 있다. [2] 자리다.)") };
         [SerializeField] WalkLine[] button1UsedLines = { new WalkLine("", "(빈 자리에 [1] 버튼을 꾹 끼웠다.)") };
         [SerializeField] WalkLine[] button2UsedLines = { new WalkLine("", "(빈 자리에 [2] 버튼을 꾹 끼웠다.)") };
+        // [하드] 젖은 버튼 [2]를 끼우려 할 때 (수건으로 닦아야 함, DialButtonWetness — 사용자 요청 2026-11-03)
+        static readonly WalkLine[] wetButton2Lines = { new WalkLine("주인공", "이거.. 감전될 거 같은데?") };
         [SerializeField] WalkLine[] repairedLines = { new WalkLine("", "(뚜—… 수화기에서 신호음이 들린다. 이제 번호를 누를 수 있다.)") };
 
         [Header("대사 - 전화")]
@@ -419,6 +421,11 @@ namespace EXOD.Walk
         void TryInstall(int number)
         {
             ItemData item = Booth == null ? null : number == 1 ? Booth.DialButton1 : Booth.DialButton2;
+            if (number == 2 && item != null && WalkItems.IsUsing(item) && DialButtonWetness.IsWet(WalkItems.Selected))
+            {
+                Say(wetButton2Lines);
+                return;
+            }
             if (item != null && WalkItems.IsUsing(item))
             {
                 if (number == 1) PhoneBoothProgress.Button1Installed = true;

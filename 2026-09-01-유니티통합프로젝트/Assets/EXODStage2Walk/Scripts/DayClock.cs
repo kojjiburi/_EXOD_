@@ -125,6 +125,8 @@ namespace EXOD.Walk
         {
             if (IsAnyDialogueOpen()) return true;
             if (Stage1StoryController.Instance != null && Stage1StoryController.Instance.IsPlaying) return true;
+            // 손전등으로 비춘 그림을 보는 중엔 산책도 멈춤 (사용자 요청 2026-11-03)
+            if (FlashlightGimmick.Instance != null && FlashlightGimmick.Instance.IsViewerOpen) return true;
             return PlayerFaintController.Instance != null && PlayerFaintController.Instance.IsBusy;
         }
 

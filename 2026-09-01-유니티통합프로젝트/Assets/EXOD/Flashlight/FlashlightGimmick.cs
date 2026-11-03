@@ -12,6 +12,9 @@ using UnityEngine.UI;
 /// - 종이 A~E를 비추면 Alight~Elight 그림을 화면에 보여 주고 [나가기]로 닫습니다. (아이템으로 얻지 않음)
 /// - 다른 아이템을 비추면 "이건 이렇게 사용하는 것이 아닌 것 같다." 대사가 나옵니다.
 /// - 고르는 중에 퀵슬롯 우클릭 또는 ESC를 누르면 취소됩니다.
+/// - (2026-11-03) 퀵슬롯의 수건도 같은 방식: "닦을 물건을 선택하자." → 젖은 다이얼 버튼 [2]를 고르면 안 젖은 버튼으로 바뀜 (DialButtonWetness)
+/// - 비춘 그림이 떠 있는 동안은 게임 시간·위험도·산책이 모두 멈춤 (DayCycleController.IsTimePaused, DayClock, WalkYandere)
+/// - 퀵슬롯 안 상호작용(손전등·수건)으로는 위험도가 오르지 않음 (이 코드의 대사는 잠수 자동 넘김도 안 함)
 /// 그림과 아이템 데이터는 Assets/EXOD/Flashlight/Resources/EXODFlashlight 에 있습니다.
 /// 실행할 때 SliderManager가 있는 씬에 자동으로 붙습니다.
 /// </summary>
@@ -29,6 +32,14 @@ public sealed class FlashlightGimmick : MonoBehaviour
 
     private const string SelectTargetText = "비출 물건을 선택하자.";
     private const string WrongTargetText = "이건 이렇게 사용하는 것이 아닌 것 같다.";
+    private const string SelectWipeText = "닦을 물건을 선택하자.";
+    private const string WipedText = "물기를 닦아 냈다.";
+    private const string NoNeedWipeText = "이건 닦을 필요가 없는 것 같다.";
+
+    private bool wipeMode;   // 수건으로 닦을 물건을 고르는 중
+
+    /// <summary>이 코드가 띄운 대사(고르기 안내·결과)가 떠 있는지 — 잠수 방지 자동 넘김·위험도에서 제외</summary>
+    public static bool IsOwnDialogueOpen { get; private set; }
 
     // 종이 아이템 ID → 비췄을 때 보여 줄 그림 (Resources/EXODFlashlight/...)
     private static readonly Dictionary<string, string> LightImageByPaperId = new()
@@ -94,6 +105,9 @@ public sealed class FlashlightGimmick : MonoBehaviour
 
     private void Update()
     {
+        if (IsOwnDialogueOpen && (DialogueManager.Instance == null || !DialogueManager.Instance.IsDialogueOpen))
+            IsOwnDialogueOpen = false;
+
         if (Time.unscaledTime >= nextRefreshTime)
         {
             nextRefreshTime = Time.unscaledTime + 0.5f;
@@ -132,6 +146,14 @@ public sealed class FlashlightGimmick : MonoBehaviour
 
         string itemId = entry.ItemData.ItemId;
 
+        if (isSelectingTarget && wipeMode)
+        {
+            isSelectingTarget = false;
+            wipeMode = false;
+            Wipe(entry);
+            return;
+        }
+
         if (isSelectingTarget)
         {
             isSelectingTarget = false;
@@ -151,16 +173,39 @@ public sealed class FlashlightGimmick : MonoBehaviour
         }
 
         if (itemId == FlashlightItemId)
-            BeginTargetSelection();
+            BeginTargetSelection(false);
+        else if (itemId == RestroomGimmick.TowelItemId)
+            BeginTargetSelection(true);
+    }
+
+    // 수건으로 닦기: 젖은 다이얼 버튼 [2]만 안 젖은 버튼으로 바뀜
+    private void Wipe(QuickSlotEntry entry)
+    {
+        if (!DialButtonWetness.IsWet(entry.ItemData))
+        {
+            Think(NoNeedWipeText);
+            return;
+        }
+
+        QuickSlotInventory inventory = GetInventory();
+        ItemData dry = DialButtonWetness.GetDry(entry.ItemData);
+        if (inventory == null || dry == null || !inventory.TryRemove(entry))
+            return;
+
+        inventory.TryAdd(dry);
+        EXODSound.Play("item_pickup");
+        Think(WipedText);
     }
 
     public void CancelTargetSelection()
     {
         isSelectingTarget = false;
+        wipeMode = false;
     }
 
-    private void BeginTargetSelection()
+    private void BeginTargetSelection(bool wipe)
     {
+        wipeMode = wipe;
         DialogueManager dialogue = DialogueManager.Instance;
         if (dialogue == null)
         {
@@ -168,9 +213,10 @@ public sealed class FlashlightGimmick : MonoBehaviour
             return;
         }
 
-        // 대사를 [다음]으로 넘겨 닫은 뒤부터 비출 물건을 고를 수 있습니다.
+        // 대사를 [다음]으로 넘겨 닫은 뒤부터 비출(닦을) 물건을 고를 수 있습니다.
         StopListeningDialogueEnd();
-        dialogue.StartDialogue(Stage1Dialogues.Thought(SelectTargetText));
+        IsOwnDialogueOpen = true;
+        dialogue.StartDialogue(Stage1Dialogues.Thought(wipe ? SelectWipeText : SelectTargetText));
         dialogue.onDialogueEnd.AddListener(OnSelectDialogueEnd);
         waitingForSelectDialogue = true;
     }
@@ -314,6 +360,7 @@ public sealed class FlashlightGimmick : MonoBehaviour
 
     private static void Think(string text)
     {
+        IsOwnDialogueOpen = true;
         DialogueManager.Instance?.StartDialogue(Stage1Dialogues.Thought(text));
     }
 

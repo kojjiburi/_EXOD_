@@ -141,6 +141,19 @@ namespace EXOD.Walk
         void Update()
         {
             if (!running || Paused) return;
+
+            // 손전등으로 비춘 그림을 보는 중엔 완전히 멈춤 (사용자 요청 2026-11-03)
+            if (FlashlightGimmick.Instance != null && FlashlightGimmick.Instance.IsViewerOpen) return;
+
+            // 전화 부스 안에서 대사가 나오는 동안은 뒤돌지 않음 (이미 보고 있으면 원래대로 다시 앞을 봄).
+            // 대사가 끝난 직후 바로 돌아보지 않도록 말풍선 시간만큼은 남겨 둠 (사용자 요청 2026-11-03)
+            if (State == YandereState.Away && WalkGameManager.Overlay != null && DayClock.IsAnyDialogueOpen())
+            {
+                timer = Mathf.Max(timer, turnWarningLead + 0.6f);
+                SetWarningVisible(false);
+                return;
+            }
+
             timer -= Time.deltaTime;
 
             // 뒤돌기 0.5초 전부터 다시 앞을 볼 때까지 말풍선 표시

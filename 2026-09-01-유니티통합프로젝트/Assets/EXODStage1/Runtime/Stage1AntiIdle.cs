@@ -202,6 +202,7 @@ public sealed class Stage1AntiIdle : MonoBehaviour
         // 이야기 컷신·일차 넘김·기절·엔딩·여자친구 등장 중에는 자동으로 넘기지 않음 (조사 대사만)
         if ((Stage1StoryController.Instance != null && Stage1StoryController.Instance.IsPlaying)
             || DayController.IsTransitioning || DangerLevel.IsAppearing || Stage2HouseLink.IsInStage2
+            || FlashlightGimmick.IsOwnDialogueOpen   // 퀵슬롯 안 상호작용(손전등·수건) 대사는 위험도 없음
             || (PlayerFaintController.Instance != null && PlayerFaintController.Instance.IsBusy))
         {
             lineShownTime = Time.unscaledTime;

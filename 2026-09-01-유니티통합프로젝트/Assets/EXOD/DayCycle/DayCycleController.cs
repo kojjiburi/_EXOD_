@@ -424,6 +424,10 @@ public sealed class DayCycleController : MonoBehaviour
         if (StrangePotionGimmick.IsOpen)
             return true;
 
+        // 손전등으로 비춘 그림(Light A~E)을 보는 중: 시간·위험도 모두 멈춤 (사용자 요청 2026-11-03)
+        if (FlashlightGimmick.Instance != null && FlashlightGimmick.Instance.IsViewerOpen)
+            return true;
+
         return PlayerFaintController.Instance != null && PlayerFaintController.Instance.IsBusy;
     }
 
