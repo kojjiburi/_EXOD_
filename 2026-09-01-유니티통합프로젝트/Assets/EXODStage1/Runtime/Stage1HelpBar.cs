@@ -41,6 +41,7 @@ public sealed class Stage1HelpBar : MonoBehaviour
     private CanvasGroup group;
     private Image panel;
     private TextMeshProUGUI titleText;
+    private TextMeshProUGUI boothTimerText;   // 부스 운영 모드 제한시간 (제목 옆)
     private TextMeshProUGUI tipText;
     private string shownTips;
     private bool warningShown;
@@ -203,20 +204,57 @@ public sealed class Stage1HelpBar : MonoBehaviour
         float expandedHeight = Mathf.Clamp(
             tipText.GetPreferredValues(tipText.text, ExpandedWidth - 54f, 0f).y + 75f,
             MinExpandedHeight, MaxExpandedHeight);
-        Vector2 target = fold ? new Vector2(CollapsedWidth, CollapsedHeight) : new Vector2(ExpandedWidth, expandedHeight);
+        float collapsedWidth = BoothMode.TimerVisible ? 620f : CollapsedWidth;   // 부스 모드는 접어도 제목 옆 타이머가 보이게
+        Vector2 target = fold ? new Vector2(collapsedWidth, CollapsedHeight) : new Vector2(ExpandedWidth, expandedHeight);
         panelRect.sizeDelta = Vector2.Lerp(panelRect.sizeDelta, target, 1f - Mathf.Exp(-Time.unscaledDeltaTime * 18f));
         bool showTips = !fold && panelRect.sizeDelta.x > ExpandedWidth * 0.9f;
         if (tipText.gameObject.activeSelf != showTips)
             tipText.gameObject.SetActive(showTips);
 
+        UpdateBoothTimer(fold);
+
         if (!warningShown)
         {
             string mode = GameDifficulty.IsEasy ? " <size=70%><color=#8CD9A6>(이지)</color></size>" : "";
-            string title = fold ? Title + mode + "  <size=70%><color=#9A8F93>[Shift] 펼치기</color></size>"
-                                : Title + mode + "  <size=70%><color=#9A8F93>[Shift] 접기</color></size>";
+            // 부스 운영 모드: 제목 오른쪽에 타이머가 있어 [Shift] 안내는 뺌
+            string hint = BoothMode.TimerVisible ? ""
+                : fold ? "  <size=70%><color=#9A8F93>[Shift] 펼치기</color></size>"
+                       : "  <size=70%><color=#9A8F93>[Shift] 접기</color></size>";
+            string title = Title + mode + hint;
             if (titleText.text != title)
                 titleText.text = title;
         }
+    }
+
+    // 부스 운영 모드: 행동 요령 제목 옆 제한시간 (흰 테두리·군청색·밑줄·기울임, 이지 5분 / 하드 10분)
+    private void UpdateBoothTimer(bool fold)
+    {
+        bool show = BoothMode.TimerVisible;
+        if (boothTimerText == null)
+        {
+            if (!show)
+                return;
+            boothTimerText = CreateText("제한시간", titleText.transform.parent, string.Empty, 30f,
+                new Color(0.10f, 0.16f, 0.50f, 1f), TextAlignmentOptions.TopRight);
+            boothTimerText.fontStyle = FontStyles.Italic | FontStyles.Underline | FontStyles.Bold;
+            boothTimerText.outlineColor = Color.white;
+            boothTimerText.outlineWidth = 0.22f;
+            RectTransform r = boothTimerText.rectTransform;
+            r.anchorMin = new Vector2(0f, 1f);
+            r.anchorMax = new Vector2(1f, 1f);
+            r.pivot = new Vector2(0.5f, 1f);
+            r.offsetMin = new Vector2(27f, -54f);
+            r.offsetMax = new Vector2(-27f, -14f);
+        }
+
+        if (boothTimerText.gameObject.activeSelf != show)
+            boothTimerText.gameObject.SetActive(show);
+        if (!show)
+            return;
+
+        boothTimerText.text = BoothMode.TimerText();
+        // 시간이 다 되면 깜빡임
+        boothTimerText.alpha = BoothMode.RemainingSeconds <= 0f ? (Mathf.Repeat(Time.unscaledTime, 0.8f) < 0.4f ? 1f : 0.25f) : 1f;
     }
 
     private bool IsHerWatching()

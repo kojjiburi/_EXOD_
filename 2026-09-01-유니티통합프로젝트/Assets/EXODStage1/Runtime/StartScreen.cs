@@ -103,6 +103,7 @@ public sealed class StartScreen : MonoBehaviour
             return;
 
         GameDifficulty.IsEasy = easy;
+        BoothMode.StartTimer(easy);   // 부스 운영 모드면 제한시간 시작
         difficultyPanel.SetActive(false);
         isStarting = true;
         StartCoroutine(StartGameRoutine());
@@ -120,13 +121,14 @@ public sealed class StartScreen : MonoBehaviour
 
     private void BuildDifficultyPanel()
     {
+        bool booth = BoothMode.IsOn;
         Image dim = CreateImage("난이도", canvasRoot, new Color(0f, 0f, 0f, 0.8f));
         Stretch(dim.rectTransform);
         dim.raycastTarget = true;
         difficultyPanel = dim.gameObject;
 
         Image window = CreateImage("난이도 창", dim.rectTransform, new Color(0.07f, 0.04f, 0.05f, 1f));
-        Place(window.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(1200f, 600f), Vector2.zero);
+        Place(window.rectTransform, new Vector2(0.5f, 0.5f), booth ? BoothMode.BoothWindowSize : new Vector2(1200f, 600f), Vector2.zero);
         Outline outline = window.gameObject.AddComponent<Outline>();
         outline.effectColor = new Color(0.45f, 0.06f, 0.1f, 1f);
         outline.effectDistance = new Vector2(3f, -3f);
@@ -134,10 +136,21 @@ public sealed class StartScreen : MonoBehaviour
         TextMeshProUGUI heading = CreateText("제목", window.rectTransform, "난이도 선택", 52f, TitleColor);
         Place(heading.rectTransform, new Vector2(0.5f, 1f), new Vector2(800f, 90f), new Vector2(0f, -70f));
 
-        CreateDifficultyCard(window.rectTransform, new Vector2(-270f, -10f), "이지",
-            "처음 하는 사람용\n짧게 끝낼 수 있어요", new Color(0.55f, 0.85f, 0.65f, 1f), () => StartWithDifficulty(true));
-        CreateDifficultyCard(window.rectTransform, new Vector2(270f, -10f), "하드",
-            "원래 난이도\n모든 단서를 직접 찾아야 해요", new Color(0.88f, 0.12f, 0.18f, 1f), () => StartWithDifficulty(false));
+        if (booth)
+        {
+            // 부스 운영 모드: 제한시간·주의 문구가 들어간 큰 카드 (사용자 요청 2026-11-03)
+            CreateDifficultyCard(window.rectTransform, new Vector2(-290f, 5f), "이지", null,
+                new Color(0.55f, 0.85f, 0.65f, 1f), () => StartWithDifficulty(true), true);
+            CreateDifficultyCard(window.rectTransform, new Vector2(290f, 5f), "하드", null,
+                new Color(0.88f, 0.12f, 0.18f, 1f), () => StartWithDifficulty(false), false);
+        }
+        else
+        {
+            CreateDifficultyCard(window.rectTransform, new Vector2(-270f, -10f), "이지",
+                "처음 하는 사람용\n짧게 끝낼 수 있어요", new Color(0.55f, 0.85f, 0.65f, 1f), () => StartWithDifficulty(true));
+            CreateDifficultyCard(window.rectTransform, new Vector2(270f, -10f), "하드",
+                "원래 난이도\n모든 단서를 직접 찾아야 해요", new Color(0.88f, 0.12f, 0.18f, 1f), () => StartWithDifficulty(false));
+        }
 
         Image close = CreateImage("닫기", window.rectTransform, Color.white);
         Place(close.rectTransform, new Vector2(0.5f, 0f), new Vector2(200f, 64f), new Vector2(0f, 60f));
@@ -157,10 +170,10 @@ public sealed class StartScreen : MonoBehaviour
     }
 
     private void CreateDifficultyCard(RectTransform parent, Vector2 position, string name, string desc, Color accent,
-        UnityEngine.Events.UnityAction onClick)
+        UnityEngine.Events.UnityAction onClick, bool? boothEasy = null)
     {
         Image card = CreateImage(name, parent, new Color(0.13f, 0.08f, 0.10f, 1f));
-        Place(card.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(460f, 260f), position);
+        Place(card.rectTransform, new Vector2(0.5f, 0.5f), boothEasy.HasValue ? BoothMode.BoothCardSize : new Vector2(460f, 260f), position);
         Outline outline = card.gameObject.AddComponent<Outline>();
         outline.effectColor = accent;
         outline.effectDistance = new Vector2(3f, -3f);
@@ -175,6 +188,12 @@ public sealed class StartScreen : MonoBehaviour
         button.colors = colors;
         button.onClick.AddListener(onClick);
         EXODSound.AttachUiSounds(card.gameObject);
+
+        if (boothEasy.HasValue)
+        {
+            BoothMode.FillDifficultyCard(card.rectTransform, boothEasy.Value, accent, font);
+            return;
+        }
 
         TextMeshProUGUI title = CreateText("이름", card.rectTransform, name, 64f, accent);
         Place(title.rectTransform, new Vector2(0.5f, 1f), new Vector2(420f, 100f), new Vector2(0f, -70f));
@@ -355,6 +374,7 @@ public sealed class StartScreen : MonoBehaviour
         Place(team.rectTransform, new Vector2(1f, 0f), new Vector2(400f, 50f), new Vector2(-230f, 50f));
         team.alignment = TextAlignmentOptions.Right;
 
+        BuildBoothSwitch();
         BuildSettingsPanel();
         BuildEndingsPanel();
         BuildDifficultyPanel();
@@ -362,6 +382,69 @@ public sealed class StartScreen : MonoBehaviour
         blackout = CreateImage("암전", canvasRoot, Color.black);
         Stretch(blackout.rectTransform);
         blackout.raycastTarget = false;
+    }
+
+    // ─── 부스 운영 스위치 (왼쪽 아래, 사용자 요청 2026-11-03) ───────────────
+
+    private Image boothTrack;
+    private RectTransform boothKnob;
+    private TextMeshProUGUI boothState;
+    private bool boothSwitching;
+
+    private void BuildBoothSwitch()
+    {
+        Image hit = CreateImage("부스 운영 스위치", canvasRoot, new Color(0f, 0f, 0f, 0.35f));
+        Place(hit.rectTransform, new Vector2(0f, 0f), new Vector2(330f, 74f), new Vector2(200f, 60f));
+        Button button = hit.gameObject.AddComponent<Button>();
+        button.transition = Selectable.Transition.None;
+        button.onClick.AddListener(ToggleBoothMode);
+        EXODSound.AttachUiSounds(hit.gameObject);
+
+        TextMeshProUGUI label = CreateText("글자", hit.rectTransform, "부스 운영", 30f, TextColor);
+        Place(label.rectTransform, new Vector2(0f, 0.5f), new Vector2(160f, 60f), new Vector2(92f, 0f));
+
+        boothTrack = CreateImage("스위치 바탕", hit.rectTransform, Color.white);
+        Place(boothTrack.rectTransform, new Vector2(0f, 0.5f), new Vector2(84f, 40f), new Vector2(222f, 0f));
+        boothTrack.raycastTarget = false;
+        Image knob = CreateImage("스위치 손잡이", boothTrack.rectTransform, Color.white);
+        boothKnob = knob.rectTransform;
+        boothKnob.anchorMin = boothKnob.anchorMax = new Vector2(0.5f, 0.5f);
+        boothKnob.sizeDelta = new Vector2(32f, 32f);
+        knob.raycastTarget = false;
+
+        boothState = CreateText("상태", hit.rectTransform, "", 24f, TextColor);
+        Place(boothState.rectTransform, new Vector2(0f, 0.5f), new Vector2(60f, 40f), new Vector2(295f, 0f));
+        RefreshBoothSwitch();
+    }
+
+    private void RefreshBoothSwitch()
+    {
+        bool on = BoothMode.IsOn;
+        boothTrack.color = on ? new Color(0.62f, 0.04f, 0.08f, 1f) : new Color(0.25f, 0.22f, 0.23f, 1f);
+        boothKnob.anchoredPosition = new Vector2(on ? 22f : -22f, 0f);
+        boothState.text = on ? "ON" : "OFF";
+        boothState.color = on ? HoverColor : new Color(0.5f, 0.47f, 0.48f, 1f);
+    }
+
+    private void ToggleBoothMode()
+    {
+        if (boothSwitching || isStarting || !menuGroup.interactable)
+            return;
+        boothSwitching = true;
+
+        // 화면 전체 노이즈가 꼈다 사라지는 사이에 모드 전환
+        BoothMode.PlayNoise(this, () =>
+        {
+            BoothMode.IsOn = !BoothMode.IsOn;
+            RefreshBoothSwitch();
+
+            // 난이도 창을 새 모드 설명으로 다시 만듦 (암전보다 아래 순서 유지)
+            int index = difficultyPanel.transform.GetSiblingIndex();
+            Destroy(difficultyPanel);
+            BuildDifficultyPanel();
+            difficultyPanel.transform.SetSiblingIndex(index);
+            boothSwitching = false;
+        });
     }
 
     // 화면 비율이 달라도 꽉 차도록(넘치는 부분은 잘림) 배경을 놓습니다.

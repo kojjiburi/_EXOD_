@@ -1,0 +1,221 @@
+using System.Collections;
+using TMPro;
+using UnityEngine;
+using UnityEngine.SceneManagement;
+using UnityEngine.UI;
+
+/// <summary>
+/// 부스 운영 모드 (사용자 요청 2026-11-03)
+/// - 타이틀 화면 왼쪽 아래 스위치로 켜고 끔 (StartScreen). 껐다 켜도 유지(PlayerPrefs).
+/// - 켜져 있으면 난이도 선택 카드 설명이 부스용으로 바뀜 (StartScreen / DifficultyPicker → FillDifficultyCard)
+/// - 게임을 시작하면 제한시간 타이머가 돌고 (이지 5분 / 하드 10분), 행동 요령 제목 옆에 표시됨 (Stage1HelpBar)
+/// </summary>
+public static class BoothMode
+{
+    private const string PrefKey = "EXOD_BoothMode";
+    private const string TitleSceneName = "StartScenes";
+    public const float EasyLimitSeconds = 5f * 60f;
+    public const float HardLimitSeconds = 10f * 60f;
+
+    private static bool loaded;
+    private static bool isOn;
+
+    private static bool timerRunning;
+    private static float timerStart;
+    private static float timerLimit;
+
+    public static bool IsOn
+    {
+        get
+        {
+            if (!loaded)
+            {
+                isOn = PlayerPrefs.GetInt(PrefKey, 0) == 1;
+                loaded = true;
+            }
+            return isOn;
+        }
+        set
+        {
+            isOn = value;
+            loaded = true;
+            PlayerPrefs.SetInt(PrefKey, value ? 1 : 0);
+            PlayerPrefs.Save();
+        }
+    }
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetStatics()
+    {
+        loaded = false;
+        timerRunning = false;
+        SceneManager.sceneLoaded -= OnSceneLoaded;
+        SceneManager.sceneLoaded += OnSceneLoaded;
+    }
+
+    // 타이틀로 돌아가면 타이머 멈춤
+    private static void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        if (scene.name == TitleSceneName)
+            timerRunning = false;
+    }
+
+    // ─── 제한시간 타이머 ───────────────────────────────
+
+    /// <summary>난이도를 고르고 게임을 시작할 때 (처음 시작·다시 시작 모두)</summary>
+    public static void StartTimer(bool easy)
+    {
+        timerRunning = IsOn;
+        timerStart = Time.realtimeSinceStartup;
+        timerLimit = easy ? EasyLimitSeconds : HardLimitSeconds;
+    }
+
+    public static bool TimerVisible => IsOn && timerRunning;
+
+    public static float RemainingSeconds =>
+        timerRunning ? Mathf.Max(0f, timerLimit - (Time.realtimeSinceStartup - timerStart)) : 0f;
+
+    public static string TimerText()
+    {
+        int total = Mathf.CeilToInt(RemainingSeconds);
+        return "제한시간: " + (total / 60) + "분/" + (total % 60).ToString("00") + "초";
+    }
+
+    // ─── 난이도 카드 내용 ───────────────────────────────
+
+    public static readonly Vector2 BoothCardSize = new Vector2(540f, 430f);
+    public static readonly Vector2 BoothWindowSize = new Vector2(1250f, 720f);
+
+    private static readonly Color BodyColor = new Color(0.78f, 0.74f, 0.76f, 1f);
+    private static readonly Color WarnColor = new Color(1f, 0.15f, 0.2f, 1f);
+
+    /// <summary>부스 모드용 난이도 카드 글자들 (이름 아래). card는 BoothCardSize 크기여야 함</summary>
+    public static void FillDifficultyCard(RectTransform card, bool easy, Color accent, TMP_FontAsset font)
+    {
+        TextMeshProUGUI name = Txt("이름", card, easy ? "이지" : "하드", 64f, accent, font, FontStyles.Normal);
+        Top(name.rectTransform, 20f, 80f);
+
+        TextMeshProUGUI big = Txt("제한시간", card, easy ? "제한시간 5분." : "제한시간 10분.", 48f, Color.white, font, FontStyles.Bold);
+        Top(big.rectTransform, 105f, 64f);
+
+        float y = 180f;
+        if (!easy)
+        {
+            TextMeshProUGUI warn = Txt("경고", card, "실패하면 간식, 보상을 받지 못해요!", 31f, WarnColor, font, FontStyles.Bold);
+            Top(warn.rectTransform, y, 48f);
+            warn.gameObject.AddComponent<BoothShake>();
+            y += 58f;
+        }
+
+        string body = easy
+            ? "중간에 그만 둘 수 있는 타이밍도 많아요.\n기믹의 난이도가 쉽고 양이 적어요."
+            : "중간에 그만 둘 수 없어요..\n이지모드도 헤매면 20분이 넘게 걸려요\n시작하기 전에 잘 생각해 보세요";
+        TextMeshProUGUI desc = Txt("설명", card, body, 26f, BodyColor, font, FontStyles.Normal);
+        desc.enableWordWrapping = true;
+        desc.lineSpacing = 6f;
+        desc.alignment = TextAlignmentOptions.Top;
+        RectTransform r = desc.rectTransform;
+        r.anchorMin = new Vector2(0f, 0f);
+        r.anchorMax = new Vector2(1f, 1f);
+        r.offsetMin = new Vector2(24f, 18f);
+        r.offsetMax = new Vector2(-24f, -y);
+    }
+
+    private static void Top(RectTransform r, float fromTop, float height)
+    {
+        r.anchorMin = new Vector2(0f, 1f);
+        r.anchorMax = new Vector2(1f, 1f);
+        r.pivot = new Vector2(0.5f, 1f);
+        r.offsetMin = new Vector2(16f, -fromTop - height);
+        r.offsetMax = new Vector2(-16f, -fromTop);
+    }
+
+    private static TextMeshProUGUI Txt(string name, Transform parent, string value, float size, Color color, TMP_FontAsset font, FontStyles style)
+    {
+        GameObject go = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
+        go.transform.SetParent(parent, false);
+        TextMeshProUGUI t = go.GetComponent<TextMeshProUGUI>();
+        if (font != null)
+            t.font = font;
+        t.text = value;
+        t.fontSize = size;
+        t.fontStyle = style;
+        t.alignment = TextAlignmentOptions.Center;
+        t.color = color;
+        t.raycastTarget = false;
+        return t;
+    }
+
+    // ─── 화면 전체 노이즈 (모드 전환 연출) ───────────────────────────────
+
+    /// <summary>화면 전체에 노이즈가 꼈다가 사라짐. 가장 진할 때 onPeak 호출</summary>
+    public static void PlayNoise(MonoBehaviour host, System.Action onPeak)
+    {
+        host.StartCoroutine(NoiseRoutine(onPeak));
+    }
+
+    private static IEnumerator NoiseRoutine(System.Action onPeak)
+    {
+        GameObject root = new GameObject("부스 모드 노이즈", typeof(RectTransform), typeof(Canvas));
+        Canvas canvas = root.GetComponent<Canvas>();
+        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        canvas.sortingOrder = 32700;
+
+        GameObject imgGo = new GameObject("노이즈", typeof(RectTransform), typeof(CanvasRenderer), typeof(RawImage));
+        imgGo.transform.SetParent(root.transform, false);
+        RectTransform rt = imgGo.GetComponent<RectTransform>();
+        rt.anchorMin = Vector2.zero;
+        rt.anchorMax = Vector2.one;
+        rt.offsetMin = rt.offsetMax = Vector2.zero;
+        RawImage raw = imgGo.GetComponent<RawImage>();
+        raw.raycastTarget = true;   // 연출 중 클릭 막기
+
+        const int W = 192, H = 108;
+        Texture2D tex = new Texture2D(W, H, TextureFormat.RGBA32, false);
+        tex.filterMode = FilterMode.Point;
+        tex.wrapMode = TextureWrapMode.Repeat;
+        Color32[] px = new Color32[W * H];
+        raw.texture = tex;
+
+        EXODSound.Play("glitch", 0.6f);
+
+        const float inTime = 0.35f, holdTime = 0.15f, outTime = 0.5f;
+        float total = inTime + holdTime + outTime;
+        bool peaked = false;
+        float t = 0f;
+        while (t < total)
+        {
+            // 매 프레임 새 노이즈 (가로 줄 흔들림 섞음)
+            for (int y = 0; y < H; y++)
+            {
+                bool band = Random.value < 0.06f;
+                byte tint = (byte)Random.Range(0, 60);
+                for (int x = 0; x < W; x++)
+                {
+                    byte v = (byte)Random.Range(0, 256);
+                    px[y * W + x] = band ? new Color32(v, tint, tint, 255) : new Color32(v, v, v, 255);
+                }
+            }
+            tex.SetPixels32(px);
+            tex.Apply(false);
+            raw.uvRect = new Rect(Random.value, Random.value, 1f, 1f);
+
+            float a = t < inTime ? t / inTime : t < inTime + holdTime ? 1f : 1f - (t - inTime - holdTime) / outTime;
+            raw.color = new Color(1f, 1f, 1f, Mathf.Clamp01(a) * 0.92f);
+
+            if (!peaked && t >= inTime)
+            {
+                peaked = true;
+                onPeak?.Invoke();
+            }
+
+            t += Time.unscaledDeltaTime;
+            yield return null;
+        }
+
+        if (!peaked)
+            onPeak?.Invoke();
+        Object.Destroy(tex);
+        Object.Destroy(root);
+    }
+}

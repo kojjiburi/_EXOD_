@@ -40,21 +40,32 @@ public static class DifficultyPicker
         Stretch(dim.rectTransform);
         dim.raycastTarget = true;
 
+        bool booth = BoothMode.IsOn;
         Image window = Img("창", dim.rectTransform, new Color(0.07f, 0.04f, 0.05f, 1f));
-        Place(window.rectTransform, new Vector2(1200f, 600f), Vector2.zero);
+        Place(window.rectTransform, booth ? BoothMode.BoothWindowSize : new Vector2(1200f, 600f), Vector2.zero);
         Outline outline = window.gameObject.AddComponent<Outline>();
         outline.effectColor = new Color(0.45f, 0.06f, 0.1f, 1f);
         outline.effectDistance = new Vector2(3f, -3f);
 
         TextMeshProUGUI heading = Txt("제목", window.rectTransform, "난이도 선택", 52f, TitleColor);
-        Place(heading.rectTransform, new Vector2(800f, 90f), new Vector2(0f, 230f));
+        Place(heading.rectTransform, new Vector2(800f, 90f), new Vector2(0f, booth ? 290f : 230f));
 
-        Card(window.rectTransform, new Vector2(-270f, -10f), "이지", "처음 하는 사람용\n짧게 끝낼 수 있어요",
-            new Color(0.55f, 0.85f, 0.65f, 1f), () => Pick(onPicked, true));
-        Card(window.rectTransform, new Vector2(270f, -10f), "하드", "원래 난이도\n모든 단서를 직접 찾아야 해요",
-            new Color(0.88f, 0.12f, 0.18f, 1f), () => Pick(onPicked, false));
+        if (booth)
+        {
+            Card(window.rectTransform, new Vector2(-290f, 5f), "이지", null,
+                new Color(0.55f, 0.85f, 0.65f, 1f), () => Pick(onPicked, true), true);
+            Card(window.rectTransform, new Vector2(290f, 5f), "하드", null,
+                new Color(0.88f, 0.12f, 0.18f, 1f), () => Pick(onPicked, false), false);
+        }
+        else
+        {
+            Card(window.rectTransform, new Vector2(-270f, -10f), "이지", "처음 하는 사람용\n짧게 끝낼 수 있어요",
+                new Color(0.55f, 0.85f, 0.65f, 1f), () => Pick(onPicked, true));
+            Card(window.rectTransform, new Vector2(270f, -10f), "하드", "원래 난이도\n모든 단서를 직접 찾아야 해요",
+                new Color(0.88f, 0.12f, 0.18f, 1f), () => Pick(onPicked, false));
+        }
 
-        Button back = Btn(window.rectTransform, "뒤로", new Vector2(200f, 64f), new Vector2(0f, -240f));
+        Button back = Btn(window.rectTransform, "뒤로", new Vector2(200f, 64f), new Vector2(0f, booth ? -305f : -240f));
         back.onClick.AddListener(Close);
     }
 
@@ -68,13 +79,15 @@ public static class DifficultyPicker
     private static void Pick(Action<bool> onPicked, bool easy)
     {
         Close();
+        BoothMode.StartTimer(easy);   // 부스 운영 모드면 제한시간 다시 시작
         onPicked?.Invoke(easy);
     }
 
-    private static void Card(RectTransform parent, Vector2 pos, string name, string desc, Color accent, UnityEngine.Events.UnityAction onClick)
+    private static void Card(RectTransform parent, Vector2 pos, string name, string desc, Color accent, UnityEngine.Events.UnityAction onClick,
+        bool? boothEasy = null)
     {
         Image card = Img(name, parent, new Color(0.13f, 0.08f, 0.10f, 1f));
-        Place(card.rectTransform, new Vector2(460f, 260f), pos);
+        Place(card.rectTransform, boothEasy.HasValue ? BoothMode.BoothCardSize : new Vector2(460f, 260f), pos);
         Outline o = card.gameObject.AddComponent<Outline>();
         o.effectColor = accent;
         o.effectDistance = new Vector2(3f, -3f);
@@ -85,6 +98,12 @@ public static class DifficultyPicker
         b.colors = c;
         b.onClick.AddListener(onClick);
         EXODSound.AttachUiSounds(card.gameObject);
+
+        if (boothEasy.HasValue)
+        {
+            BoothMode.FillDifficultyCard(card.rectTransform, boothEasy.Value, accent, EXODUiAssets.Font);
+            return;
+        }
 
         TextMeshProUGUI t = Txt("이름", card.rectTransform, name, 64f, accent);
         Place(t.rectTransform, new Vector2(420f, 100f), new Vector2(0f, 60f));
