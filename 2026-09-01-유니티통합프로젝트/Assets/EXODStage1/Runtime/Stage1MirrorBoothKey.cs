@@ -122,7 +122,13 @@ public sealed class Stage1MirrorBoothKey : MonoBehaviour
             maze.maxBumps = 6;
         }
         if (maze != null)
+        {
+            // 미로 화면 글자도 게임 공용 폰트(Galmuri9)로 통일 (Start에서 UI를 만들기 전에 넣음, 사용자 요청 2026-11-03)
+            Font gameFont = LoadGameFont();
+            if (gameFont != null)
+                maze.customFont = gameFont;
             StartCoroutine(DecorateMazeUi(maze));
+        }
     }
 
     // ─── 거울 미로 화면 손보기 (사용자 요청 2026-11-03) ──────────────
@@ -149,23 +155,50 @@ public sealed class Stage1MirrorBoothKey : MonoBehaviour
             Text text = guide.GetComponent<Text>();
             if (text != null)
             {
-                text.text = "손거울을 끌어 반대편을 비춰보자   ·   WASD / 방향키: 이동   ·   벽에 " + maze.maxBumps + "번 부딪히면 실패   ·   ESC: 나가기";
-                text.color = Color.white;
-                text.fontSize = 30;
+                text.text = "손거울을 끌어 반대편을 비춰보자  ·  WASD / 방향키: 이동  ·  벽에 " + maze.maxBumps + "번 부딪히면 실패  ·  ESC: 나가기";
+                text.color = GuideColor;
+                text.fontSize = 36;
             }
+
+            // 밝은 선반 위라 글자가 묻혀서, 뒤에 어두운 띠를 깔아 줌
+            GameObject band = new GameObject("안내 바탕", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            band.transform.SetParent(ui.transform, false);
+            band.transform.SetSiblingIndex(guide.GetSiblingIndex());
+            RectTransform bandRect = (RectTransform)band.transform;
+            RectTransform guideRect = (RectTransform)guide;
+            bandRect.anchorMin = bandRect.anchorMax = guideRect.anchorMin;
+            bandRect.anchoredPosition = guideRect.anchoredPosition;
+            bandRect.sizeDelta = new Vector2(1760f, 64f);
+            Image bandImage = band.GetComponent<Image>();
+            bandImage.color = new Color(0.08f, 0.04f, 0.06f, 0.88f);
+            bandImage.raycastTarget = false;
+            Outline bandOutline = band.AddComponent<Outline>();
+            bandOutline.effectColor = new Color(0.55f, 0.08f, 0.14f, 1f);
+            bandOutline.effectDistance = new Vector2(2f, -2f);
         }
 
-        // 남은 시간
+        // 남은 시간 (어두운 바탕 위)
+        GameObject timeBack = new GameObject("남은 시간 바탕", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        timeBack.transform.SetParent(ui.transform, false);
+        RectTransform backRect = (RectTransform)timeBack.transform;
+        backRect.anchorMin = backRect.anchorMax = new Vector2(1f, 1f);
+        backRect.pivot = new Vector2(1f, 1f);
+        backRect.anchoredPosition = new Vector2(-28f, -122f);
+        backRect.sizeDelta = new Vector2(330f, 70f);
+        Image backImage = timeBack.GetComponent<Image>();
+        backImage.color = new Color(0.08f, 0.04f, 0.06f, 0.88f);
+        backImage.raycastTarget = false;
+
         GameObject timeGo = new GameObject("남은 시간", typeof(RectTransform), typeof(CanvasRenderer), typeof(Text), typeof(Shadow));
         timeGo.transform.SetParent(ui.transform, false);
         RectTransform timeRect = (RectTransform)timeGo.transform;
         timeRect.anchorMin = timeRect.anchorMax = new Vector2(1f, 1f);
         timeRect.pivot = new Vector2(1f, 1f);
         timeRect.anchoredPosition = new Vector2(-40f, -130f);   // 닫기(X) 버튼 아래
-        timeRect.sizeDelta = new Vector2(360f, 60f);
+        timeRect.sizeDelta = new Vector2(300f, 60f);
         Text timeText = timeGo.GetComponent<Text>();
         timeText.font = guide != null && guide.GetComponent<Text>() != null ? guide.GetComponent<Text>().font : Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        timeText.fontSize = 36;
+        timeText.fontSize = 40;
         timeText.alignment = TextAnchor.MiddleRight;
         timeText.raycastTarget = false;
         timeGo.GetComponent<Shadow>().effectColor = new Color(0f, 0f, 0f, 0.85f);
@@ -177,10 +210,20 @@ public sealed class Stage1MirrorBoothKey : MonoBehaviour
             {
                 int seconds = Mathf.CeilToInt(cycle.RemainingSeconds);
                 timeText.text = "남은 시간 " + (seconds / 60) + ":" + (seconds % 60).ToString("00");
-                timeText.color = seconds <= 30 ? new Color(1f, 0.45f, 0.45f, 1f) : Color.white;
+                timeText.color = seconds <= 30 ? new Color(1f, 0.35f, 0.4f, 1f) : GuideColor;
             }
             yield return null;
         }
+    }
+
+    private static readonly Color GuideColor = new Color(1f, 0.86f, 0.9f, 1f);   // 연분홍 (게임 UI 톤)
+    private static Font gameFont;
+
+    private static Font LoadGameFont()
+    {
+        if (gameFont == null)
+            gameFont = Resources.Load<Font>("EXODStage1/Fonts/Galmuri9");
+        return gameFont;
     }
 
     private static GameObject FindMazeUi(MirrorMazeGimmick maze)
