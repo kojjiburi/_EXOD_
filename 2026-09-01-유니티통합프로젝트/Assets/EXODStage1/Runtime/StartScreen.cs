@@ -75,6 +75,11 @@ public sealed class StartScreen : MonoBehaviour
 
     private void Update()
     {
+        if (IsBoothPinOpen)
+        {
+            UpdateBoothPinKeys();
+            return;
+        }
         if (settingsPanel != null && settingsPanel.activeSelf && Input.GetKeyDown(KeyCode.Escape))
             CloseSettings();
         if (endingsPanel != null && endingsPanel.activeSelf && Input.GetKeyDown(KeyCode.Escape))
@@ -398,7 +403,7 @@ public sealed class StartScreen : MonoBehaviour
         Place(hit.rectTransform, new Vector2(0f, 0f), new Vector2(330f, 74f), new Vector2(200f, 60f));
         Button button = hit.gameObject.AddComponent<Button>();
         button.transition = Selectable.Transition.None;
-        button.onClick.AddListener(ToggleBoothMode);
+        button.onClick.AddListener(OnBoothSwitchClicked);   // 비밀번호 5231을 맞혀야 바뀜
         EXODSound.AttachUiSounds(hit.gameObject);
 
         TextMeshProUGUI label = CreateText("글자", hit.rectTransform, "부스 운영", 30f, TextColor);
@@ -425,6 +430,156 @@ public sealed class StartScreen : MonoBehaviour
         boothKnob.anchoredPosition = new Vector2(on ? 22f : -22f, 0f);
         boothState.text = on ? "ON" : "OFF";
         boothState.color = on ? HoverColor : new Color(0.5f, 0.47f, 0.48f, 1f);
+    }
+
+    // ─── 부스 운영 스위치 비밀번호 (관람객이 못 바꾸게, 사용자 요청 2026-11-04) ───
+    private const string BoothPassword = "5231";
+    private GameObject boothPinPanel;
+    private TextMeshProUGUI boothPinDisplay;
+    private TextMeshProUGUI boothPinMessage;
+    private string boothPinInput = "";
+
+    private bool IsBoothPinOpen => boothPinPanel != null && boothPinPanel.activeSelf;
+
+    // 스위치를 누르면 먼저 비밀번호 창
+    private void OnBoothSwitchClicked()
+    {
+        if (boothSwitching || isStarting || !menuGroup.interactable || IsBoothPinOpen)
+            return;
+        if (boothPinPanel == null)
+            BuildBoothPinPanel();
+        boothPinInput = "";
+        boothPinMessage.text = "비밀번호를 입력하세요";
+        boothPinMessage.color = TextColor;
+        RefreshBoothPin();
+        boothPinPanel.transform.SetAsLastSibling();
+        if (blackout != null)
+            blackout.transform.SetAsLastSibling();   // 암전은 늘 맨 위
+        boothPinPanel.SetActive(true);
+    }
+
+    private void BuildBoothPinPanel()
+    {
+        Image dim = CreateImage("부스 운영 비밀번호", canvasRoot, new Color(0f, 0f, 0f, 0.75f));
+        Stretch(dim.rectTransform);
+        dim.raycastTarget = true;
+        boothPinPanel = dim.gameObject;
+
+        Image window = CreateImage("창", dim.rectTransform, new Color(0.07f, 0.04f, 0.05f, 1f));
+        Place(window.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(520f, 720f), Vector2.zero);
+        Outline outline = window.gameObject.AddComponent<Outline>();
+        outline.effectColor = new Color(0.45f, 0.06f, 0.1f, 1f);
+        outline.effectDistance = new Vector2(3f, -3f);
+
+        TextMeshProUGUI heading = CreateText("제목", window.rectTransform, "부스 운영 모드", 44f, TitleColor);
+        Place(heading.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(480f, 64f), new Vector2(0f, 300f));
+
+        boothPinMessage = CreateText("안내", window.rectTransform, "", 26f, TextColor);
+        Place(boothPinMessage.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(480f, 40f), new Vector2(0f, 245f));
+
+        Image box = CreateImage("입력칸", window.rectTransform, new Color(0.13f, 0.08f, 0.10f, 1f));
+        Place(box.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(360f, 80f), new Vector2(0f, 170f));
+        boothPinDisplay = CreateText("숫자", box.rectTransform, "", 48f, Color.white);
+        Stretch(boothPinDisplay.rectTransform);
+
+        // 1~9, 지우기, 0, 확인
+        string[] keys = { "1", "2", "3", "4", "5", "6", "7", "8", "9", "지우기", "0", "확인" };
+        for (int i = 0; i < keys.Length; i++)
+        {
+            string key = keys[i];
+            Vector2 pos = new Vector2(-120f + (i % 3) * 120f, 75f - (i / 3) * 95f);
+            CreatePinButton(window.rectTransform, key, new Vector2(108f, 84f), pos, key.Length == 1 ? 40f : 26f,
+                () => OnBoothPinKey(key));
+        }
+
+        CreatePinButton(window.rectTransform, "취소", new Vector2(200f, 60f), new Vector2(0f, -310f), 28f, CloseBoothPin);
+        boothPinPanel.SetActive(false);
+    }
+
+    private void CreatePinButton(RectTransform parent, string label, Vector2 size, Vector2 pos, float fontSize, UnityEngine.Events.UnityAction onClick)
+    {
+        Image img = CreateImage(label, parent, Color.white);
+        Place(img.rectTransform, new Vector2(0.5f, 0.5f), size, pos);
+        Button b = img.gameObject.AddComponent<Button>();
+        ColorBlock c = b.colors;
+        c.normalColor = new Color(0.20f, 0.14f, 0.14f, 1f);
+        c.highlightedColor = new Color(0.45f, 0.16f, 0.20f, 1f);
+        c.pressedColor = new Color(0.62f, 0.20f, 0.26f, 1f);
+        c.selectedColor = c.normalColor;
+        b.colors = c;
+        b.onClick.AddListener(onClick);
+        EXODSound.AttachUiSounds(img.gameObject);
+        TextMeshProUGUI t = CreateText("글자", img.rectTransform, label, fontSize, Color.white);
+        Stretch(t.rectTransform);
+    }
+
+    private void OnBoothPinKey(string key)
+    {
+        if (key == "지우기")
+        {
+            if (boothPinInput.Length > 0)
+                boothPinInput = boothPinInput.Substring(0, boothPinInput.Length - 1);
+        }
+        else if (key == "확인")
+        {
+            SubmitBoothPin();
+            return;
+        }
+        else if (boothPinInput.Length < BoothPassword.Length)
+        {
+            boothPinInput += key;
+        }
+        RefreshBoothPin();
+        if (boothPinInput.Length == BoothPassword.Length)
+            SubmitBoothPin();   // 4자리를 다 누르면 바로 확인
+    }
+
+    private void SubmitBoothPin()
+    {
+        if (boothPinInput == BoothPassword)
+        {
+            CloseBoothPin();
+            ToggleBoothMode();
+            return;
+        }
+        boothPinInput = "";
+        boothPinMessage.text = "비밀번호가 틀렸습니다";
+        boothPinMessage.color = HoverColor;
+        RefreshBoothPin();
+    }
+
+    private void RefreshBoothPin()
+    {
+        string shown = "";
+        for (int i = 0; i < BoothPassword.Length; i++)
+            shown += (i < boothPinInput.Length ? "●" : "○") + (i < BoothPassword.Length - 1 ? " " : "");
+        boothPinDisplay.text = shown;
+    }
+
+    private void CloseBoothPin()
+    {
+        if (boothPinPanel != null)
+            boothPinPanel.SetActive(false);
+        boothPinInput = "";
+    }
+
+    // 키보드 숫자·백스페이스·엔터·Esc로도 입력
+    private void UpdateBoothPinKeys()
+    {
+        if (!IsBoothPinOpen)
+            return;
+        if (Input.GetKeyDown(KeyCode.Escape))
+        {
+            CloseBoothPin();
+            return;
+        }
+        if (Input.GetKeyDown(KeyCode.Backspace))
+            OnBoothPinKey("지우기");
+        else if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
+            OnBoothPinKey("확인");
+        foreach (char ch in Input.inputString)
+            if (ch >= '0' && ch <= '9')
+                OnBoothPinKey(ch.ToString());
     }
 
     private void ToggleBoothMode()
