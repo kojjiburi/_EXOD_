@@ -380,7 +380,8 @@ public sealed class EndingScreen : MonoBehaviour
                 break;
             case EndingStyle.Escape:
                 EXODSound.Play("door_creak", 0.5f);
-                EXODSound.Play("police_siren", 0.8f);   // 경찰차 사이렌 (사용자 요청 2026-11-03)
+                // 경찰차 사이렌 (사용자 요청 2026-11-03). 원본 파일이 다른 효과음보다 훨씬 커서 0.8 → 0.25 (2026-11-04 사용자 요청: 듣기 좋을 정도로)
+                EXODSound.Play("police_siren", 0.25f);
                 break;
             default:
                 EXODSound.Play("gameover_boom");
