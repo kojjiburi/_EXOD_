@@ -334,11 +334,11 @@ public static class Stage1Dialogues
         Narrate("문 앞에… 누군가 서 있다."),
         Say(Girlfriend, "어머, 자기야. 마중 나와 준 거야?"),
         Think("…들켰다. 심장이 멎는 줄 알았어."),
+        Say(Player, "...?"),   // (사용자 요청 2026-11-03) 이 줄까지 들킨 연출 위, 다음 줄부터 정상 화면
     };
 
     public static List<DialogueLine> Stage2EnterFirstAfter() => new List<DialogueLine>
     {
-        Say(Player, "...?"),   // (사용자 요청 2026-11-03)
         Say(Girlfriend, "마침 잘됐다. 우리 같이 산책하자 ♡"),
     };
 
@@ -384,6 +384,7 @@ public static class Stage1Dialogues
     {
         Say(Girlfriend, "뭐야? 아직도 안 자는 거야?"),
         Say(Girlfriend, "늦게 자면 건강에 안 좋으니까 얼른 자 ♡"),
+        Say(Player, "강제로 눕혀졌다..."),
     };
 
     // 1일차 남은 시간 5초까지 침대를 누르지 않았을 때 (DayCycleController)
