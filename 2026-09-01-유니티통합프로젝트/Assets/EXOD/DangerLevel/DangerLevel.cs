@@ -15,12 +15,12 @@ using UnityEngine.SceneManagement;
 ///  - 기믹 성공 +5 / 기믹 실패 +10 (각 기믹 코드가 GimmickSolved/GimmickFailed 호출)
 ///  - 눌러서 열리는 화면(조사 화면·키패드·비밀번호 창·메모 확대·손전등 화면)이 열릴 때 +1
 ///  - 상호작용이 안 되는 곳을 클릭할 때 +1 (2초 안에 5번이면 "소리가 많이 나는 것 같은데, 괜찮을까?")
-///  - 현관문 비밀번호를 처음 푼 뒤부터 방 이동을 뺀 나머지는 2배
+///  - 현관문 비밀번호를 처음 푼 뒤부터 방 이동을 뺀 나머지는 2배 (이지 모드는 1.5배, 소수점은 모아 두었다가 1이 되면 더함)
 ///  - 첫 등장 이벤트(튜토리얼)가 끝나기 전에는 오르지 않음
 ///
 /// [여자친구 등장]
 ///  - 65 이상: 구두 발소리 (10초마다 다시 들림). 발소리가 들릴 때 침실에 들어가면 바로 등장 (방 안이라 안전)
-///  - 76 이상: 위험도가 오를 때마다 5초 간격으로 확률 판정. 확률 = 10% - (76 - 위험도) x 2% → 76은 10%, 80은 18%, 90은 38%, 99는 56% (2026-11-03 사용자 요청)
+///  - 76 이상(침실 안에서는 72 이상): 위험도가 오를 때마다 5초 간격으로 확률 판정. 확률 = 10% - (기준 - 위험도) x 2% → 기준에서 10%, +2마다 +4% (2026-11-03 사용자 요청)
 ///  - 100: 바로 등장 (위 확률 판정과 같이 돌아감)
 ///  - 등장했을 때 침실에 없으면 걸림 → 하트 -1 → 침실로 끌려가 방문이 다시 잠기고 황금 열쇠는 서랍 안으로
 ///  - 대사: Stage1Dialogues.VisitSafe / VisitCaught / VisitLockedAgain (nicezzomaru)
@@ -30,7 +30,8 @@ using UnityEngine.SceneManagement;
 ///  - 산책에서 돌아온 뒤 15초 동안은 등장 없음
 ///
 /// [경고]
-///  - 방 이동·기믹으로 위험도가 100이 될 상황이면 "지금 이 행동을 하면 위험할 것 같다. 방으로 돌아갈까?"
+///  - 방 밖: 방 이동·기믹으로 위험도가 82 이상이 될 상황이면 "지금 이 행동을 하면 위험할 것 같다. 방으로 돌아갈까?" (2026-11-03: 100 → 82)
+///  - 침실 안: 기믹으로 72 이상이 될 상황이면 경고 대신 여자친구가 방문을 벌컥 열고 확인하러 옴 → 위험도 0 (Stage1Dialogues.VisitRoomCheck)
 ///    (기믹은 실패 +10 기준) 이 대사 뒤로는 방 이동으로 위험도가 오르지 않음
 ///
 /// [첫 등장 이벤트(튜토리얼)] (2026-11-02 사용자 결정: 1일차 남은 1분 → 방 밖에 처음 나간 뒤 20초)
@@ -59,14 +60,23 @@ public sealed class DangerLevel : MonoBehaviour
     private const float EmptyClickBurstSeconds = 2f;
     private const int FootstepThreshold = 65;   // 발소리, 이때 침실에 들어가면 등장
     private const float FootstepRepeatSeconds = 10f;
-    private const int HighThreshold = 76;       // 확률 판정 시작
+    private const int HighThreshold = 76;       // 확률 판정 시작 (방 밖)
+    private const int HighThresholdInBedroom = 72;   // 침실 안에서는 72부터 (2026-11-03 사용자 요청)
+    private const int WarnFromOutside = 82;     // 방 밖: 이 값 이상이 될 상황이면 경고 (원래 100)
+    private const int WarnFromInBedroom = 72;   // 침실 안: 이 값 이상이 될 상황이면 여자친구가 확인하러 옴
+    private const string FootstepShortSound = "footsteps_heels_short";
+    private const string DoorBurstSound = "door_burst";
     private const float RollCooldown = 5f;
     private const float RollChance = 0.1f;          // 76일 때 10%
     private const float RollChancePerPoint = 0.02f; // 76보다 1 높을 때마다 +2%
 
     // 등장 확률 = 10% - (76 - 위험도) x 2%  (사용자 요청 2026-11-03)
     private float CurrentRollChance =>
-        Mathf.Clamp01(RollChance - (HighThreshold - value) * RollChancePerPoint);
+        Mathf.Clamp01(RollChance - (RollThreshold - value) * RollChancePerPoint);
+
+    private bool InBedroom => slider != null && slider.CurrentRoom == BedroomName;
+    private int RollThreshold => InBedroom ? HighThresholdInBedroom : HighThreshold;
+    private int WarnFrom => InBedroom ? WarnFromInBedroom : WarnFromOutside;
     private const float PostWalkGraceSeconds = 15f;
     private const float TutorialDelayAfterLeavingSeconds = 20f;   // 침실 밖에 처음 나간 뒤 게임 타이머 20초에 첫 등장 이벤트
 
@@ -253,7 +263,7 @@ public sealed class DangerLevel : MonoBehaviour
         {
             tickTimer -= TickSeconds;
             if (Random.value < TickChance)
-                Add(1 * Multiplier);
+                Add(Scaled(1));
         }
 
         // 산책 후 대기 시간이 끝났는데 이미 100이면 바로 등장
@@ -275,6 +285,7 @@ public sealed class DangerLevel : MonoBehaviour
     {
         lastDay = day;
         value = 0;
+        multiplierCarry = 0f;
         tickTimer = 0f;
         warnedNearMax = false;
         footstepsPlayed = false;
@@ -288,15 +299,31 @@ public sealed class DangerLevel : MonoBehaviour
     //  오르는 경우
     // ═══════════════════════════════════════════════════
 
-    // 현관문 비밀번호를 처음 푼 뒤부터 (방 이동 제외) 2배
-    private static int Multiplier
+    // 현관문 비밀번호를 처음 푼 뒤부터 (방 이동 제외) 2배, 이지 모드는 1.5배 (2026-11-03 사용자 요청)
+    private static float Multiplier
     {
         get
         {
             Stage1FrontDoorGimmick frontDoor = FindFirstObjectByType<Stage1FrontDoorGimmick>();
-            return frontDoor != null && frontDoor.IsPasswordSolved ? 2 : 1;
+            if (frontDoor == null || !frontDoor.IsPasswordSolved)
+                return 1f;
+            return GameDifficulty.IsEasy ? 1.5f : 2f;
         }
     }
+
+    // 1.5배일 때 생기는 0.5는 모아 두었다가 1이 되면 더함
+    private static float multiplierCarry;
+
+    private static int Scaled(int amount)
+    {
+        multiplierCarry += amount * Multiplier;
+        int whole = Mathf.FloorToInt(multiplierCarry + 0.0001f);
+        multiplierCarry -= whole;
+        return whole;
+    }
+
+    // 경고 판단용 (올림해서 넉넉하게)
+    private static int Predicted(int amount) => Mathf.CeilToInt(amount * Multiplier - 0.0001f);
 
 #if UNITY_EDITOR
     // 에디터 테스트용 단축키 (빌드에는 안 들어감): F8 일차 넘기기, F9 여자친구 등장(방 밖에서 들킨 것으로), F10 산책 나가기, F12 게임 화면 스크린샷(프로젝트 폴더)
@@ -342,7 +369,7 @@ public sealed class DangerLevel : MonoBehaviour
         }
 
         // 76 이상: 오를 때마다 5초 간격으로 확률 판정 (위험도가 높을수록 잘 나옴)
-        if (value >= HighThreshold && Time.time >= lastRollTime + RollCooldown)
+        if (value >= RollThreshold && Time.time >= lastRollTime + RollCooldown)
         {
             lastRollTime = Time.time;
             if (Random.value < CurrentRollChance)
@@ -377,7 +404,7 @@ public sealed class DangerLevel : MonoBehaviour
             return;
 
         int amount = value >= MoveHighThreshold ? MoveAmountWhenHigh : MoveAmount;
-        if (value + amount >= Max)
+        if (value + amount >= WarnFromOutside)
         {
             ShowWarning();
             return;
@@ -403,7 +430,7 @@ public sealed class DangerLevel : MonoBehaviour
                 continue;
 
             if (CountsNow())
-                Add(ItemAmount * Multiplier);
+                Add(Scaled(ItemAmount));
         }
 
         knownEntries.RemoveWhere(entry => entry == null || !ContainsEntry(inventory, entry));
@@ -449,17 +476,33 @@ public sealed class DangerLevel : MonoBehaviour
         DangerLevel d = Instance;
         if (d == null || !d.CountsNow())
             return;
-        int amount = IdleAutoAdvanceAmount * Multiplier;
-        if (!d.warnedNearMax && d.value + amount >= Max)
+        if (d.value + Predicted(IdleAutoAdvanceAmount) >= d.WarnFrom)
         {
-            d.warnedNearMax = true;
-            d.StartCoroutine(d.ShowWarningAfterDialogue());
-            return;
+            // 침실 안: 경고 대신 여자친구가 확인하러 옴 (대사가 끝난 뒤)
+            if (d.InBedroom)
+            {
+                d.StartCoroutine(d.RoomCheckAfterDialogue());
+                return;
+            }
+            if (!d.warnedNearMax)
+            {
+                d.warnedNearMax = true;
+                d.StartCoroutine(d.ShowWarningAfterDialogue());
+                return;
+            }
         }
-        d.Add(amount);
+        d.Add(Scaled(IdleAutoAdvanceAmount));
     }
 
     private const int IdleAutoAdvanceAmount = 5;
+
+    private System.Collections.IEnumerator RoomCheckAfterDialogue()
+    {
+        while (DialogueManager.Instance != null && DialogueManager.Instance.IsDialogueOpen)
+            yield return null;
+        if (CanAppear())
+            AppearRoomCheck();
+    }
 
     private System.Collections.IEnumerator ShowWarningAfterDialogue()
     {
@@ -472,7 +515,7 @@ public sealed class DangerLevel : MonoBehaviour
     {
         SolvedCount++;
         if (Instance != null && Instance.CountsNow())
-            Instance.Add(GimmickSolvedAmount * Multiplier);
+            Instance.Add(Scaled(GimmickSolvedAmount));
     }
 
     /// <summary>기믹을 틀렸을 때 (+10, 현관문 연 뒤 2배)</summary>
@@ -480,14 +523,14 @@ public sealed class DangerLevel : MonoBehaviour
     {
         FailedCount++;
         if (Instance != null && Instance.CountsNow())
-            Instance.Add(GimmickFailedAmount * Multiplier);
+            Instance.Add(Scaled(GimmickFailedAmount));
     }
 
     /// <summary>눌러서 열리는 화면(키패드·비밀번호 창 등)이 열렸을 때 (+1, 현관문 연 뒤 2배)</summary>
     public static void UiOpened()
     {
         if (Instance != null && Instance.CountsNow())
-            Instance.Add(UiOpenAmount * Multiplier);
+            Instance.Add(Scaled(UiOpenAmount));
     }
 
     /// <summary>
@@ -497,10 +540,22 @@ public sealed class DangerLevel : MonoBehaviour
     public static bool WarnBeforeGimmick()
     {
         DangerLevel d = Instance;
-        if (d == null || !d.CountsNow() || d.warnedNearMax)
+        if (d == null || !d.CountsNow())
             return false;
 
-        if (d.value + GimmickFailedAmount * Multiplier < Max)
+        if (d.value + Predicted(GimmickFailedAmount) < d.WarnFrom)
+            return false;
+
+        // 침실 안: 경고 대신 여자친구가 방문을 벌컥 열고 확인하러 옴 → 위험도 0 (이번엔 기믹을 열지 않음)
+        if (d.InBedroom)
+        {
+            if (!d.CanAppear())
+                return false;
+            d.AppearRoomCheck();
+            return true;
+        }
+
+        if (d.warnedNearMax)
             return false;
 
         d.ShowWarning();
@@ -533,6 +588,31 @@ public sealed class DangerLevel : MonoBehaviour
         footstepsPlayed = true;
         nextFootstepTime = Time.time + FootstepRepeatSeconds;
         EXODSound.Play(FootstepSound);
+    }
+
+    // 침실 안에서 위험도가 72 이상이 될 행동을 하려 할 때: 구두 소리 → 방문 벌컥 → 확인 대사 → 구두 소리 (위험도 0)
+    private void AppearRoomCheck()
+    {
+        if (appearing)
+            return;
+
+        appearing = true;
+        value = 0;
+        UpdateIcon();
+        StartCoroutine(RoomCheckRoutine());
+    }
+
+    private System.Collections.IEnumerator RoomCheckRoutine()
+    {
+        EXODSound.Play(FootstepShortSound);
+        yield return new WaitForSecondsRealtime(1.5f);
+        EXODSound.Play(DoorBurstSound);
+        yield return new WaitForSecondsRealtime(0.5f);
+        PlayCutscene(Stage1Dialogues.VisitRoomCheck(), () =>
+        {
+            EXODSound.Play(FootstepSound);
+            FinishAppear();
+        });
     }
 
     private void Appear(bool forceCaught = false)
@@ -689,7 +769,7 @@ public sealed class DangerLevel : MonoBehaviour
             if (flashlightOpen && !wasFlashlightOpen) opened++;
             if (restroomKeypad && !wasRestroomKeypadOpen) opened++;
             if (opened > 0 && CountsNow())
-                Add(opened * UiOpenAmount * Multiplier);
+                Add(Scaled(opened * UiOpenAmount));
         }
 
         wasInspectionOpen = inspection;
@@ -715,7 +795,7 @@ public sealed class DangerLevel : MonoBehaviour
         }
 
         if (CountsNow())
-            Add(EmptyClickAmount * Multiplier);
+            Add(Scaled(EmptyClickAmount));
     }
 
     private static bool IsEmptySpot(Vector2 screenPosition)

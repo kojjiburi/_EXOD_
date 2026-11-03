@@ -377,6 +377,16 @@ public static class Stage1Dialogues
     public const string VisitWarningTitle = "…누군가의 발소리다.";
     public const string VisitWarningSub = "방으로 돌아가자!";
 
+    // 침실 안에서 위험도가 72 이상이 될 행동을 하려 할 때 (DangerLevel, 사용자 요청 2026-11-03)
+    // 구두 소리 조금 → 방문 벌컥 → 이 대사 → 구두 소리. 여자친구 그림은 기본(웃는 얼굴 아님)
+    public static List<DialogueLine> VisitRoomCheck() => new List<DialogueLine>
+    {
+        Say(Girlfriend, "음? 지금 뭐해?"),
+        Say(Player, "!!"),
+        Say(Player, "아하하... 아무것도 아니야"),
+        Say(Girlfriend, "그래? 얌전히 잘 있어야 돼~"),
+    };
+
     // 침실에 있었을 때
     // (사용자 요청 2026-11-02: 이 장면은 볼 빨간 웃는 얼굴 그림을 대화창 가운데에)
     public static List<DialogueLine> VisitSafe()
