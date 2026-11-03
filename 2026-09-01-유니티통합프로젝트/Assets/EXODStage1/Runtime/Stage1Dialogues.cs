@@ -472,7 +472,7 @@ public static class Stage1Dialogues
         return lines;
     }
 
-    // 화장실 금고에 곰돌이 쪽지 번호(0214)를 눌러 보려 할 때 — 버튼에 0이 없어서 2·1·4를 처음 세 번 누르면 (RestroomGimmick)
+    // 화장실 금고에 다른 비밀번호를 눌러 볼 때: 곰돌이 쪽지 0214(0 버튼이 없어 2·1·4) / 현관 5231 (RestroomGimmick)
     public static List<DialogueLine> SafeWrongNote() => new List<DialogueLine>
     {
         Think("아.. 여긴 아닌거같다."),
