@@ -10,7 +10,7 @@ using UnityEngine.SceneManagement;
 ///
 /// [오르는 경우]
 ///  - 시간: 2초마다 40% 확률로 +1 (대화·컷신·기절·산책·일차 넘김 페이드 중에는 멈춤)
-///  - 방 이동: +4 (위험도 76 이상이면 +1, 침실로 들어갈 땐 0) ※ 2배 적용 안 함
+///  - 방 이동: +4 (위험도 71 이상이면 +1, 침실로 들어갈 땐 0) ※ 2배 적용 안 함
 ///  - 물건 얻기: +5 (같은 물건은 하루에 한 번만, 산책 중에 얻은 건 0)
 ///  - 기믹 성공 +5 / 기믹 실패 +10 (각 기믹 코드가 GimmickSolved/GimmickFailed 호출)
 ///  - 눌러서 열리는 화면(조사 화면·키패드·비밀번호 창·메모 확대·손전등 화면)이 열릴 때 +1
@@ -48,7 +48,8 @@ public sealed class DangerLevel : MonoBehaviour
     private const float TickSeconds = 2f;
     private const float TickChance = 0.4f;
     private const int MoveAmount = 4;
-    private const int MoveAmountWhenHigh = 1;   // 76 이상
+    private const int MoveAmountWhenHigh = 1;   // 71 이상 (2026-11-03 사용자 요청: 76 → 71)
+    private const int MoveHighThreshold = 71;
     private const int ItemAmount = 5;
     private const int GimmickSolvedAmount = 5;
     private const int GimmickFailedAmount = 10;
@@ -375,7 +376,7 @@ public sealed class DangerLevel : MonoBehaviour
         if (!CountsNow() || warnedNearMax)
             return;
 
-        int amount = value >= HighThreshold ? MoveAmountWhenHigh : MoveAmount;
+        int amount = value >= MoveHighThreshold ? MoveAmountWhenHigh : MoveAmount;
         if (value + amount >= Max)
         {
             ShowWarning();
