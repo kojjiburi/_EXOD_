@@ -263,6 +263,7 @@ public sealed class PlayerFaintController : MonoBehaviour
     {
         EXODSound.StopAmbience(0.5f);
         EXODSound.StopHeartbeat(0.3f);
+        EXODSound.Play("keypad_error");   // 제한시간 초과 삑삑 (사용자 요청 2026-11-03)
 
         // 이미 볼 수 있는 엔딩이 있으면 게임 오버 대신 '운명의 갈림길' (사용자 요청 2026-11-03)
         List<BoothMode.FateEnding> fates = BoothMode.AvailableEndings();
@@ -355,7 +356,7 @@ public sealed class PlayerFaintController : MonoBehaviour
         pickedChoice = -1;
         List<Image> images = new List<Image>();
         for (int i = 0; i < labels.Length; i++)
-            images.Add(BuildChoice(labels[i], i, labels.Length));
+            images.Add(BuildChoice(labels[i], i, labels.Length, autoPick < 0));
 
         if (autoPick >= 0)
         {
@@ -379,7 +380,8 @@ public sealed class PlayerFaintController : MonoBehaviour
         choiceButtons.Clear();
     }
 
-    private Image BuildChoice(string text, int index, int count)
+    // clickable=false: 눌리지도, 마우스에 반응하지도 않음 (저절로 눌리는 선택지)
+    private Image BuildChoice(string text, int index, int count, bool clickable = true)
     {
         GameObject go = new GameObject("선택지 " + text, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Button));
         go.transform.SetParent(gameOverLineRoot.transform, false);
@@ -400,13 +402,22 @@ public sealed class PlayerFaintController : MonoBehaviour
         outline.effectDistance = new Vector2(3f, -3f);
 
         Button button = go.GetComponent<Button>();
-        ColorBlock colors = button.colors;
-        colors.highlightedColor = new Color(1f, 0.75f, 0.8f, 1f);
-        colors.pressedColor = new Color(0.8f, 0.8f, 0.8f, 1f);
-        button.colors = colors;
-        int captured = index;
-        button.onClick.AddListener(() => pickedChoice = captured);
-        EXODSound.AttachUiSounds(go);
+        if (clickable)
+        {
+            ColorBlock colors = button.colors;
+            colors.highlightedColor = new Color(1f, 0.75f, 0.8f, 1f);
+            colors.pressedColor = new Color(0.8f, 0.8f, 0.8f, 1f);
+            button.colors = colors;
+            int captured = index;
+            button.onClick.AddListener(() => pickedChoice = captured);
+            EXODSound.AttachUiSounds(go);
+        }
+        else
+        {
+            button.transition = Selectable.Transition.None;
+            button.interactable = false;
+            image.raycastTarget = false;
+        }
 
         TextMeshProUGUI label = CreateText("글자", go.transform, text, 34f, Color.white);
         Stretch(label.rectTransform);
@@ -418,7 +429,7 @@ public sealed class PlayerFaintController : MonoBehaviour
     // ═══════════════════════════════════════════════════
 
     private const string FateLine = "운명의 갈림길에 섰다 어떤 길을 고를까?\n"
-        + "<size=72%><color=#3C3C3C>볼 수 있는 엔딩이 뜹니다. 게임 오버가 아니라서 보상을 받을 수 있어요</color></size>";
+        + "<size=72%><color=#3C3C3C>볼 수 있는 엔딩이 뜹니다. 게임 오버가 아니라서 부스 체험 보상을 받을 수 있어요</color></size>";
 
     private IEnumerator FateRoutine(List<BoothMode.FateEnding> fates)
     {
@@ -529,6 +540,7 @@ public sealed class PlayerFaintController : MonoBehaviour
             yield return Fade(blackout, 0f, 1f, 0.6f);
             day++;
             faintText.text = "DAY " + day;
+            SetHudDay(day);   // 화면 위쪽 DAY 표시도 같이 (실제 일차 값은 그대로)
             faintText.gameObject.SetActive(true);
             yield return new WaitForSecondsRealtime(1.1f);
         }
@@ -536,6 +548,13 @@ public sealed class PlayerFaintController : MonoBehaviour
         HandOff();
         ShowEnding(Stage1Dialogues.PotionEndingLine, Stage1Dialogues.PotionEndingTitle,
             Stage1Dialogues.PotionEndingSubtitle, EndingStyle.Submission);
+    }
+
+    private static void SetHudDay(int day)
+    {
+        foreach (DayText hud in FindObjectsByType<DayText>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+            if (hud != null && hud.DAY != null)
+                hud.DAY.text = "DAY " + day;
     }
 
     // ─── 2. 반지 → 청혼 엔딩: 화장실, 금고 열린 채로 반지 (집지 않는다 없음) ───────────────
@@ -556,101 +575,14 @@ public sealed class PlayerFaintController : MonoBehaviour
             ProposalEnding.Trigger();
     }
 
-    // ─── 3. 주소지 → 탈출 엔딩: 밤길 → 전화 부스, 119가 저절로 눌리고 주소지가 저절로 넘어감 ───────────────
+    // ─── 3. 주소지 → 탈출 엔딩: 실제 산책 → 부스가 화면 가운데에 오면 부스 창 → 1·1·9 자동 → 119 통화 → 탈출 엔딩 ───────────────
 
     private IEnumerator AddressEndingRoutine()
     {
         gameOverLineGroup.alpha = 0f;
-        yield return LeaveWalk();
-
-        Transform root = overlayRoot.transform;
-        RawImage street = CreateFullImage("밤길", root, "EXODBoothEnding/Street");
-        if (street != null)
-            street.uvRect = new Rect(1f / 3f, 0f, 1f / 3f, 1f);   // 5760 폭 중 가운데 한 화면
-        RawImage booth = CreateFullImage("전화 부스 안", root, "EXODBoothEnding/BoothInterior");
-        blackout.transform.SetAsLastSibling();
-        gameOverLineRoot.transform.SetAsLastSibling();
-
-        if (booth != null) booth.color = new Color(1f, 1f, 1f, 0f);
-        yield return Fade(blackout, 1f, 0f, 0.8f);
-        yield return new WaitForSecondsRealtime(1.4f);
-        if (booth != null)
-            yield return Fade(booth, 0f, 1f, 0.8f);   // 부스 안으로 (그녀는 계속 뒤돌지 않음)
-
-        // 전화기와 번호 표시창
-        Image phone = CreatePhone(root, out TextMeshProUGUI display);
-        gameOverLineRoot.transform.SetAsLastSibling();
-        yield return new WaitForSecondsRealtime(0.6f);
-        string dialed = "";
-        foreach (char c in "119")
-        {
-            dialed += c;
-            display.text = dialed;
-            EXODSound.Play("keypad_press");
-            yield return new WaitForSecondsRealtime(0.6f);
-        }
-        yield return new WaitForSecondsRealtime(0.6f);
-
-        yield return Say("119", "네, 119입니다. 무슨 일이세요? 지금 계신 곳이 어디입니까?");
-        EXODSound.Play("paper_pickup");
-        yield return Say(null, "(퀵슬롯의 [주소지]를 수화기에 건넸다.)");
-        yield return Say("119", "확인했습니다. 경찰에도 바로 알리고 함께 출동하겠습니다.");
-        yield return Say("119", "들키지 않게 평소처럼 행동하세요. 전화는 끊으셔도 됩니다.");
-        yield return Say(null, "(조용히 수화기를 내려놓았다.)");
-
-        gameOverLineGroup.alpha = 0f;
-        yield return Fade(blackout, 0f, 1f, 0.8f);
-        if (street != null) Destroy(street.gameObject);
-        if (booth != null) Destroy(booth.gameObject);
-        if (phone != null) Destroy(phone.gameObject);
-
-        EXOD.Walk.PhoneBoothProgress.Reported = true;
-        EXOD.Walk.PhoneBoothProgress.EndingShown = true;
-        HandOff();
-        Stage1Room.PlayCutscene(Stage1Dialogues.EscapeCutscene(), () =>
-            ShowEnding(Stage1Dialogues.EscapeEndingLine, Stage1Dialogues.EscapeEndingTitle,
-                Stage1Dialogues.EscapeEndingSubtitle, EndingStyle.Escape));
-    }
-
-    private static RawImage CreateFullImage(string name, Transform parent, string resource)
-    {
-        Texture2D tex = Resources.Load<Texture2D>(resource);
-        if (tex == null)
-            return null;
-        GameObject go = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(RawImage));
-        go.transform.SetParent(parent, false);
-        RawImage raw = go.GetComponent<RawImage>();
-        raw.texture = tex;
-        raw.raycastTarget = true;
-        RectTransform r = raw.rectTransform;
-        r.anchorMin = r.anchorMax = new Vector2(0.5f, 0.5f);
-        r.sizeDelta = new Vector2(1920f, 1080f);
-        AspectRatioFitter fit = go.AddComponent<AspectRatioFitter>();
-        fit.aspectMode = AspectRatioFitter.AspectMode.EnvelopeParent;
-        fit.aspectRatio = 16f / 9f;
-        return raw;
-    }
-
-    private Image CreatePhone(Transform parent, out TextMeshProUGUI display)
-    {
-        Image phone = CreateImage("전화기", parent, new Color(0.16f, 0.13f, 0.13f, 1f));
-        Texture2D tex = Resources.Load<Texture2D>("EXODBoothEnding/PhoneBody");
-        if (tex != null)
-            phone.sprite = Sprite.Create(tex, new Rect(0f, 0f, tex.width, tex.height), new Vector2(0.5f, 0.5f));
-        phone.preserveAspect = true;
-        RectTransform r = phone.rectTransform;
-        r.anchorMin = r.anchorMax = new Vector2(0.5f, 0.5f);
-        r.sizeDelta = new Vector2(420f, 620f);
-        r.anchoredPosition = new Vector2(0f, 120f);
-
-        Image screen = CreateImage("표시창", phone.transform, new Color(0.05f, 0.12f, 0.08f, 1f));
-        RectTransform sr = screen.rectTransform;
-        sr.anchorMin = new Vector2(0.08f, 0.86f);
-        sr.anchorMax = new Vector2(0.92f, 0.97f);
-        sr.offsetMin = sr.offsetMax = Vector2.zero;
-        display = CreateText("번호", screen.transform, "", 44f, new Color(0.55f, 1f, 0.6f, 1f));
-        Stretch(display.rectTransform);
-        return phone;
+        HandOff();   // 산책이 돌아가도록 게임 오버 상태를 풂 (하루 시간·위험도는 BoothMode.ForcingEnding으로 멈춤)
+        BoothEscapeDriver.Run();
+        yield break;
     }
 
     // [다시 시작]: 이지/하드를 다시 고른 뒤 처음부터 (사용자 요청 2026-11-03)

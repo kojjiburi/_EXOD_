@@ -380,6 +380,7 @@ public sealed class EndingScreen : MonoBehaviour
                 break;
             case EndingStyle.Escape:
                 EXODSound.Play("door_creak", 0.5f);
+                EXODSound.Play("police_siren", 0.8f);   // 경찰차 사이렌 (사용자 요청 2026-11-03)
                 break;
             default:
                 EXODSound.Play("gameover_boom");

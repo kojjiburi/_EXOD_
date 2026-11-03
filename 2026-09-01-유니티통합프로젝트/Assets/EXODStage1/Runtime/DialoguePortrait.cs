@@ -94,6 +94,13 @@ public sealed class DialoguePortrait : MonoBehaviour
     private Sprite bearSprite;
     private Sprite sweetSprite;
     private Sprite walkCaughtSprite;
+    private bool showingWalkCaught;
+
+    // 칼 든 검은 그림: 그림 폭이 넓어 얼굴이 오른쪽으로 치우치므로, 기본 초상화 얼굴 위치에 맞춰 왼쪽으로 옮기고 20 올리고 10% 작게 (사용자 요청 2026-11-03)
+    // 얼굴 가운데: 기본 초상화 = 높이의 0.178배 지점, 칼 그림 = (0.9배 크기에서) 높이의 0.437배 지점
+    private const float WalkCaughtScale = 0.9f;
+    private const float WalkCaughtShiftX = -0.259f;   // × 기본 초상화 높이
+    private const float WalkCaughtRaiseY = 20f;
 
     /// <summary>켜 두면 여자친구 대사여도 초상화를 띄우지 않습니다. (들켰을 때 컷신 — ScreenAberration이 켬)</summary>
     public static bool HideGirlfriend { get; set; }
@@ -163,6 +170,7 @@ public sealed class DialoguePortrait : MonoBehaviour
         if (walkCaughtRequested)
             walkCaughtActive = true;
         bool lineWalkCaught = walkCaughtLines.Remove(line);
+        showingWalkCaught = false;
 
         bool isGirlfriend = speaker == Stage1Dialogues.Unknown || speaker == Stage1Dialogues.Girlfriend || speaker == "얀데레" || speaker == "여주";
         if (isGirlfriend && HideGirlfriend)
@@ -170,8 +178,13 @@ public sealed class DialoguePortrait : MonoBehaviour
         else if (speaker == Stage1Dialogues.Unknown)
             Show(girlfriendSprite, silhouetteColor, girlfriendHeight, girlfriendHiddenBelow);
         else if (speaker == Stage1Dialogues.Girlfriend || speaker == "얀데레" || speaker == "여주")
-            Show((walkCaughtActive || lineWalkCaught) && walkCaughtSprite != null ? walkCaughtSprite
-                 : sweetActive && sweetSprite != null ? sweetSprite : girlfriendSprite, Color.white, girlfriendHeight, girlfriendHiddenBelow);
+        {
+            showingWalkCaught = (walkCaughtActive || lineWalkCaught) && walkCaughtSprite != null;
+            if (showingWalkCaught)
+                Show(walkCaughtSprite, Color.white, girlfriendHeight * WalkCaughtScale, girlfriendHiddenBelow);
+            else
+                Show(sweetActive && sweetSprite != null ? sweetSprite : girlfriendSprite, Color.white, girlfriendHeight, girlfriendHiddenBelow);
+        }
         else if (speaker == Stage1Dialogues.BearUnknown)
             Show(bearTornSprite, Color.white, bearHeight, bearHiddenBelow);
         else if (speaker == Stage1Dialogues.Bear)
@@ -279,6 +292,9 @@ public sealed class DialoguePortrait : MonoBehaviour
             float centerX = (topLeft.x + topRight.x) * 0.5f - parentPivotOffset.x;
             position.x = centerX - portrait.rectTransform.sizeDelta.x * 0.5f;
         }
+
+        if (showingWalkCaught)
+            position += new Vector2(WalkCaughtShiftX * girlfriendHeight, WalkCaughtRaiseY);
 
         portrait.rectTransform.anchoredPosition = position;
     }

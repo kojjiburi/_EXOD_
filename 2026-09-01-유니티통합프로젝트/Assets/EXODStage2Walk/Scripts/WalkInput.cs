@@ -18,12 +18,16 @@ namespace EXOD.Walk
         /// </summary>
         public static Func<bool> ExtraPointerOverUi;
 
+        /// <summary>켜 두면 산책 화면 클릭·Esc·좌우 이동 입력을 모두 무시 (부스 운영 모드 강제 탈출 엔딩 연출용, 2026-11-03)</summary>
+        public static bool BlockAll;
+
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        static void ResetStatics() => ExtraPointerOverUi = null;
+        static void ResetStatics() { ExtraPointerOverUi = null; BlockAll = false; }
 
         /// <summary>A/D 또는 ←/→ : -1 ~ 1</summary>
         public static float Horizontal()
         {
+            if (BlockAll) return 0f;
             float h = 0f;
 #if ENABLE_INPUT_SYSTEM
             var kb = Keyboard.current;
@@ -54,6 +58,11 @@ namespace EXOD.Walk
         /// <summary>이번 프레임에 마우스 왼쪽 버튼을 눌렀는지 (대화창 상태와 상관없이)</summary>
         public static bool ClickDownAny(out Vector2 screenPosition)
         {
+            if (BlockAll)
+            {
+                screenPosition = default;
+                return false;
+            }
 #if ENABLE_INPUT_SYSTEM
             var mouse = Mouse.current;
             if (mouse != null && mouse.leftButton.wasPressedThisFrame)
@@ -86,6 +95,7 @@ namespace EXOD.Walk
         /// <summary>산책 중간에 그만두기 (Esc)</summary>
         public static bool QuitWalkDown()
         {
+            if (BlockAll) return false;
 #if ENABLE_INPUT_SYSTEM
             var kb = Keyboard.current;
             return kb != null && kb.escapeKey.wasPressedThisFrame;

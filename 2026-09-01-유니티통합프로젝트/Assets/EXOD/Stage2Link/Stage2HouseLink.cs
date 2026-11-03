@@ -91,6 +91,7 @@ public sealed class Stage2HouseLink : MonoBehaviour
         {
             if (DialogueManager.Instance == null)
                 return false;
+            EscapeEndingSfx.ArmHandcuffs();
             Stage1Room.PlayCutscene(Stage1Dialogues.EscapeCutscene(), onDone);
             return true;
         };
@@ -312,6 +313,16 @@ public sealed class Stage2HouseLink : MonoBehaviour
     // ═══════════════════════════════════════════════════
     //  복귀
     // ═══════════════════════════════════════════════════
+
+    /// <summary>현관 컷신·외출 제한 없이 바로 산책 시작 (부스 운영 모드 탈출 엔딩, 사용자 요청 2026-11-03)</summary>
+    public static void ForceEnterWalk()
+    {
+        if (Instance == null || Instance.inStage2 || Instance.isTransitioning)
+            return;
+        Instance.hasEnteredOnce = true;
+        Instance.isTransitioning = true;
+        Instance.StartCoroutine(Instance.EnterRoutine());
+    }
 
     /// <summary>산책 중이면 연출 없이 바로 집으로 (부스 운영 모드 강제 엔딩, 사용자 요청 2026-11-03). 다 되면 done</summary>
     public static void ForceLeaveWalk(System.Action done)
