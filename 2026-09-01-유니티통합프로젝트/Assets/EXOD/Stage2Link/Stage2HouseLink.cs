@@ -260,12 +260,16 @@ public sealed class Stage2HouseLink : MonoBehaviour
         {
             // 처음 나갈 때: '방 밖에서 들킴' 연출 위에서 "…들켰다"까지 → 연출이 사라지고 정상 화면 → 나머지 대사 (사용자 요청 2026-11-03)
             ScreenAberration.NextSound = "cursed_horror";   // 첫 대사 직전 소리 (사용자 요청 2026-11-04)
-            ScreenAberration.Play(() => PlayStoryCutscene(Stage1Dialogues.Stage2EnterFirstCaught(), () =>
+            ScreenAberration.Play(() =>
+            {
+                BoothMode.FrontDoorOpened = true;   // 첫 대사 "자기야…?"가 나오는 순간 → 운명의 갈림길 순응 엔딩 조건 (2026-11-04)
+                PlayStoryCutscene(Stage1Dialogues.Stage2EnterFirstCaught(), () =>
             {
                 ScreenAberration.Stop();
                 StartCoroutine(AfterCaughtFadeThen(() =>
                     PlayStoryCutscene(Stage1Dialogues.Stage2EnterFirstAfter(), () => StartCoroutine(EnterRoutine())))); 
-            }), false, ScreenAberration.HouseCutscene);
+                });
+            }, false, ScreenAberration.HouseCutscene);
             return;
         }
 

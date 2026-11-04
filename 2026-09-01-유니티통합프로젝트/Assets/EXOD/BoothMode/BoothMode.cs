@@ -76,7 +76,8 @@ public static class BoothMode
     public static List<FateEnding> AvailableEndings()
     {
         List<FateEnding> list = new List<FateEnding>();
-        if (GameDifficulty.IsEasy && GiveUpDeclined && FrontDoorOpened)
+        // 순응: 현관을 깨고 처음 나가는 대사("자기야…?")가 나온 적 있음 — 이지·하드 모두, 문답 없이 (사용자 요청 2026-11-04)
+        if (FrontDoorOpened)
             list.Add(FateEnding.Submission);
         // 청혼: 손전등 + 종이 A~E(이지는 A)를 지금 가지고 있으면 (2026-11-04 사용자 요청: 금고를 눌러 봤는지는 안 봄)
         if ((SafeTriedWithClues || HasFlashlightAndPapers()) && !ProposalEnding.HasPlayed)
