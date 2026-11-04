@@ -247,8 +247,10 @@ public sealed class PlayerFaintController : MonoBehaviour
 
         gameOverLineRoot.SetActive(true);
         MatchTeamDialogueBox();
+        ShowTalkPortrait(false);   // 대사용 왼쪽 그림은 끄고 가운데 큰 그림만
         if (gameOverPortrait != null)
         {
+            gameOverPortrait.gameObject.SetActive(true);
             Sprite face = pendingStyle == EndingStyle.Proposal ? DialoguePortrait.LoadSweetPortrait() : null;
             gameOverPortrait.sprite = face != null ? face : DialoguePortrait.LoadPortrait();
             float h = gameOverPortrait.rectTransform.sizeDelta.y;
@@ -401,7 +403,9 @@ public sealed class PlayerFaintController : MonoBehaviour
         gameOverLineRoot.SetActive(true);
         MatchTeamDialogueBox();
         if (gameOverPortrait != null)
-            gameOverPortrait.gameObject.SetActive(false);
+            gameOverPortrait.gameObject.SetActive(false);   // 가운데 큰 그림은 엔딩 마지막 한 줄 전용
+        // 여자친구 대사면 평소 대화처럼 대화창 왼쪽 위에 여자친구 그림 (운명의 갈림길 순응 엔딩 등, 사용자 요청 2026-11-05)
+        ShowTalkPortrait(speaker == Stage1Dialogues.Girlfriend);
         bool named = !string.IsNullOrEmpty(speaker);
         gameOverNameBox.gameObject.SetActive(named);
         if (named)
@@ -411,12 +415,63 @@ public sealed class PlayerFaintController : MonoBehaviour
     // 다른 엔딩 연출에 넘기기 전 원래 모양으로
     private void RestoreLineBox()
     {
+        ShowTalkPortrait(false);
         if (gameOverPortrait != null)
             gameOverPortrait.gameObject.SetActive(true);
         gameOverNameBox.gameObject.SetActive(true);
         gameOverNameText.text = Stage1Dialogues.Girlfriend;
         gameOverLineRoot.SetActive(false);
         gameOverLineGroup.alpha = 0f;
+    }
+
+    // 전용 대사창에서 여자친구가 말할 때: 평소 대화(DialoguePortrait)와 같은 크기·자리 (대화창 왼쪽 위, 아랫부분은 대화창 뒤로)
+    private Image talkPortrait;
+    private const float TalkPortraitHeight = 780f;
+    private const float TalkPortraitHiddenBelow = 215f;
+    private const float TalkPortraitLeftInset = 40f;
+
+    private void ShowTalkPortrait(bool show)
+    {
+        if (!show)
+        {
+            if (talkPortrait != null)
+                talkPortrait.gameObject.SetActive(false);
+            return;
+        }
+        if (gameOverLineBox == null)
+            return;
+        Sprite face = DialoguePortrait.LoadPortrait();
+        if (face == null)
+            return;
+
+        if (talkPortrait == null)
+        {
+            talkPortrait = CreateImage("여자친구 (대사)", gameOverLineRoot.transform, Color.white);
+            talkPortrait.preserveAspect = true;
+            talkPortrait.raycastTarget = false;
+            RectTransform r = talkPortrait.rectTransform;
+            r.anchorMin = r.anchorMax = new Vector2(0.5f, 0.5f);
+            r.pivot = Vector2.zero;
+        }
+        // 글자 배경 위, 대화창·이름표 뒤
+        talkPortrait.transform.SetSiblingIndex(gameOverLineBox.transform.GetSiblingIndex());
+        talkPortrait.sprite = face;
+        RectTransform rect = talkPortrait.rectTransform;
+        // 팀 대화창 캔버스와 이 캔버스의 크기 단위가 달라서, 같은 화면 크기가 되도록 대화창 높이 비율로 맞춤
+        float unit = 1f;
+        RectTransform teamPanel = DialogueManager.Instance != null ? DialogueManager.Instance.DialoguePanelRect : null;
+        if (teamPanel != null && teamPanel.rect.height > 1f)
+            unit = gameOverLineBox.rectTransform.rect.height / teamPanel.rect.height;
+        float height = TalkPortraitHeight * unit;
+        rect.sizeDelta = new Vector2(height * face.rect.width / face.rect.height, height);
+
+        RectTransform parent = rect.parent as RectTransform;
+        Vector3[] corners = new Vector3[4];
+        gameOverLineBox.rectTransform.GetWorldCorners(corners);
+        Vector2 topLeft = parent.InverseTransformPoint(corners[1]);
+        Vector2 parentPivotOffset = new Vector2((0.5f - parent.pivot.x) * parent.rect.width, (0.5f - parent.pivot.y) * parent.rect.height);
+        rect.anchoredPosition = topLeft - parentPivotOffset + new Vector2(TalkPortraitLeftInset, -TalkPortraitHiddenBelow) * unit;
+        talkPortrait.gameObject.SetActive(true);
     }
 
     private IEnumerator TypeLine(string text, float charDelay = 0.05f)
