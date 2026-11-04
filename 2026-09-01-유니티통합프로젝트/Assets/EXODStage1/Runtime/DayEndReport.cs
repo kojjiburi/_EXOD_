@@ -96,7 +96,7 @@ public sealed class DayEndReport : MonoBehaviour
     /// </summary>
     public static bool TryPlayNow(System.Action onFinished)
     {
-        if (pendingReport == null || Stage2HouseLink.IsInStage2)
+        if ((pendingReport == null && !BedSleepStreak.HasPending) || Stage2HouseLink.IsInStage2)
             return false;
 
         string report = pendingReport;
@@ -104,14 +104,34 @@ public sealed class DayEndReport : MonoBehaviour
         if (PlayerFaintController.Instance != null && PlayerFaintController.Instance.IsBusy)
             return false;
 
-        List<DialogueLine> lines = report.Length > 0
-            ? Stage1Dialogues.DayReportMissing(report)
-            : Stage1Dialogues.DayReportClean();
-        ApplyHeal(lines);
+        List<DialogueLine> lines = report == null
+            ? new List<DialogueLine>()
+            : report.Length > 0
+                ? Stage1Dialogues.DayReportMissing(report)
+                : Stage1Dialogues.DayReportClean();
+
+        // 침대에서 연속으로 잤으면 "오늘은 무사히 넘긴 것 같다." 대신 연속 잠 대사 (4번째면 순응 엔딩, BedSleepStreak)
+        bool submission = BedSleepStreak.ApplyTo(lines, report != null && report.Length == 0);
+        if (submission)
+        {
+            System.Action afterReport = onFinished;
+            onFinished = () =>
+            {
+                if (PlayerFaintController.Instance != null)
+                    PlayerFaintController.Instance.ShowEndingAboveAll(
+                        Stage1Dialogues.PotionEndingLine,
+                        Stage1Dialogues.PotionEndingTitle,
+                        Stage1Dialogues.PotionEndingSubtitle,
+                        EndingStyle.Submission);
+                afterReport?.Invoke();   // 일차 넘김 화면은 엔딩 화면 뒤에서 마저 끝남
+            };
+        }
+        else
+            ApplyHeal(lines);
 
         // 전날 팔다리를 다 돌려줬으면 곰돌이 보답도 이어서 (아래 Update와 같은 규칙)
         BearLimbGimmickManager bear = FindFirstObjectByType<BearLimbGimmickManager>();
-        if (bear != null && bear.IsRewardPending && !BearGiftDelivered)
+        if (!submission && bear != null && bear.IsRewardPending && !BearGiftDelivered)
         {
             lines.AddRange(Stage1Dialogues.BearMorningGift());
             BearGiftDelivered = true;

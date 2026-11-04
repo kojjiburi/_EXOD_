@@ -197,6 +197,15 @@ public sealed class PlayerFaintController : MonoBehaviour
         ShowEndScreen(girlfriendLine, title, subtitle, style);
     }
 
+    /// <summary>일차 넘김 검은 화면(32000)보다 위에 엔딩 화면 (침대 연속 잠 → 순응 엔딩, BedSleepStreak)</summary>
+    public void ShowEndingAboveAll(string girlfriendLine, string title, string subtitle, EndingStyle style)
+    {
+        if (isGameOver)
+            return;
+        overlayRoot.GetComponent<Canvas>().sortingOrder = 32100;   // DifficultyPicker(32500)보다는 아래
+        ShowEndScreen(girlfriendLine, title, subtitle, style);
+    }
+
     private void ShowEndScreen(string line, string title, string subtitle, EndingStyle style)
     {
         isFainting = false;

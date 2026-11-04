@@ -194,6 +194,7 @@ public sealed class DayCycleController : MonoBehaviour
 
     private void AdvanceDayNow()
     {
+        BedSleepStreak.OnDayStarted();   // 침대가 아닌 방법으로 넘어가면 연속 잠 0
         elapsed = 0f;
         dayEndHandled = false;
         bedClickedToday = false;
@@ -248,6 +249,7 @@ public sealed class DayCycleController : MonoBehaviour
         DialogueManager dialogue = DialogueManager.Instance;
         if (dialogue == null)
         {
+            BedSleepStreak.OnBedSleep(elapsed);   // 침대 연속 잠 (순응 엔딩)
             AdvanceDay();
             return;
         }
@@ -258,7 +260,10 @@ public sealed class DayCycleController : MonoBehaviour
             chosen =>
             {
                 if (chosen == 0)
+                {
+                    BedSleepStreak.OnBedSleep(elapsed);   // 침대 연속 잠 (순응 엔딩, 2026-11-04)
                     AdvanceDay();
+                }
             });
     }
 
