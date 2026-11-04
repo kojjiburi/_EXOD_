@@ -139,6 +139,7 @@ public sealed class Stage1SoundEffects : MonoBehaviour
     {
         EXODSound.Play("hp_lost");
         EXODSound.Play("tv_noise");   // 하트가 깎일 때 지지직 노이즈 (사용자 요청 2026-11-04)
+        HpShake.Play();               // 화면 흔들림: 쾅 왼쪽 → 오른쪽 → 느리게 왼쪽 조금 → 제자리 (사용자 요청 2026-11-05)
 
         if (damageVignette == null)
             return;
