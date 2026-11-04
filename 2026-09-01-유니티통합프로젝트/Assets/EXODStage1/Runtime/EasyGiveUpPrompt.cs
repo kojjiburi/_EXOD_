@@ -44,7 +44,9 @@ public sealed class EasyGiveUpPrompt : MonoBehaviour
         }
 
         int hp = hearts.HP;
-        if (hp < lastHp && hp > 0 && GameDifficulty.IsEasy)
+        // 현관에서 기절해 깎인 하트는 묻지 않음 (현관에서는 이 문답을 빼기로, 사용자 요청 2026-11-04)
+        bool fromFrontDoorFaint = PlayerFaintController.Instance != null && PlayerFaintController.Instance.IsFainting;
+        if (hp < lastHp && hp > 0 && GameDifficulty.IsEasy && !fromFrontDoorFaint)
             pending = true;
         if (hp <= 0)
             pending = false;   // 하트 0이면 게임 오버로

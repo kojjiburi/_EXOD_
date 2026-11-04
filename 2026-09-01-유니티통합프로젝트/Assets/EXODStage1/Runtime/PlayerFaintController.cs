@@ -53,6 +53,9 @@ public sealed class PlayerFaintController : MonoBehaviour
     /// <summary>엔딩·간호 엔딩·운명의 갈림길·시간 초과 화면이 떠 있음 (기절은 제외) — EndingState</summary>
     public bool IsEndingShown => isGameOver;
 
+    /// <summary>기절 연출 중 (현관 도어락·보안 질문 실패)</summary>
+    public bool IsFainting => isFainting;
+
     private void Awake()
     {
         Instance = this;
