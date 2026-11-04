@@ -228,6 +228,25 @@ public sealed class DangerLevel : MonoBehaviour
     private static readonly string[] SpikeFirstLines = { "으스스한 기분이든다.", "여자친구가 올만한 행동을 너무 많이했나?" };
     private float ambientScareTimer;
 
+    // ─── 추가 효과음·물건 떨어트림 (사용자 요청 2026-11-05) ───
+    // 방 이동 시 10% 확률로 room_riser (한 번 나면 10초 동안은 안 남)
+    private const float RoomRiserChance = 0.1f;
+    private const float RoomRiserCooldown = 10f;
+    private float roomRiserReadyAt;
+    // 집 안에서 아이템을 얻을 때 5% 확률로 물건을 떨어트림 (아이템은 그대로 얻음): item_drop_thud + 대사 + 위험도 +20 (배율 없이)
+    private const float ItemDropChance = 0.05f;
+    private const int ItemDropDanger = 20;
+    private const float ItemDropSoundSeconds = 1.1f;   // item_drop_thud 길이
+    private static readonly string[] ItemDropLines = { "어이쿠!", "물건을 줍다가 한번 떨어트렸다.", "큰 소리가 났다." };
+    private bool itemDropPending;
+    private float lastItemDropSoundAt = -100f;
+    // 집 안에서 게임 시간 20초마다 10% 확률로 lost_credits (물건 떨어트리는 소리와 겹치면 10초 뒤에)
+    private const float CreditsScareInterval = 20f;
+    private const float CreditsScareChance = 0.1f;
+    private const float CreditsOverlapDelay = 10f;
+    private float creditsScareTimer;
+    private float creditsPendingAt = -1f;
+
     private void UpdateScareSounds()
     {
         float now = Time.unscaledTime;
@@ -258,9 +277,45 @@ public sealed class DangerLevel : MonoBehaviour
             DialogueManager.Instance.StartDialogue(Stage1Dialogues.Thought(SpikeFirstLines));
         }
 
+        // 물건 떨어트림: 다른 대화·연출이 끝나면 소리와 대사를 같이 (대화 중엔 게임 시간 멈춤)
+        if (itemDropPending)
+        {
+            if (Stage2HouseLink.IsInStage2 || appearing || EndingState.IsEnding || BoothMode.ForcingEnding)
+                itemDropPending = false;
+            else if (!DayController.IsTransitioning && DialogueManager.Instance != null && !DialogueManager.Instance.IsDialogueOpen
+                && !(PlayerFaintController.Instance != null && PlayerFaintController.Instance.IsBusy))
+            {
+                itemDropPending = false;
+                EXODSound.Play("item_drop_thud");
+                lastItemDropSoundAt = now;
+                Add(ItemDropDanger);   // 현관 뒤 2배·1.5배 배율은 안 붙임
+                if (!appearing)
+                    DialogueManager.Instance.StartDialogue(Stage1Dialogues.Thought(ItemDropLines));
+            }
+        }
+
         // 집 안·시간이 흐를 때만 (산책·대화·컷신·연출 중엔 안 셈)
-        if (Stage2HouseLink.IsInStage2 || appearing || DayController.IsTransitioning || DayCycleController.IsTimePaused())
+        if (Stage2HouseLink.IsInStage2 || appearing || DayController.IsTransitioning || DayCycleController.IsTimePaused() || EndingState.IsEnding)
             return;
+
+        if (creditsPendingAt >= 0f && now >= creditsPendingAt)
+        {
+            creditsPendingAt = -1f;
+            EXODSound.Play("lost_credits");
+        }
+        creditsScareTimer += Time.deltaTime;
+        if (creditsScareTimer >= CreditsScareInterval)
+        {
+            creditsScareTimer = 0f;
+            if (Random.value < CreditsScareChance && creditsPendingAt < 0f)
+            {
+                if (now < lastItemDropSoundAt + ItemDropSoundSeconds)
+                    creditsPendingAt = now + CreditsOverlapDelay;
+                else
+                    EXODSound.Play("lost_credits");
+            }
+        }
+
         ambientScareTimer += Time.deltaTime;
         if (ambientScareTimer < AmbientScareInterval)
             return;
@@ -462,6 +517,12 @@ public sealed class DangerLevel : MonoBehaviour
         if (appearing || Stage2HouseLink.IsInStage2)
             return;
 
+        if (!DayController.IsTransitioning && !EndingState.IsEnding && Time.unscaledTime >= roomRiserReadyAt && Random.value < RoomRiserChance)
+        {
+            EXODSound.Play("room_riser");
+            roomRiserReadyAt = Time.unscaledTime + RoomRiserCooldown;
+        }
+
         if (roomName == BedroomName)
         {
             if (tutorialWaitingForRoom)
@@ -503,7 +564,12 @@ public sealed class DangerLevel : MonoBehaviour
 
             knownEntries.Add(entry);
             string itemId = entry.ItemData != null ? entry.ItemData.ItemId : string.Empty;
-            if (string.IsNullOrEmpty(itemId) || itemId == ProposalEnding.RingItemId || !itemsCountedToday.Add(itemId))
+            if (string.IsNullOrEmpty(itemId) || itemId == ProposalEnding.RingItemId)
+                continue;
+            // 집 안에서 얻을 때마다 5% 확률로 떨어트림 (산책 중엔 이 검사 자체가 안 돎)
+            if (CountsNow() && !EndingState.IsEnding && !itemDropPending && Random.value < ItemDropChance)
+                itemDropPending = true;
+            if (!itemsCountedToday.Add(itemId))
                 continue;
 
             if (CountsNow())
