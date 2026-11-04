@@ -174,6 +174,16 @@ public static class Stage1Dialogues
         Say(Girlfriend, "이제 아무 데도 안 가는 거지? 여기서, 영원히, 나랑만."),
     };
 
+    // 침대에서 연속으로 자서 순응 엔딩으로 갈 때 ("여기서 살자." 뒤) — 물약 실패 대사에서 앞 두 줄을 빼고 셋째 줄을 다듬음
+    // (BedSleepStreak, 운명의 갈림길 [침대를 고른다] 같이 씀, 사용자 요청 2026-11-04)
+    public static List<DialogueLine> BedSubmission()
+    {
+        List<DialogueLine> lines = PotionFail();
+        lines.RemoveRange(0, 2);   // "그냥 이렇게 살자…", "…앗."
+        lines[0] = Think("생각해 보면, 나쁠 것도 없잖아?");
+        return lines;
+    }
+
     // 순응 엔딩 화면 (암전 뒤 여자친구 마지막 대사 → 제목·설명)
     public const string PotionEndingLine = "우린 이제 평생 함께야 ♡";
     public const string PotionEndingTitle = "순응 엔딩 : 따뜻한 감옥";

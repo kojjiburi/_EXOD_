@@ -601,6 +601,15 @@ public sealed class PlayerFaintController : MonoBehaviour
             yield return new WaitForSecondsRealtime(1.1f);
         }
 
+        // "여기서 살자." 뒤 순응 대사 (일반 게임의 침대 연속 잠과 같은 대사, 저절로 넘어감)
+        foreach (DialogueLine line in Stage1Dialogues.BedSubmission())
+        {
+            if (line.text != null && line.text.Contains("철컥"))
+                EXODSound.Play("door_lock");
+            yield return Say(line.speakerName, line.text, 1.4f);
+        }
+        gameOverLineGroup.alpha = 0f;
+
         HandOff();
         ShowEnding(Stage1Dialogues.PotionEndingLine, Stage1Dialogues.PotionEndingTitle,
             Stage1Dialogues.PotionEndingSubtitle, EndingStyle.Submission);

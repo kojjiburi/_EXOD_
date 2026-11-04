@@ -133,7 +133,7 @@ public sealed class BedSleepStreak : MonoBehaviour
             return false;
 
         PlaySoundWhenShown(line, "cursed_horror");
-        lines.AddRange(Stage1Dialogues.PotionFail());
+        lines.AddRange(Stage1Dialogues.BedSubmission());
         Count = 0;
         return true;
     }
