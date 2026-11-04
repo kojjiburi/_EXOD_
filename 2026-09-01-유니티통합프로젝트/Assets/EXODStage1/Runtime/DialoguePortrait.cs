@@ -1,0 +1,423 @@
+using System.Collections;
+using UnityEngine;
+using UnityEngine.UI;
+
+/// <summary>
+/// 말하는 인물의 그림을 대화창 왼쪽 위에 띄웁니다.
+/// - "???"      : 여자친구 검은 실루엣 (정체를 숨김)
+/// - "여자친구"  : 여자친구 상반신 (아랫부분은 대화창 뒤로 가려짐)
+/// - "곰인형…?" : 팔다리가 찢긴 곰돌이
+/// - "곰인형"   : 다 고쳐진 곰돌이
+/// 이름표는 그림 앞에 그려집니다.
+/// 그림 파일: Assets/Resources/EXODStage1/ (Girlfriend_Portrait, Bear_Portrait_Torn, Bear_Portrait)
+/// </summary>
+[DefaultExecutionOrder(240)]
+public sealed class DialoguePortrait : MonoBehaviour
+{
+    private const string PortraitResourcePath = "EXODStage1/Girlfriend_Portrait";
+    private const string BearTornResourcePath = "EXODStage1/Bear_Portrait_Torn";
+    private const string BearResourcePath = "EXODStage1/Bear_Portrait";
+    private const string SweetResourcePath = "EXODStage1/Girlfriend_Portrait_Sweet";   // 볼 빨간 웃는 얼굴 (사용자 그림)
+    private const string WalkCaughtResourcePath = "EXODStage1/Girlfriend_Portrait_WalkCaught";   // 산책 중 들켰을 때 그림 (Yandere_Caught)
+
+    // 다음 대화(한 번) 동안 여자친구 그림을 산책 들킴 그림으로 (늦은 시간 현관문, 2026-11-03)
+    private static bool walkCaughtRequested;
+    private static bool walkCaughtActive;
+
+    public static void UseWalkCaughtForNextDialogue()
+    {
+        walkCaughtRequested = true;
+        walkCaughtActive = false;
+    }
+
+    internal static Sprite LoadWalkCaughtPortrait() => LoadSprite(WalkCaughtResourcePath);
+
+    // 대사 한 줄만 산책 들킴 그림으로 (인트로 "아무것도? …" 줄, 2026-11-03)
+    private static readonly System.Collections.Generic.HashSet<DialogueLine> walkCaughtLines = new System.Collections.Generic.HashSet<DialogueLine>();
+
+    public static DialogueLine WithWalkCaught(DialogueLine line)
+    {
+        if (line != null)
+            walkCaughtLines.Add(line);
+        return line;
+    }
+
+    // ── 한 장면만 다른 그림·위치로 (방에 잘 있을 때 방문, 청혼 엔딩) ──
+    private static bool sweetRequested;      // 다음 대화부터 쓰도록 요청됨
+    private static bool sweetActive;         // 지금 대화에 쓰는 중
+    private static bool centerRequested;
+
+    /// <summary>
+    /// 다음 대화(한 번) 동안 여자친구 그림을 볼 빨간 웃는 얼굴로 바꿉니다. centered면 대화창 가운데 위에 둡니다.
+    /// 대화가 끝나면 원래대로 돌아갑니다. (Stage1Dialogues.VisitSafe / ProposalCutscene에서 부름)
+    /// </summary>
+    public static void UseSweetForNextDialogue(bool centered)
+    {
+        sweetRequested = true;
+        sweetActive = false;
+        centerRequested = centered;
+    }
+
+    /// <summary>볼 빨간 웃는 얼굴 그림 (청혼 엔딩 마지막 대사에서도 사용)</summary>
+    internal static Sprite LoadSweetPortrait() => LoadSprite(SweetResourcePath);
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetStatics()
+    {
+        sweetRequested = false;
+        sweetActive = false;
+        centerRequested = false;
+        walkCaughtRequested = false;
+        walkCaughtActive = false;
+        walkCaughtLines.Clear();
+        ExtraWalkCaughtVignette = false;
+    }
+
+    [Header("=== 배치 (Canvas 기준 크기) ===")]
+    [SerializeField] private float girlfriendHeight = 780f;      // 여자친구 그림 전체 높이
+    [SerializeField] private float girlfriendHiddenBelow = 215f; // 대화창 뒤로 가려지는 높이
+    [SerializeField] private float bearHeight = 360f;            // 곰돌이 그림 전체 높이
+    [SerializeField] private float bearHiddenBelow = -72f;       // 곰돌이는 이름표 위로 올려 다 보이게
+    [SerializeField] private float leftInset = 40f;              // 대화창 왼쪽 끝에서 안쪽으로 들어간 거리
+
+    [Header("=== 연출 ===")]
+    [SerializeField] private float fadeDuration = 0.2f;
+    [SerializeField] private Color silhouetteColor = new Color(0.04f, 0.03f, 0.04f, 1f);
+
+    private Image portrait;
+    private CanvasGroup group;
+    private Coroutine fadeCoroutine;
+    private bool isShown;
+    private float hiddenBelow;
+
+    private Sprite girlfriendSprite;
+    private Sprite bearTornSprite;
+    private Sprite bearSprite;
+    private Sprite sweetSprite;
+    private Sprite walkCaughtSprite;
+    private bool showingWalkCaught;
+
+    // 칼 든 검은 그림 (사용자 그림 2026-11-04): 기본 초상화와 같은 크기·같은 아래 끝 → 정수리도 같은 높이.
+    // 얼굴 가운데가 기본 초상화보다 높이의 0.004배만큼 오른쪽이라 그만큼만 왼쪽으로
+    private const float WalkCaughtScale = 1f;
+    private const float WalkCaughtShiftX = -0.004f;   // × 기본 초상화 높이
+    private float WalkCaughtRaiseY => 0f;
+
+    // 칼 든 그림이 떠 있는 동안 화면 가장자리가 천천히 어두워짐 (전화 부스 뒤돌기 경고와 같은 비네트, 깜빡임 없음 — 사용자 요청 2026-11-04)
+    /// <summary>대화 초상화가 아니어도 비네트를 켜고 싶을 때 (늦은 시간 현관문 아른거림)</summary>
+    public static bool ExtraWalkCaughtVignette { get; set; }
+    private const float VignetteFadeSeconds = 0.8f;
+    private Image vignette;
+
+    /// <summary>켜 두면 여자친구 대사여도 초상화를 띄우지 않습니다. (들켰을 때 컷신 — ScreenAberration이 켬)</summary>
+    public static bool HideGirlfriend { get; set; }
+
+    /// <summary>초상화 그림 (대화 배경 어둡게 효과가 그 뒤에 놓일 때 사용)</summary>
+    public RectTransform PortraitRect => portrait != null ? portrait.rectTransform : null;
+
+    private void Start()
+    {
+        DialogueManager dm = DialogueManager.Instance;
+        if (dm == null || dm.DialoguePanelRect == null)
+            return;
+
+        girlfriendSprite = LoadPortrait();
+        bearTornSprite = LoadSprite(BearTornResourcePath);
+        bearSprite = LoadSprite(BearResourcePath);
+        sweetSprite = LoadSprite(SweetResourcePath);
+        walkCaughtSprite = LoadSprite(WalkCaughtResourcePath);
+
+        CreatePortrait(dm.DialoguePanelRect.parent);
+
+        dm.LineShown += OnLineShown;
+        dm.onDialogueEnd.AddListener(Hide);
+        dm.onDialogueEnd.AddListener(ClearSweetAfterDialogue);
+    }
+
+    // 요청한 장면의 대화가 끝나면 원래 그림·위치로
+    private static void ClearSweetAfterDialogue()
+    {
+        if (walkCaughtActive)
+        {
+            walkCaughtActive = false;
+            walkCaughtRequested = false;
+        }
+        if (!sweetActive)
+            return;
+        sweetActive = false;
+        sweetRequested = false;
+        centerRequested = false;
+    }
+
+    private void OnDestroy()
+    {
+        DialogueManager dm = DialogueManager.Instance;
+        if (dm == null)
+            return;
+
+        dm.LineShown -= OnLineShown;
+        dm.onDialogueEnd.RemoveListener(Hide);
+        dm.onDialogueEnd.RemoveListener(ClearSweetAfterDialogue);
+    }
+
+    private void LateUpdate()
+    {
+        UpdateVignette();
+
+        if (portrait == null || !portrait.gameObject.activeSelf)
+            return;
+
+        KeepBehindNamePanel();
+        FollowDialoguePanel();
+    }
+
+    private void OnLineShown(DialogueLine line)
+    {
+        string speaker = line.speakerName != null ? line.speakerName.Trim() : string.Empty;
+        if (sweetRequested)
+            sweetActive = true;
+        if (walkCaughtRequested)
+            walkCaughtActive = true;
+        bool lineWalkCaught = walkCaughtLines.Remove(line);
+        bool wasWalkCaught = showingWalkCaught;
+        showingWalkCaught = false;
+
+        bool isGirlfriend = speaker == Stage1Dialogues.Unknown || speaker == Stage1Dialogues.Girlfriend || speaker == "얀데레" || speaker == "여주";
+        if (isGirlfriend && HideGirlfriend)
+            Hide();
+        else if (speaker == Stage1Dialogues.Unknown)
+            Show(girlfriendSprite, silhouetteColor, girlfriendHeight, girlfriendHiddenBelow);
+        else if (speaker == Stage1Dialogues.Girlfriend || speaker == "얀데레" || speaker == "여주")
+        {
+            showingWalkCaught = (walkCaughtActive || lineWalkCaught) && walkCaughtSprite != null;
+            if (showingWalkCaught && !wasWalkCaught)
+                EXODSound.Play("cursed_horror");   // 검은 그림이 나올 때 (사용자 요청 2026-11-04)
+            if (showingWalkCaught)
+                Show(walkCaughtSprite, Color.white, girlfriendHeight * WalkCaughtScale, girlfriendHiddenBelow);
+            else
+                Show(sweetActive && sweetSprite != null ? sweetSprite : girlfriendSprite, Color.white, girlfriendHeight, girlfriendHiddenBelow);
+        }
+        else if (speaker == Stage1Dialogues.BearUnknown)
+            Show(bearTornSprite, Color.white, bearHeight, bearHiddenBelow);
+        else if (speaker == Stage1Dialogues.Bear)
+            Show(bearSprite, Color.white, bearHeight, bearHiddenBelow);
+        else
+            Hide();
+    }
+
+    private void Show(Sprite sprite, Color color, float height, float hidden)
+    {
+        if (sprite == null)
+        {
+            Hide();
+            return;
+        }
+
+        portrait.sprite = sprite;
+        portrait.color = color;
+        portrait.rectTransform.sizeDelta = new Vector2(height * sprite.rect.width / sprite.rect.height, height);
+        hiddenBelow = hidden;
+        FollowDialoguePanel();
+
+        if (isShown)
+            return;
+
+        isShown = true;
+        portrait.gameObject.SetActive(true);
+        KeepBehindNamePanel();
+        FollowDialoguePanel();
+        StartFade(1f);
+    }
+
+    private void Hide()
+    {
+        if (!isShown)
+            return;
+
+        isShown = false;
+        StartFade(0f);
+    }
+
+    private void StartFade(float target)
+    {
+        if (fadeCoroutine != null)
+            StopCoroutine(fadeCoroutine);
+
+        fadeCoroutine = StartCoroutine(FadeTo(target));
+    }
+
+    private IEnumerator FadeTo(float target)
+    {
+        float start = group.alpha;
+        float elapsed = 0f;
+        while (elapsed < fadeDuration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            group.alpha = Mathf.Lerp(start, target, Mathf.Clamp01(elapsed / fadeDuration));
+            yield return null;
+        }
+
+        group.alpha = target;
+        if (target <= 0f)
+            portrait.gameObject.SetActive(false);
+
+        fadeCoroutine = null;
+    }
+
+    private void UpdateVignette()
+    {
+        bool want = (showingWalkCaught && isShown) || ExtraWalkCaughtVignette;
+        if (vignette == null)
+        {
+            if (!want || portrait == null)
+                return;
+            GameObject go = new GameObject("칼 그림 가장자리 어둡게", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            go.transform.SetParent(portrait.transform.parent, false);
+            RectTransform r = (RectTransform)go.transform;
+            r.anchorMin = Vector2.zero;
+            r.anchorMax = Vector2.one;
+            r.offsetMin = r.offsetMax = Vector2.zero;
+            vignette = go.GetComponent<Image>();
+            vignette.sprite = CreateVignetteSprite();
+            vignette.raycastTarget = false;
+            vignette.color = new Color(1f, 1f, 1f, 0f);
+        }
+
+        Color c = vignette.color;
+        c.a = Mathf.MoveTowards(c.a, want ? 1f : 0f, Time.unscaledDeltaTime / VignetteFadeSeconds);
+        vignette.color = c;
+        bool visible = c.a > 0.001f;
+        if (vignette.gameObject.activeSelf != visible)
+            vignette.gameObject.SetActive(visible);
+        if (visible)
+        {
+            // 초상화·대화창·이름표보다 뒤, 게임 화면 위
+            Transform parent = vignette.transform.parent;
+            int index = portrait.transform.GetSiblingIndex();
+            RectTransform box = DialogueManager.Instance != null ? DialogueManager.Instance.DialoguePanelRect : null;
+            if (box != null && box.parent == parent)
+                index = Mathf.Min(index, box.GetSiblingIndex());
+            int mine = vignette.transform.GetSiblingIndex();
+            if (mine != index - 1)
+                vignette.transform.SetSiblingIndex(mine < index ? index - 1 : index);
+        }
+    }
+
+    // 가장자리만 검고 가운데는 투명한 그림 (WalkBoothTurnWarning과 같은 모양)
+    private static Sprite CreateVignetteSprite()
+    {
+        const int w = 256, h = 144;
+        Texture2D tex = new Texture2D(w, h, TextureFormat.RGBA32, false);
+        tex.wrapMode = TextureWrapMode.Clamp;
+        Color[] px = new Color[w * h];
+        for (int y = 0; y < h; y++)
+        {
+            for (int x = 0; x < w; x++)
+            {
+                float dx = (x / (w - 1f) - 0.5f) * 2f;
+                float dy = (y / (h - 1f) - 0.5f) * 2f;
+                float d = Mathf.Sqrt(dx * dx * 0.85f + dy * dy * 0.85f);
+                float a = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.55f, 1.15f, d)) * 0.95f;
+                px[y * w + x] = new Color(0f, 0f, 0f, a);
+            }
+        }
+        tex.SetPixels(px);
+        tex.Apply();
+        return Sprite.Create(tex, new Rect(0, 0, w, h), new Vector2(0.5f, 0.5f));
+    }
+
+    // 이름표 바로 뒤(대화창·이름표보다 먼저) 그려지도록 순서를 맞춥니다.
+    private void KeepBehindNamePanel()
+    {
+        RectTransform namePanel = DialogueManager.Instance != null ? DialogueManager.Instance.NamePanelRect : null;
+        Transform target = namePanel != null && namePanel.parent == portrait.transform.parent
+            ? namePanel
+            : DialogueManager.Instance.DialoguePanelRect;
+
+        int targetIndex = target.GetSiblingIndex();
+        int myIndex = portrait.transform.GetSiblingIndex();
+        if (myIndex != targetIndex - 1)
+            portrait.transform.SetSiblingIndex(myIndex < targetIndex ? targetIndex - 1 : targetIndex);
+    }
+
+    // 대화창 왼쪽 위 모서리에 맞춰 그림을 놓습니다.
+    private void FollowDialoguePanel()
+    {
+        RectTransform panel = DialogueManager.Instance.DialoguePanelRect;
+        RectTransform parent = portrait.rectTransform.parent as RectTransform;
+        if (panel == null || parent == null)
+            return;
+
+        Vector3[] corners = new Vector3[4];
+        panel.GetWorldCorners(corners);
+        Vector2 topLeft = parent.InverseTransformPoint(corners[1]);
+
+        // 부모 기준점(가운데) 좌표를 그대로 쓰도록 앵커를 부모 가운데에 둡니다.
+        Vector2 parentPivotOffset = new Vector2(
+            (0.5f - parent.pivot.x) * parent.rect.width,
+            (0.5f - parent.pivot.y) * parent.rect.height);
+
+        Vector2 position = topLeft - parentPivotOffset + new Vector2(leftInset, -hiddenBelow);
+
+        // 방에 찾아왔을 때: 대화창 가운데 위
+        if (sweetActive && centerRequested)
+        {
+            Vector2 topRight = parent.InverseTransformPoint(corners[2]);
+            float centerX = (topLeft.x + topRight.x) * 0.5f - parentPivotOffset.x;
+            position.x = centerX - portrait.rectTransform.sizeDelta.x * 0.5f;
+        }
+
+        if (showingWalkCaught)
+            position += new Vector2(WalkCaughtShiftX * girlfriendHeight, WalkCaughtRaiseY);
+
+        portrait.rectTransform.anchoredPosition = position;
+    }
+
+    private void CreatePortrait(Transform parent)
+    {
+        GameObject go = new GameObject(
+            "여자친구 초상화",
+            typeof(RectTransform),
+            typeof(CanvasRenderer),
+            typeof(Image),
+            typeof(CanvasGroup));
+        go.transform.SetParent(parent, false);
+
+        portrait = go.GetComponent<Image>();
+        portrait.preserveAspect = true;
+        portrait.raycastTarget = false;
+
+        RectTransform rect = portrait.rectTransform;
+        rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
+        rect.pivot = Vector2.zero;
+
+        group = go.GetComponent<CanvasGroup>();
+        group.alpha = 0f;
+        group.blocksRaycasts = false;
+        group.interactable = false;
+
+        go.SetActive(false);
+    }
+
+    /// <summary>여자친구 초상화 (게임 오버·시작 화면 실루엣에서도 사용)</summary>
+    internal static Sprite LoadPortrait()
+    {
+        return LoadSprite(PortraitResourcePath);
+    }
+
+    private static Sprite LoadSprite(string resourcePath)
+    {
+        Texture2D texture = Resources.Load<Texture2D>(resourcePath);
+        if (texture == null)
+        {
+            Debug.LogWarning($"[DialoguePortrait] 초상화 이미지가 없습니다: Resources/{resourcePath}.png");
+            return null;
+        }
+
+        return Sprite.Create(
+            texture,
+            new Rect(0f, 0f, texture.width, texture.height),
+            new Vector2(0.5f, 0.5f),
+            100f);
+    }
+}
