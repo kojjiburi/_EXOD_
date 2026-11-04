@@ -27,6 +27,7 @@ public static class ProposalEnding
     public static void Trigger()
     {
         HasPlayed = true;
+        EndingState.Begin();
         Debug.Log("[Ending] 청혼 엔딩 호출");
 
         if (Requested != null)

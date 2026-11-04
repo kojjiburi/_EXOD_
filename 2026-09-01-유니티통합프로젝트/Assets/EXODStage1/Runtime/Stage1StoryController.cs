@@ -210,6 +210,7 @@ public sealed class Stage1StoryController : MonoBehaviour
         }
 
         // 실패: 탈출을 포기하고 그녀 곁에 남음 → 순응 엔딩 (하트는 줄지 않음)
+        EndingState.Begin();
         PlayCutscene(Stage1Dialogues.PotionFail(), () =>
         {
             if (PlayerFaintController.Instance != null)

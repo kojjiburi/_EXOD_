@@ -251,7 +251,7 @@ public sealed class DangerLevel : MonoBehaviour
         }
 
         // 처음 급상승했을 때 대사 (다른 대화·연출이 끝난 뒤에)
-        if (spikeLinePending && !appearing && !DayController.IsTransitioning && DialogueManager.Instance != null
+        if (spikeLinePending && !appearing && !DayController.IsTransitioning && !EndingState.IsEnding && DialogueManager.Instance != null
             && !DialogueManager.Instance.IsDialogueOpen && !(PlayerFaintController.Instance != null && PlayerFaintController.Instance.IsBusy))
         {
             spikeLinePending = false;
@@ -815,19 +815,18 @@ public sealed class DangerLevel : MonoBehaviour
         // 침실 밖에서 들킴 → (들킨 대사 동안 화면 색수차) → 하트 -1 → (게임 오버가 아니면) 침실로 끌려가 다시 갇힘
         // 색수차는 끌려가 다시 갇히는 대사까지 컷신 내내 유지 (사용자 요청 2026-11-03)
         ScreenAberration.NextSound = "horror_sting";   // 방 밖에서 들킴 (사용자 요청 2026-11-04)
-        // 하트 -1은 첫 대사 "…자기야?"와 함께 (삐 소리·붉은 화면도 이때, 사용자 요청 2026-11-04)
-        // 하트 0이 돼도 게임 오버(간호 엔딩)는 들킨 대사가 끝난 뒤에 (PlayerFaintController가 등장 중엔 기다림)
-        HeartManager caughtHearts = null;
+        // 하트 -1은 들킴 효과음(horror_sting)이 다 끝난 뒤 (삐 소리·붉은 화면도 그때, 사용자 요청 2026-11-04)
+        // 대사가 먼저 끝나면 그때 바로. 하트 0이 돼도 게임 오버(간호 엔딩)는 들킨 대사가 끝난 뒤에
+        HeartManager caughtHearts = FindFirstObjectByType<HeartManager>(FindObjectsInactive.Include);
         ScreenAberration.Play(() =>
         {
-            caughtHearts = FindFirstObjectByType<HeartManager>(FindObjectsInactive.Include);
-            if (caughtHearts != null)
-                caughtHearts.HPM();
+            ScheduleCaughtHeartLoss(caughtHearts, "horror_sting");
             PlayCutscene(Stage1Dialogues.VisitCaught(), AfterCaughtLines);
         }, false, ScreenAberration.HouseCutscene);
 
         void AfterCaughtLines()
         {
+            ApplyPendingHeartLoss();
             HeartManager hearts = caughtHearts;
 
             if (hearts != null && hearts.HP <= 0)
@@ -845,6 +844,41 @@ public sealed class DangerLevel : MonoBehaviour
                 FinishAppear();
             });
         }
+    }
+
+    // ─── 들킴 하트 -1: 효과음 길이만큼 기다렸다가 ───
+    private HeartManager pendingHeartLoss;
+    private Coroutine pendingHeartRoutine;
+
+    private void ScheduleCaughtHeartLoss(HeartManager hearts, string soundName)
+    {
+        ApplyPendingHeartLoss();
+        if (hearts == null)
+            return;
+        AudioClip clip = Resources.Load<AudioClip>("EXODStage1/Sfx/" + soundName);
+        pendingHeartLoss = hearts;
+        pendingHeartRoutine = StartCoroutine(HeartLossAfter(clip != null ? clip.length : 0f));
+    }
+
+    private System.Collections.IEnumerator HeartLossAfter(float seconds)
+    {
+        yield return new WaitForSecondsRealtime(seconds);
+        pendingHeartRoutine = null;
+        ApplyPendingHeartLoss();
+    }
+
+    /// <summary>아직 안 깎인 들킴 하트가 있으면 지금 깎음 (들킨 대사가 끝났을 때·산책에서 돌아왔을 때)</summary>
+    public static void ApplyPendingHeartLoss()
+    {
+        DangerLevel d = Instance;
+        if (d == null || d.pendingHeartLoss == null)
+            return;
+        if (d.pendingHeartRoutine != null)
+            d.StopCoroutine(d.pendingHeartRoutine);
+        d.pendingHeartRoutine = null;
+        HeartManager hearts = d.pendingHeartLoss;
+        d.pendingHeartLoss = null;
+        hearts.HPM();
     }
 
     private static void PlayCutscene(List<DialogueLine> lines, System.Action onFinished)
@@ -1098,11 +1132,9 @@ public sealed class DangerLevel : MonoBehaviour
             {
                 ScreenAberration.NextSound = "cursed_horror";   // 산책에서 들킴 (사용자 요청 2026-11-04)
                 ScreenAberration.Play(null, true, ScreenAberration.WalkCutscene);
-                // 하트 -1도 들킨 순간 "…지금 뭐 하는 거야?"와 함께 (원래는 집에 돌아온 뒤, 사용자 요청 2026-11-04)
-                // 하트 0이면 게임 오버는 집에 돌아온 뒤 (PlayerFaintController가 산책 중엔 기다림)
-                HeartManager walkHearts = FindFirstObjectByType<HeartManager>(FindObjectsInactive.Include);
-                if (walkHearts != null)
-                    walkHearts.HPM();
+                // 하트 -1은 들킴 효과음(cursed_horror)이 다 끝난 뒤 (원래는 집에 돌아온 뒤, 사용자 요청 2026-11-04)
+                // 그 전에 집에 돌아오면 그때 바로. 하트 0이면 게임 오버는 집에 돌아온 뒤 (PlayerFaintController가 산책 중엔 기다림)
+                ScheduleCaughtHeartLoss(FindFirstObjectByType<HeartManager>(FindObjectsInactive.Include), "cursed_horror");
             }
             walkCaughtFxPlayed = caught;
 

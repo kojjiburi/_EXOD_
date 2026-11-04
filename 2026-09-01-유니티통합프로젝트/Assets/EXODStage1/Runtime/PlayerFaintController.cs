@@ -50,6 +50,9 @@ public sealed class PlayerFaintController : MonoBehaviour
     /// <summary>기절 연출 중이거나 게임 오버 상태인지 여부</summary>
     public bool IsBusy => isFainting || isGameOver;
 
+    /// <summary>엔딩·간호 엔딩·운명의 갈림길·시간 초과 화면이 떠 있음 (기절은 제외) — EndingState</summary>
+    public bool IsEndingShown => isGameOver;
+
     private void Awake()
     {
         Instance = this;

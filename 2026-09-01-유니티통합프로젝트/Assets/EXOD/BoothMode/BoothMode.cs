@@ -23,6 +23,8 @@ public static class BoothMode
     private static bool isOn;
 
     private static bool timerRunning;
+    private static float pausedSeconds;      // 엔딩 중에 멈춰 있던 시간
+    private static float lastTickTime;
     private static bool timeUpFired;
 
     // ─── 제한시간 초과 때 '이미 볼 수 있는 엔딩' (사용자 요청 2026-11-03) ───
@@ -136,6 +138,8 @@ public static class BoothMode
     {
         timerRunning = IsOn;
         ResetRunFlags();
+        pausedSeconds = 0f;
+        lastTickTime = Time.realtimeSinceStartup;
         timerStart = Time.realtimeSinceStartup;
         timerLimit = easy ? EasyLimitSeconds : HardLimitSeconds;
     }
@@ -143,12 +147,22 @@ public static class BoothMode
     public static bool TimerVisible => IsOn && timerRunning;
 
     public static float RemainingSeconds =>
-        timerRunning ? Mathf.Max(0f, timerLimit - (Time.realtimeSinceStartup - timerStart)) : 0f;
+        timerRunning ? Mathf.Max(0f, timerLimit - (Time.realtimeSinceStartup - timerStart - pausedSeconds)) : 0f;
+
+    // 엔딩 중에는 제한시간이 흐르지 않음 (EndingState, 사용자 요청 2026-11-04)
+    private static void TickPause()
+    {
+        float now = Time.realtimeSinceStartup;
+        if (timerRunning && EndingState.IsEnding)
+            pausedSeconds += now - lastTickTime;
+        lastTickTime = now;
+    }
 
     /// <summary>제한시간이 다 되면 한 번: 암전 + 트럼펫 + Game Over 대사 → [타이틀 화면으로 가기] (Stage1HelpBar가 매 프레임 부름)</summary>
     public static void CheckTimeUp()
     {
-        if (!TimerVisible || timeUpFired || ForcingEnding || RemainingSeconds > 0f)
+        TickPause();
+        if (!TimerVisible || timeUpFired || EndingState.IsEnding || RemainingSeconds > 0f)
             return;   // 엔딩을 강제로 진행 중이면 시간 초과는 안 띄움
         PlayerFaintController faint = PlayerFaintController.Instance;
         if (faint == null || faint.IsBusy)

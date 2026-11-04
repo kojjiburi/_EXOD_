@@ -114,6 +114,7 @@ public sealed class DayEndReport : MonoBehaviour
         bool submission = BedSleepStreak.ApplyTo(lines, report != null && report.Length == 0);
         if (submission)
         {
+            EndingState.Begin();
             System.Action afterReport = onFinished;
             onFinished = () =>
             {

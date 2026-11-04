@@ -94,6 +94,7 @@ public sealed class Stage2HouseLink : MonoBehaviour
             if (DialogueManager.Instance == null)
                 return false;
             EscapeEndingSfx.ArmHandcuffs();
+            EndingState.Begin();
             Stage1Room.PlayCutscene(Stage1Dialogues.EscapeCutscene(), onDone);
             return true;
         };
@@ -406,9 +407,10 @@ public sealed class Stage2HouseLink : MonoBehaviour
         yield return WalkFade.FadeIn();
         isTransitioning = false;
 
-        // 산책 중 그녀에게 들켰으면: 하트 -1은 들킨 순간 이미 깎임 (DangerLevel, 2026-11-04). HP 0이면 여기서 게임 오버로
+        // 산책 중 그녀에게 들켰으면: 하트 -1은 들킴 효과음 뒤에 깎임 (DangerLevel, 2026-11-04). 아직이면 지금. HP 0이면 여기서 게임 오버로
         if (result == WalkResult.Caught)
         {
+            DangerLevel.ApplyPendingHeartLoss();
             HeartManager hearts = FindFirstObjectByType<HeartManager>(FindObjectsInactive.Include);
             if (hearts != null)
             {

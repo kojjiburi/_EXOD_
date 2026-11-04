@@ -85,9 +85,13 @@ public sealed class GameMenu : MonoBehaviour
     }
 
     // 엔딩·게임 오버 화면에는 자체 [다시 시작]/[로비로]/[게임 종료] 버튼이 있어서 위쪽 [종료] 버튼은 숨깁니다.
+    // + 기절·들킴·여자친구 방문·일차 넘김·현관 컷신·엔딩 진행 같은 강제 컷신 중에도 숨김 (사용자 요청 2026-11-04)
     private static bool IsEndingShown()
     {
         if (PlayerFaintController.Instance != null && PlayerFaintController.Instance.IsBusy)
+            return true;
+        if (EndingState.IsEnding || ScreenAberration.IsPlaying || DangerLevel.IsAppearing
+            || DayController.IsTransitioning || Stage2HouseLink.IsTransitioning || BoothEscapeDriver.Running)
             return true;
         return EXOD.Walk.PhoneBoothEnding.IsShowing;
     }
