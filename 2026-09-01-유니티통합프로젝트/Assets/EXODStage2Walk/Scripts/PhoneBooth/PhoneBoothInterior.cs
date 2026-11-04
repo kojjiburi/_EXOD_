@@ -263,7 +263,17 @@ namespace EXOD.Walk
             Debug.Log("[PhoneBooth] 부스 안으로 들어감");
 
             var lines = new List<WalkLine>();
-            if (!firstEnterShown && firstEnterLines != null) lines.AddRange(firstEnterLines);
+            if (!firstEnterShown && firstEnterLines != null)
+            {
+                foreach (var line in firstEnterLines)
+                {
+                    // [이지] 수화기 선·버튼 [2]는 처음부터 고쳐져 있으므로 빠진 건 버튼 [1]뿐 (사용자 요청 2026-11-05)
+                    if (GameDifficulty.IsEasy && line.text != null && line.text.Contains("수화기 선이 잘려"))
+                        lines.Add(new WalkLine(line.speaker, "(전화기는 다이얼 버튼 [1]이 빠져 있다.)"));
+                    else
+                        lines.Add(line);
+                }
+            }
             firstEnterShown = true;
             if (PhoneBoothProgress.Reported && enterAfterReportLines != null) lines.AddRange(enterAfterReportLines);
             Say(lines);
