@@ -868,6 +868,10 @@ public sealed class StartScreen : MonoBehaviour
         if (!string.IsNullOrEmpty(sub))
         {
             TextMeshProUGUI subText = CreateText("부제", card.rectTransform, sub, 32f, Color.white);
+            subText.enableWordWrapping = false;   // 부제가 길면 한 줄 안에 들어가게 글자만 줄임
+            subText.enableAutoSizing = true;
+            subText.fontSizeMin = 20f;
+            subText.fontSizeMax = 32f;
             Place(subText.rectTransform, new Vector2(0.5f, 1f), new Vector2(size.x - 30f, 50f), new Vector2(0f, -125f));
         }
 
