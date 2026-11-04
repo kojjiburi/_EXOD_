@@ -315,6 +315,39 @@ public sealed class PlayerFaintController : MonoBehaviour
         StartCoroutine(BoothTimeUpRoutine());
     }
 
+    /// <summary>
+    /// 게임 중 [게임 종료]를 골랐을 때: 이미 볼 수 있는 엔딩이 있으면 종료 대신 '운명의 갈림길'로 (부스·일반 모드 모두, 사용자 요청 2026-11-04).
+    /// 볼 수 있는 엔딩이 없으면 false (그냥 종료하면 됨)
+    /// </summary>
+    public bool TryShowFateOnQuit()
+    {
+        if (isGameOver || BoothMode.ForcingEnding)
+            return false;
+        List<BoothMode.FateEnding> fates = BoothMode.AvailableEndings();
+        if (fates.Count == 0)
+            return false;
+
+        isFainting = false;
+        isGameOver = true;
+        StopAllCoroutines();
+        CloseOtherUi();
+        overlayRoot.SetActive(true);
+        overlayRoot.GetComponent<Canvas>().sortingOrder = 31000;
+        faintText.gameObject.SetActive(false);
+        endingScreen.Hide();
+        StartCoroutine(FateOnQuitRoutine(fates));
+        return true;
+    }
+
+    private IEnumerator FateOnQuitRoutine(List<BoothMode.FateEnding> fates)
+    {
+        EXODSound.StopAmbience(0.5f);
+        EXODSound.StopHeartbeat(0.3f);
+        EXODSound.Play("heaven_choir");
+        yield return Fade(blackout, 0f, 1f, 0.8f);
+        yield return FateRoutine(fates);
+    }
+
     private IEnumerator BoothTimeUpRoutine()
     {
         EXODSound.StopAmbience(0.5f);

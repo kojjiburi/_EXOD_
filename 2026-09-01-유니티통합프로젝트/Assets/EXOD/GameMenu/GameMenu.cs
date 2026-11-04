@@ -111,8 +111,55 @@ public sealed class GameMenu : MonoBehaviour
         if (!IsOpen)
             return;
 
+        if (quitConfirm != null)
+            quitConfirm.SetActive(false);
         menuRoot.SetActive(false);
         Time.timeScale = timeScaleBeforeOpen;
+    }
+
+    // [게임 종료] → "종료하시겠습니까?" [예]/[아니요] (사용자 요청 2026-11-04)
+    private GameObject quitConfirm;
+
+    private void AskQuit()
+    {
+        if (quitConfirm == null)
+            BuildQuitConfirm();
+        quitConfirm.SetActive(true);
+        quitConfirm.transform.SetAsLastSibling();
+    }
+
+    private void ConfirmQuit()
+    {
+        quitConfirm.SetActive(false);
+        Close();
+        // 이미 볼 수 있는 엔딩이 있으면 바로 끄지 않고 '운명의 갈림길'로 (부스·일반 모드 모두)
+        if (PlayerFaintController.Instance != null && PlayerFaintController.Instance.TryShowFateOnQuit())
+            return;
+        QuitGame();
+    }
+
+    private void BuildQuitConfirm()
+    {
+        Image dim = CreateImage("종료 확인", menuRoot.transform, new Color(0f, 0f, 0f, 0.55f));
+        Stretch(dim.rectTransform);
+        dim.raycastTarget = true;
+        quitConfirm = dim.gameObject;
+
+        Image panel = CreateImage("창", dim.transform, PanelColor);
+        Place(panel.rectTransform, Vector2.zero, new Vector2(520f, 260f));
+
+        TextMeshProUGUI text = CreateText("질문", panel.transform, "종료하시겠습니까?", 38f, TitleColor);
+        Place(text.rectTransform, new Vector2(0f, 55f), new Vector2(480f, 70f));
+
+        Button yes = CreateButton(panel.transform, "예", "예", 30f);
+        Place((RectTransform)yes.transform, new Vector2(-110f, -60f), new Vector2(180f, 70f));
+        yes.onClick.AddListener(ConfirmQuit);
+
+        Button no = CreateButton(panel.transform, "아니요", "아니요", 30f);
+        Place((RectTransform)no.transform, new Vector2(110f, -60f), new Vector2(180f, 70f));
+        no.onClick.AddListener(() => quitConfirm.SetActive(false));
+
+        quitConfirm.SetActive(false);
     }
 
     private void QuitGame()
@@ -201,7 +248,7 @@ public sealed class GameMenu : MonoBehaviour
         Place(title.rectTransform, new Vector2(0f, 190f), new Vector2(500f, 70f));
 
         string[] labels = { "게임 종료", "타이틀 화면으로", "다시 시작", "돌아가기" };
-        UnityEngine.Events.UnityAction[] actions = { QuitGame, GoToTitle, RestartGame, Close };
+        UnityEngine.Events.UnityAction[] actions = { AskQuit, GoToTitle, RestartGame, Close };
         for (int i = 0; i < labels.Length; i++)
         {
             Button button = CreateButton(panel.transform, labels[i], labels[i], 32f);

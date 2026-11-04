@@ -148,8 +148,8 @@ public static class BoothMode
     /// <summary>제한시간이 다 되면 한 번: 암전 + 트럼펫 + Game Over 대사 → [타이틀 화면으로 가기] (Stage1HelpBar가 매 프레임 부름)</summary>
     public static void CheckTimeUp()
     {
-        if (!TimerVisible || timeUpFired || RemainingSeconds > 0f)
-            return;
+        if (!TimerVisible || timeUpFired || ForcingEnding || RemainingSeconds > 0f)
+            return;   // 엔딩을 강제로 진행 중이면 시간 초과는 안 띄움
         PlayerFaintController faint = PlayerFaintController.Instance;
         if (faint == null || faint.IsBusy)
             return;
@@ -208,16 +208,24 @@ public static class BoothMode
         r.offsetMax = new Vector2(-24f, -y);
     }
 
-    /// <summary>난이도 창 가운데 아래 (두 카드와 [뒤로] 사이) 노란 안내</summary>
+    /// <summary>난이도 창 가운데 아래 (두 카드와 [뒤로] 사이): 회색 중도 포기 안내 + 노란 부스 직원 안내</summary>
     public static void AddStaffNote(RectTransform window, TMP_FontAsset font)
     {
+        TextMeshProUGUI quit = Txt("중도 포기 안내", window,
+            "중도 포기는 종료버튼을 눌러 나가면 됩니다. 만족 한 엔딩 조건이 있다면 그 엔딩을 볼 수 있습니다 (클리어판정)",
+            23f, new Color(0.62f, 0.60f, 0.61f, 1f), font, FontStyles.Normal);
+        RectTransform qr = quit.rectTransform;
+        qr.anchorMin = qr.anchorMax = new Vector2(0.5f, 0.5f);
+        qr.sizeDelta = new Vector2(1200f, 36f);
+        qr.anchoredPosition = new Vector2(0f, -248f);
+
         TextMeshProUGUI note = Txt("부스 안내", window,
             "*기믹 푸는법 물어보면 부스 직원이 친절히 답해드립니다. 모르겠는건 많이 물어봐주세요",
             27f, new Color(1f, 0.85f, 0.25f, 1f), font, FontStyles.Normal);
         RectTransform r = note.rectTransform;
         r.anchorMin = r.anchorMax = new Vector2(0.5f, 0.5f);
-        r.sizeDelta = new Vector2(1180f, 56f);
-        r.anchoredPosition = new Vector2(0f, -268f);
+        r.sizeDelta = new Vector2(1180f, 40f);
+        r.anchoredPosition = new Vector2(0f, -288f);
     }
 
     private static void Top(RectTransform r, float fromTop, float height)
