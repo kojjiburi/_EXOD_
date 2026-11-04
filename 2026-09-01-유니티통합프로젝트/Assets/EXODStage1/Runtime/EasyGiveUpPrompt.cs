@@ -4,7 +4,7 @@ using UnityEngine.SceneManagement;
 
 /// <summary>
 /// [이지] 하트가 1 깎일 때마다 "여기까지 하시겠습니까?" [예]/[아니요] (사용자 요청 2026-11-03)
-/// - [예] → 순응 엔딩 : 따뜻한 감옥 (물약 실패 때와 같은 엔딩)
+/// - [예] → 간호 엔딩 (하트 0일 때와 같은 연출, 2026-11-04 순응 엔딩에서 바꿈)
 /// - [아니요] → 그대로 계속
 /// - 하트가 0이 되면 묻지 않음 (그대로 게임 오버)
 /// - 들킴·점검 실패·산책 들킴·기절 등 어떤 이유로 깎여도, 그 연출(대사·컷신·일차 넘김·산책)이 다 끝난 뒤에 물음
@@ -84,12 +84,9 @@ public sealed class EasyGiveUpPrompt : MonoBehaviour
                 return;
             }
 
+            // [예] → 하트가 깎여서 뜬 질문이므로 간호 엔딩 (하트 0과 같은 연출, 사용자 요청 2026-11-04 / 예전엔 순응 엔딩)
             if (PlayerFaintController.Instance != null)
-                PlayerFaintController.Instance.ShowEnding(
-                    Stage1Dialogues.PotionEndingLine,
-                    Stage1Dialogues.PotionEndingTitle,
-                    Stage1Dialogues.PotionEndingSubtitle,
-                    EndingStyle.Submission);
+                PlayerFaintController.Instance.ShowNursingEnding();
         });
     }
 }

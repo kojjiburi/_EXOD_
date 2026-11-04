@@ -136,6 +136,12 @@ public sealed class PlayerFaintController : MonoBehaviour
     //  암전 → 검은 화면 위에 간호 대사(볼 빨간 여자친구 그림) → 마지막 한마디 → 엔딩 화면 "간호 엔딩 : 아프지 마, 자기야"
     private const int NursingDialogueOrder = 1001;   // 기절 암전(1000) 위에 대화창
 
+    /// <summary>[이지] "여기까지 하시겠습니까?" [예] → 하트가 남아 있어도 간호 엔딩 (EasyGiveUpPrompt)</summary>
+    public void ShowNursingEnding()
+    {
+        ShowGameOver();
+    }
+
     private void ShowGameOver()
     {
         if (isGameOver)
