@@ -138,6 +138,7 @@ public sealed class Stage1SoundEffects : MonoBehaviour
     private void OnHpLost()
     {
         EXODSound.Play("hp_lost");
+        EXODSound.Play("tv_noise");   // 하트가 깎일 때 지지직 노이즈 (사용자 요청 2026-11-04)
 
         if (damageVignette == null)
             return;
