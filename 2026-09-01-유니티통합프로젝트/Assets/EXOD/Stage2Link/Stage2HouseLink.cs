@@ -45,6 +45,8 @@ public sealed class Stage2HouseLink : MonoBehaviour
     public const float MinRemainingToWalkSeconds = 80f;
 
     public static bool IsInStage2 => Instance != null && Instance.inStage2;
+    /// <summary>산책으로 나가거나 돌아오는 중</summary>
+    public static bool IsTransitioning => Instance != null && Instance.isTransitioning;
     /// <summary>이번 판에 현관문 밖(산책)에 한 번이라도 나가 봤는지</summary>
     public static bool HasBeenOutside => Instance != null && Instance.hasEnteredOnce;
 
@@ -404,13 +406,12 @@ public sealed class Stage2HouseLink : MonoBehaviour
         yield return WalkFade.FadeIn();
         isTransitioning = false;
 
-        // 산책 중 그녀에게 들켰으면 하트 -1 (소리·붉은 화면은 Stage1SoundEffects, HP 0이면 PlayerFaintController가 게임 오버)
+        // 산책 중 그녀에게 들켰으면: 하트 -1은 들킨 순간 이미 깎임 (DangerLevel, 2026-11-04). HP 0이면 여기서 게임 오버로
         if (result == WalkResult.Caught)
         {
             HeartManager hearts = FindFirstObjectByType<HeartManager>(FindObjectsInactive.Include);
             if (hearts != null)
             {
-                hearts.HPM();
                 if (hearts.HP <= 0)
                 {
                     WalkSession.LastResult = WalkResult.None;

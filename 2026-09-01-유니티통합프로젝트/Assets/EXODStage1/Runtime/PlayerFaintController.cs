@@ -73,7 +73,9 @@ public sealed class PlayerFaintController : MonoBehaviour
     private void Update()
     {
         // 얀 등장처럼 다른 이유로 HP가 0이 되어도 게임 오버를 띄웁니다.
-        if (!isGameOver && !isFainting && hearts != null && hearts.HP <= 0)
+        // 들킨 대사 도중(여자친구 등장 중)이나 산책 중에 하트가 0이 되면, 끝나고 집에 돌아온 뒤에 띄움 (2026-11-04)
+        if (!isGameOver && !isFainting && hearts != null && hearts.HP <= 0
+            && !DangerLevel.IsAppearing && !Stage2HouseLink.IsInStage2 && !Stage2HouseLink.IsTransitioning)
             ShowGameOver();
     }
 

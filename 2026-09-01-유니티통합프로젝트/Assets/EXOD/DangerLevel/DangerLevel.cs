@@ -815,11 +815,20 @@ public sealed class DangerLevel : MonoBehaviour
         // 침실 밖에서 들킴 → (들킨 대사 동안 화면 색수차) → 하트 -1 → (게임 오버가 아니면) 침실로 끌려가 다시 갇힘
         // 색수차는 끌려가 다시 갇히는 대사까지 컷신 내내 유지 (사용자 요청 2026-11-03)
         ScreenAberration.NextSound = "horror_sting";   // 방 밖에서 들킴 (사용자 요청 2026-11-04)
-        ScreenAberration.Play(() => PlayCutscene(Stage1Dialogues.VisitCaught(), () =>
+        // 하트 -1은 첫 대사 "…자기야?"와 함께 (삐 소리·붉은 화면도 이때, 사용자 요청 2026-11-04)
+        // 하트 0이 돼도 게임 오버(간호 엔딩)는 들킨 대사가 끝난 뒤에 (PlayerFaintController가 등장 중엔 기다림)
+        HeartManager caughtHearts = null;
+        ScreenAberration.Play(() =>
         {
-            HeartManager hearts = FindFirstObjectByType<HeartManager>(FindObjectsInactive.Include);
-            if (hearts != null)
-                hearts.HPM();
+            caughtHearts = FindFirstObjectByType<HeartManager>(FindObjectsInactive.Include);
+            if (caughtHearts != null)
+                caughtHearts.HPM();
+            PlayCutscene(Stage1Dialogues.VisitCaught(), AfterCaughtLines);
+        }, false, ScreenAberration.HouseCutscene);
+
+        void AfterCaughtLines()
+        {
+            HeartManager hearts = caughtHearts;
 
             if (hearts != null && hearts.HP <= 0)
             {
@@ -835,7 +844,7 @@ public sealed class DangerLevel : MonoBehaviour
                 ScreenAberration.Stop();
                 FinishAppear();
             });
-        }), false, ScreenAberration.HouseCutscene);
+        }
     }
 
     private static void PlayCutscene(List<DialogueLine> lines, System.Action onFinished)
@@ -1089,6 +1098,11 @@ public sealed class DangerLevel : MonoBehaviour
             {
                 ScreenAberration.NextSound = "cursed_horror";   // 산책에서 들킴 (사용자 요청 2026-11-04)
                 ScreenAberration.Play(null, true, ScreenAberration.WalkCutscene);
+                // 하트 -1도 들킨 순간 "…지금 뭐 하는 거야?"와 함께 (원래는 집에 돌아온 뒤, 사용자 요청 2026-11-04)
+                // 하트 0이면 게임 오버는 집에 돌아온 뒤 (PlayerFaintController가 산책 중엔 기다림)
+                HeartManager walkHearts = FindFirstObjectByType<HeartManager>(FindObjectsInactive.Include);
+                if (walkHearts != null)
+                    walkHearts.HPM();
             }
             walkCaughtFxPlayed = caught;
 
