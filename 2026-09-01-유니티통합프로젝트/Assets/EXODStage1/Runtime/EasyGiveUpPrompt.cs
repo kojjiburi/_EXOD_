@@ -52,9 +52,22 @@ public sealed class EasyGiveUpPrompt : MonoBehaviour
             pending = false;   // 하트 0이면 게임 오버로
         lastHp = hp;
 
+        // 다른 연출이 다 끝나고 0.5초 동안 조용할 때 물음 (산책에서 돌아온 직후 '산책 결과' 대사 등에 선택지가 덮이지 않게, 2026-11-06)
         if (pending && !asking && CanAskNow())
-            Ask();
+        {
+            quietTimer += Time.unscaledDeltaTime;
+            if (quietTimer >= QuietSecondsBeforeAsk)
+            {
+                quietTimer = 0f;
+                Ask();
+            }
+        }
+        else
+            quietTimer = 0f;
     }
+
+    private const float QuietSecondsBeforeAsk = 0.5f;
+    private float quietTimer;
 
     // 하트가 깎인 연출이 모두 끝난 뒤에만
     private static bool CanAskNow()
@@ -65,7 +78,8 @@ public sealed class EasyGiveUpPrompt : MonoBehaviour
             return false;
         if (PlayerFaintController.Instance != null && PlayerFaintController.Instance.IsBusy)
             return false;
-        if (DayController.IsTransitioning || Stage2HouseLink.IsInStage2 || DangerLevel.IsAppearing || ScreenAberration.IsPlaying)
+        if (DayController.IsTransitioning || Stage2HouseLink.IsInStage2 || Stage2HouseLink.IsTransitioning
+            || DangerLevel.IsAppearing || ScreenAberration.IsPlaying)
             return false;
         return true;
     }

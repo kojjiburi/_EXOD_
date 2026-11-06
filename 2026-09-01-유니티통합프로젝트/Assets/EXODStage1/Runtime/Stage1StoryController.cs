@@ -90,6 +90,38 @@ public sealed class Stage1StoryController : MonoBehaviour
         StartCoroutine(PlayIntro());
     }
 
+    // 방이 잠긴 채 풀리지 않는 일 막기 (2026-11-06 사용자 제보: [이지] 산책에서 들키고 돌아온 뒤
+    // '여기까지 하시겠습니까?' [아니요] → 방 이동이 안 눌림).
+    // 선택지 대사가 다른 대사(산책 결과·서두르자 등)에 덮이면 [아니요] 뒤 잠금 풀기가 불리지 않을 수 있어서,
+    // 방이 잠겨 있는데 대화창이 1초 넘게 닫혀 있고 다른 연출도 없으면 잠금을 풉니다.
+    private const float StuckLockSeconds = 1f;
+    private float stuckLockTimer;
+
+    private void Update()
+    {
+        bool locked = lockedAreas.Count > 0 || lockedButtons.Count > 0;
+        bool busy = (DialogueManager.Instance != null && DialogueManager.Instance.IsDialogueOpen)
+            || (PlayerFaintController.Instance != null && PlayerFaintController.Instance.IsBusy)
+            || DayController.IsTransitioning || Stage2HouseLink.IsInStage2 || Stage2HouseLink.IsTransitioning
+            || ScreenAberration.IsPlaying || StrangePotionGimmick.IsOpen;
+        if (!locked || busy)
+        {
+            stuckLockTimer = 0f;
+            return;
+        }
+
+        stuckLockTimer += Time.unscaledDeltaTime;
+        if (stuckLockTimer < StuckLockSeconds)
+            return;
+
+        stuckLockTimer = 0f;
+        if (DialogueManager.Instance != null)
+            DialogueManager.Instance.onDialogueEnd.RemoveListener(OnCutsceneEnd);
+        UnlockRoom();
+        isPlaying = false;
+        Debug.LogWarning("[Stage1StoryController] 대화가 끝났는데 방이 잠겨 있어서 잠금을 풀었습니다.");
+    }
+
     private void OnDestroy()
     {
         if (SliderManager.Instance != null)

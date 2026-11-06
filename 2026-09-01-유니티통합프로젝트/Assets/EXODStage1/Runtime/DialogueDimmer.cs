@@ -5,6 +5,7 @@ using UnityEngine.UI;
 /// <summary>
 /// 대화가 열려 있는 동안 방 배경을 어둡게 덮어 대사에 집중되게 합니다.
 /// 어두운 막은 방 그림 위, 초상화·이름표·대화창 아래에 그려집니다.
+/// 대화가 열려 있는 동안 이 막이 클릭을 막아서, 대사 도중에 배경(방)의 물건을 누를 수 없습니다. (사용자 요청 2026-11-07)
 /// </summary>
 [DefaultExecutionOrder(245)]
 public sealed class DialogueDimmer : MonoBehaviour
@@ -52,16 +53,16 @@ public sealed class DialogueDimmer : MonoBehaviour
 
     private void Show()
     {
-        if (Suppressed)
-            return;
-
         dim.gameObject.SetActive(true);
+        dim.raycastTarget = true;   // 대사 중 배경 클릭 막기
         KeepBehindDialogue();
-        StartFade(dimAlpha);
+        // 어둡게 하지 않는 화면(냉장고 안 등)이어도 클릭은 막음 — 투명한 채로 둠
+        StartFade(Suppressed ? 0f : dimAlpha);
     }
 
     private void Hide()
     {
+        dim.raycastTarget = false;   // 대화가 끝나면 바로 다시 누를 수 있게 (어두운 막이 사라지는 동안에도)
         if (dim.gameObject.activeSelf)
             StartFade(0f);
     }
@@ -89,7 +90,7 @@ public sealed class DialogueDimmer : MonoBehaviour
 
         color.a = target;
         dim.color = color;
-        if (target <= 0f)
+        if (target <= 0f && !dim.raycastTarget)   // 투명해도 대화 중(클릭 막는 중)이면 켜 둠
             dim.gameObject.SetActive(false);
 
         fadeCoroutine = null;
