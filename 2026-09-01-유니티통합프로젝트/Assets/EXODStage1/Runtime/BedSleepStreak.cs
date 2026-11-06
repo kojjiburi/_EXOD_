@@ -10,7 +10,7 @@ using UnityEngine.SceneManagement;
 /// 침대가 아닌 방법(시간이 다 돼서 그녀가 옴 등)으로 날이 넘어가면 0.
 /// 아침 대사(DayEndReport)의 "오늘은 무사히 넘긴 것 같다." 대신:
 ///  1: 자고 바로 또 자서 그런가? 몸이 약간 찌뿌둥하다 (침실에만 있었을 때) / 많이 잤더니 오히려 더 피곤하다. (45초 안)
-///  2: ... 다시누울까?
+///  2: 하암... 다시 누울까? 포근하네..
 ///  3: .. 여기서 계속 사는것도 좋을지도?
 ///  4: 여기서 살자. (이 줄이 뜰 때 cursed_horror) → 물약 실패 대사(PotionFail) → 순응 엔딩
 /// 실행할 때 SliderManager가 있는 씬에 자동으로 붙습니다.
@@ -118,7 +118,7 @@ public sealed class BedSleepStreak : MonoBehaviour
         switch (count)
         {
             case 1: text = quick ? "많이 잤더니 오히려 더 피곤하다." : "자고 바로 또 자서 그런가? 몸이 약간 찌뿌둥하다"; break;
-            case 2: text = "... 다시누울까?"; break;
+            case 2: text = "하암... 다시 누울까? 포근하네.."; break;
             case 3: text = ".. 여기서 계속 사는것도 좋을지도?"; break;
             default: text = "여기서 살자."; break;
         }

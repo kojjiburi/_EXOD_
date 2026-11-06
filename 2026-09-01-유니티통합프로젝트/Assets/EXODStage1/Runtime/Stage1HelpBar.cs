@@ -42,6 +42,10 @@ public sealed class Stage1HelpBar : MonoBehaviour
     private Image panel;
     private TextMeshProUGUI titleText;
     private TextMeshProUGUI boothTimerText;   // 부스 운영 모드 제한시간 (제목 옆)
+    // 제한시간은 행동 요령 띠가 숨거나 다른 창(키패드·종료 확인·대화 등)이 덮어도 항상 보이도록 맨 위 캔버스에 따로 그리고,
+    // 띠 안의 원래 자리(보이지 않는 자리 표시)를 매 프레임 따라감 (사용자 요청 2026-11-05)
+    private RectTransform boothTimerAnchor;
+    private const int BoothTimerSortingOrder = 32600;   // 일차 넘김 검은 화면(32000)·난이도 창(32500)보다 위
     private TextMeshProUGUI tipText;
     private string shownTips;
     private bool warningShown;
@@ -120,6 +124,7 @@ public sealed class Stage1HelpBar : MonoBehaviour
 
     private void LateUpdate()
     {
+        PlaceBoothTimer();
         if (panelRect == null)
             return;
 
@@ -236,17 +241,33 @@ public sealed class Stage1HelpBar : MonoBehaviour
         {
             if (!show)
                 return;
-            boothTimerText = CreateText("제한시간", titleText.transform.parent, string.Empty, 30f,
+            boothTimerAnchor = new GameObject("제한시간 자리", typeof(RectTransform)).GetComponent<RectTransform>();
+            boothTimerAnchor.SetParent(titleText.transform.parent, false);
+            boothTimerAnchor.anchorMin = new Vector2(0f, 1f);
+            boothTimerAnchor.anchorMax = new Vector2(1f, 1f);
+            boothTimerAnchor.pivot = new Vector2(0.5f, 1f);
+            boothTimerAnchor.offsetMin = new Vector2(27f, -54f);
+            boothTimerAnchor.offsetMax = new Vector2(-27f, -14f);
+
+            GameObject top = new GameObject("부스 제한시간 (맨 위)", typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler));
+            top.transform.SetParent(transform, false);
+            Canvas topCanvas = top.GetComponent<Canvas>();
+            topCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            topCanvas.sortingOrder = BoothTimerSortingOrder;
+            CanvasScaler topScaler = top.GetComponent<CanvasScaler>();
+            topScaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            topScaler.referenceResolution = new Vector2(1920f, 1080f);
+            topScaler.matchWidthOrHeight = 0.5f;
+
+            boothTimerText = CreateText("제한시간", top.transform, string.Empty, 30f,
                 new Color(0.10f, 0.16f, 0.50f, 1f), TextAlignmentOptions.TopRight);
             boothTimerText.fontStyle = FontStyles.Italic | FontStyles.Underline | FontStyles.Bold;
             boothTimerText.outlineColor = Color.white;
             boothTimerText.outlineWidth = 0.22f;
+            boothTimerText.raycastTarget = false;
             RectTransform r = boothTimerText.rectTransform;
-            r.anchorMin = new Vector2(0f, 1f);
-            r.anchorMax = new Vector2(1f, 1f);
+            r.anchorMin = r.anchorMax = new Vector2(0.5f, 0.5f);
             r.pivot = new Vector2(0.5f, 1f);
-            r.offsetMin = new Vector2(27f, -54f);
-            r.offsetMax = new Vector2(-27f, -14f);
         }
 
         if (boothTimerText.gameObject.activeSelf != show)
@@ -257,6 +278,21 @@ public sealed class Stage1HelpBar : MonoBehaviour
         boothTimerText.text = BoothMode.TimerText();
         // 시간이 다 되면 깜빡임
         boothTimerText.alpha = BoothMode.RemainingSeconds <= 0f ? (Mathf.Repeat(Time.unscaledTime, 0.8f) < 0.4f ? 1f : 0.25f) : 1f;
+    }
+
+    // 맨 위 캔버스의 제한시간을 띠 안 원래 자리(제목 줄 오른쪽)에 맞춤 (띠가 투명해져도 자리는 그대로 계산됨)
+    private void PlaceBoothTimer()
+    {
+        if (boothTimerText == null || boothTimerAnchor == null || !boothTimerText.gameObject.activeSelf)
+            return;
+        RectTransform r = boothTimerText.rectTransform;
+        Vector3[] corners = new Vector3[4];
+        boothTimerAnchor.GetWorldCorners(corners);
+        float parentScale = r.parent != null ? r.parent.lossyScale.x : 1f;
+        if (parentScale <= 0f)
+            return;
+        r.sizeDelta = new Vector2((corners[2].x - corners[0].x) / parentScale, (corners[2].y - corners[0].y) / parentScale);
+        r.position = new Vector3((corners[0].x + corners[2].x) * 0.5f, corners[2].y, r.position.z);
     }
 
     private bool IsHerWatching()

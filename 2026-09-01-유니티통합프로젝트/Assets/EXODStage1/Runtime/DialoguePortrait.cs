@@ -112,6 +112,18 @@ public sealed class DialoguePortrait : MonoBehaviour
     /// <summary>켜 두면 여자친구 대사여도 초상화를 띄우지 않습니다. (들켰을 때 컷신 — ScreenAberration이 켬)</summary>
     public static bool HideGirlfriend { get; set; }
 
+    /// <summary>
+    /// 켜 두면 초상화 그림이 바뀔 때 갑자기 바뀌지 않고, 새 그림이 위에 빠르게 페이드로 덮이며 바뀝니다.
+    /// (간호 엔딩의 검은 그림 — PlayerFaintController.NursingRoutine이 켬, 사용자 요청 2026-11-05)
+    /// </summary>
+    public static bool CrossfadeSwaps { get; set; }
+    private const float CrossfadeSeconds = 0.35f;
+    private Image crossfadeImage;
+    private Coroutine crossfadeRoutine;
+    private Sprite crossfadeSprite;
+    private Color crossfadeColor;
+    private Vector2 crossfadeSize;
+
     /// <summary>초상화 그림 (대화 배경 어둡게 효과가 그 뒤에 놓일 때 사용)</summary>
     public RectTransform PortraitRect => portrait != null ? portrait.rectTransform : null;
 
@@ -213,9 +225,19 @@ public sealed class DialoguePortrait : MonoBehaviour
             return;
         }
 
+        Vector2 size = new Vector2(height * sprite.rect.width / sprite.rect.height, height);
+        FinishCrossfade();
+        if (CrossfadeSwaps && isShown && portrait.sprite != null && portrait.sprite != sprite)
+        {
+            hiddenBelow = hidden;
+            crossfadeRoutine = StartCoroutine(CrossfadeTo(sprite, color, size));
+            FollowDialoguePanel();
+            return;
+        }
+
         portrait.sprite = sprite;
         portrait.color = color;
-        portrait.rectTransform.sizeDelta = new Vector2(height * sprite.rect.width / sprite.rect.height, height);
+        portrait.rectTransform.sizeDelta = size;
         hiddenBelow = hidden;
         FollowDialoguePanel();
 
@@ -229,8 +251,66 @@ public sealed class DialoguePortrait : MonoBehaviour
         StartFade(1f);
     }
 
+    // 새 그림을 지금 그림 위에 겹쳐 빠르게 나타나게 한 뒤, 다 덮이면 실제 그림을 바꿈
+    private IEnumerator CrossfadeTo(Sprite sprite, Color color, Vector2 size)
+    {
+        crossfadeSprite = sprite;
+        crossfadeColor = color;
+        crossfadeSize = size;
+        if (crossfadeImage == null)
+        {
+            GameObject go = new GameObject("그림 바뀜 (페이드)", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            go.transform.SetParent(portrait.transform, false);
+            crossfadeImage = go.GetComponent<Image>();
+            crossfadeImage.preserveAspect = true;
+            crossfadeImage.raycastTarget = false;
+            RectTransform r = crossfadeImage.rectTransform;
+            r.anchorMin = r.anchorMax = Vector2.zero;
+            r.pivot = Vector2.zero;
+            r.anchoredPosition = Vector2.zero;
+        }
+        crossfadeImage.sprite = sprite;
+        crossfadeImage.rectTransform.sizeDelta = size;
+        crossfadeImage.color = new Color(color.r, color.g, color.b, 0f);
+        crossfadeImage.gameObject.SetActive(true);
+
+        float elapsed = 0f;
+        while (elapsed < CrossfadeSeconds)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            crossfadeImage.color = new Color(color.r, color.g, color.b, color.a * Mathf.Clamp01(elapsed / CrossfadeSeconds));
+            yield return null;
+        }
+        crossfadeRoutine = null;
+        ApplyCrossfade();
+    }
+
+    // 페이드 중에 다음 대사가 와도 바로 끝내고 새 그림으로
+    private void FinishCrossfade()
+    {
+        if (crossfadeRoutine == null)
+            return;
+        StopCoroutine(crossfadeRoutine);
+        crossfadeRoutine = null;
+        ApplyCrossfade();
+    }
+
+    private void ApplyCrossfade()
+    {
+        if (crossfadeSprite != null)
+        {
+            portrait.sprite = crossfadeSprite;
+            portrait.color = crossfadeColor;
+            portrait.rectTransform.sizeDelta = crossfadeSize;
+            crossfadeSprite = null;
+        }
+        if (crossfadeImage != null)
+            crossfadeImage.gameObject.SetActive(false);
+    }
+
     private void Hide()
     {
+        FinishCrossfade();
         if (!isShown)
             return;
 

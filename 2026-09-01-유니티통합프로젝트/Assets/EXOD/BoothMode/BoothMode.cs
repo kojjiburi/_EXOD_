@@ -28,11 +28,11 @@ public static class BoothMode
     private static bool timeUpFired;
 
     // ─── 제한시간 초과 때 '이미 볼 수 있는 엔딩' (사용자 요청 2026-11-03) ───
-    public enum FateEnding { Submission, Proposal, Escape }
+    public enum FateEnding { Submission, Proposal, Escape, Nursing }
 
     /// <summary>엔딩을 강제로 진행 중 (하루 시간·위험도·여자친구 등장 멈춤)</summary>
     public static bool ForcingEnding;
-    /// <summary>[이지] '여기까지 하시겠습니까?'에서 [아니요]를 고른 적 있음 → 순응 엔딩</summary>
+    /// <summary>[이지] '여기까지 하시겠습니까?'에서 [아니요]를 고른 적 있음 → 운명의 갈림길 '젖은 수건' (간호 엔딩, 2026-11-05)</summary>
     public static bool GiveUpDeclined;
     /// <summary>손전등 + 종이 A~E(이지는 A)를 모두 가진 채 화장실 금고를 누른 적 있음 → 청혼 엔딩</summary>
     public static bool SafeTriedWithClues;
@@ -87,6 +87,9 @@ public static class BoothMode
             : EXOD.Walk.PhoneBoothProgress.CordFixed && EXOD.Walk.PhoneBoothProgress.Button1Installed;   // 하드는 선 + [1]만
         if (EXOD.Walk.PhoneBoothProgress.AddressObtained && repaired)
             list.Add(FateEnding.Escape);
+        // 간호: '여기까지 하시겠습니까?'에서 [아니요]를 누른 적 있음 (지금 하트가 깎여 있는지는 안 봄, 사용자 요청 2026-11-05)
+        if (GiveUpDeclined)
+            list.Add(FateEnding.Nursing);
         return list;
     }
     private static float timerStart;
@@ -150,11 +153,14 @@ public static class BoothMode
     public static float RemainingSeconds =>
         timerRunning ? Mathf.Max(0f, timerLimit - (Time.realtimeSinceStartup - timerStart - pausedSeconds)) : 0f;
 
-    // 엔딩 중에는 제한시간이 흐르지 않음 (EndingState, 사용자 요청 2026-11-04)
+    // 제한시간은 현실 시간으로 흐르되, 대사(대화창)가 떠 있는 동안은 멈춤 (사용자 요청 2026-11-06)
+    // 엔딩이 시작되면 끝남 (화면에서 사라지고, 다음 판 StartTimer에서 초기화 — 사용자 요청 2026-11-05)
     private static void TickPause()
     {
         float now = Time.realtimeSinceStartup;
         if (timerRunning && EndingState.IsEnding)
+            timerRunning = false;
+        else if (timerRunning && DialogueManager.Instance != null && DialogueManager.Instance.IsDialogueOpen)
             pausedSeconds += now - lastTickTime;
         lastTickTime = now;
     }

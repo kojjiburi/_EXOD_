@@ -179,10 +179,12 @@ public sealed class PlayerFaintController : MonoBehaviour
         {
             DialogueOnTop.Raise(NursingDialogueOrder);
             DialoguePortrait.UseSweetForNextDialogue(false);
+            DialoguePortrait.CrossfadeSwaps = true;   // 검은 그림으로 바뀔 때 빠르게 겹쳐 바뀜 (사용자 요청 2026-11-05)
             dm.StartDialogue(Stage1Dialogues.NursingCutscene());
             yield return null;
             while (dm.IsDialogueOpen)
                 yield return null;
+            DialoguePortrait.CrossfadeSwaps = false;
             DialogueOnTop.Lower(NursingDialogueOrder);
             yield return new WaitForSecondsRealtime(0.4f);
         }
@@ -401,6 +403,9 @@ public sealed class PlayerFaintController : MonoBehaviour
     private void ShowLineBox(string speaker)
     {
         gameOverLineRoot.SetActive(true);
+        // 전에 띄운 글자(예: 엔딩 마지막 대사 '우린 이제 평생 함께야 ♡')가 대사창이 나타나는 동안 잠깐 보이지 않게 비움 (사용자 제보 2026-11-05)
+        gameOverLineText.text = string.Empty;
+        gameOverLineText.maxVisibleCharacters = 0;
         MatchTeamDialogueBox();
         if (gameOverPortrait != null)
             gameOverPortrait.gameObject.SetActive(false);   // 가운데 큰 그림은 엔딩 마지막 한 줄 전용
@@ -453,8 +458,11 @@ public sealed class PlayerFaintController : MonoBehaviour
             r.anchorMin = r.anchorMax = new Vector2(0.5f, 0.5f);
             r.pivot = Vector2.zero;
         }
-        // 글자 배경 위, 대화창·이름표 뒤
-        talkPortrait.transform.SetSiblingIndex(gameOverLineBox.transform.GetSiblingIndex());
+        // 글자 배경 위, 대화창·이름표 뒤. 이미 대화창보다 앞 순서면 그대로 둠
+        // (두 번째 대사부터 다시 옮기면 대화창 뒤로 밀려 그림이 대화창 위로 튀어나오던 문제, 사용자 제보 2026-11-05)
+        int boxIndex = gameOverLineBox.transform.GetSiblingIndex();
+        if (talkPortrait.transform.GetSiblingIndex() > boxIndex)
+            talkPortrait.transform.SetSiblingIndex(boxIndex);
         talkPortrait.sprite = face;
         RectTransform rect = talkPortrait.rectTransform;
         // 팀 대화창 캔버스와 이 캔버스의 크기 단위가 달라서, 같은 화면 크기가 되도록 대화창 높이 비율로 맞춤
@@ -609,6 +617,8 @@ public sealed class PlayerFaintController : MonoBehaviour
                 yield return BedEndingRoutine();
             else if (fate == BoothMode.FateEnding.Proposal)
                 yield return RingEndingRoutine();
+            else if (fate == BoothMode.FateEnding.Nursing)
+                yield return NursingFateRoutine();
             else
                 yield return AddressEndingRoutine();
             yield break;
@@ -617,15 +627,19 @@ public sealed class PlayerFaintController : MonoBehaviour
 
     private static string FateLabel(BoothMode.FateEnding fate) =>
         fate == BoothMode.FateEnding.Submission ? "침대를 고른다"
-        : fate == BoothMode.FateEnding.Proposal ? "반지를 고른다" : "주소지를 고른다";
+        : fate == BoothMode.FateEnding.Proposal ? "반지를 고른다"
+        : fate == BoothMode.FateEnding.Nursing ? "젖은 수건을 고른다" : "주소지를 고른다";
 
+    // 고르기 전 마지막 줄 (이 줄과 함께 [고른다]/[다시 생각해본다])
     private static string FateQuestion(BoothMode.FateEnding fate) =>
         fate == BoothMode.FateEnding.Submission ? "침대를 고를까?"
-        : fate == BoothMode.FateEnding.Proposal ? "반지를 고를까?" : "주소지를 고를까?";
+        : fate == BoothMode.FateEnding.Proposal ? "반지를 고를까?"
+        : fate == BoothMode.FateEnding.Nursing ? "이상하네.. 분명 화장실에서 본 수건은 모두 말라있었는데?" : "주소지를 고를까?";
 
     private static string[] FateIntro(BoothMode.FateEnding fate) =>
         fate == BoothMode.FateEnding.Submission ? new[] { "침대다. 포근하고 안락하다. 평생 여기에 있고싶어진다." }
         : fate == BoothMode.FateEnding.Proposal ? new[] { "반지다. 어딘가 꺼림칙한 기분이 든다." }
+        : fate == BoothMode.FateEnding.Nursing ? new[] { "젖은 수건이다." }
         : new[] { "주소지다. 내가 가지고있던 것이다.", "이거 얻으려고 고생했는데.." };
 
     // 산책 중이었으면 집으로 (연출 없이)
@@ -655,7 +669,7 @@ public sealed class PlayerFaintController : MonoBehaviour
     {
         null, null,
         "자고 바로 또자서그런가? 몸이 약간 찌뿌둥하다",
-        "... 다시누울까?",
+        "하암... 다시 누울까? 포근하네..",
         ".. 여기서 계속 사는것도 좋을지도?",
         "여기서 살자.",
     };
@@ -734,6 +748,20 @@ public sealed class PlayerFaintController : MonoBehaviour
             restroom.ForceRingForEnding();
         else
             ProposalEnding.Trigger();
+    }
+
+    // ─── 4. 젖은 수건 → 간호 엔딩 (조건: [이지] '여기까지 하시겠습니까?'에서 [아니요], 사용자 요청 2026-11-05) ───────────────
+
+    private IEnumerator NursingFateRoutine()
+    {
+        gameOverLineGroup.alpha = 0f;
+        yield return LeaveWalk();
+        ClearChoices();
+        RestoreLineBox();
+        // 검은 화면은 그대로 두고, 간호 대사가 검은 화면 위에 보이도록 원래 층으로 (갈림길은 31000)
+        overlayRoot.GetComponent<Canvas>().sortingOrder = 1000;
+        isGameOver = false;
+        ShowGameOver();   // 하트 0 / [예]와 같은 간호 엔딩 연출 (NursingRoutine)
     }
 
     // ─── 3. 주소지 → 탈출 엔딩: 실제 산책 → 부스가 화면 가운데에 오면 부스 창 → 1·1·9 자동 → 119 통화 → 탈출 엔딩 ───────────────
