@@ -6,9 +6,10 @@ using UnityEngine.UI;
 /// <summary>
 /// 물건 확대 화면을 열고 닫으며 현재 선택된 물건의 자세한 조사를 처리합니다.
 /// [터치] 확대 화면에서 누른 곳에 따라:
-///   - 물건 그림(실제로 그려진 부분)을 누르면 → 조사 (대사 중이면 다음 줄)
+///   - 대사가 떠 있으면 → 어디를 눌러도 DialogueManager가 다음 줄로 넘김 (여기서는 아무것도 안 함)
+///   - 물건 그림(실제로 그려진 부분)을 누르면 → 조사
 ///   - 대화창·버튼·퀵슬롯 등 다른 UI를 누르면 → 그 UI가 처리 (여기서는 아무것도 안 함)
-///   - 그 밖의 빈 곳을 누르면 → [뒤로가기]와 같이 닫기 (선택지가 떠 있을 때는 닫지 않음)
+///   - 그 밖의 빈 곳을 누르면 → [뒤로가기]와 같이 닫기
 /// </summary>
 public class InspectionManager : MonoBehaviour
 {
@@ -51,7 +52,10 @@ public class InspectionManager : MonoBehaviour
 
         // [터치] 물건 그림 클릭은 Update의 HandlePointer가 직접 처리합니다 (그림의 투명한 여백·대사 중 배경 막 때문)
         if (detailButton != null)
+        {
             detailButton.transition = Selectable.Transition.None;
+            detailButton.enabled = false;   // 버튼으로 치지 않게 (대사 중 화면 클릭 넘기기가 막히지 않도록)
+        }
 
         if (closeButton != null)
             closeButton.onClick.AddListener(Close);
@@ -93,6 +97,11 @@ public class InspectionManager : MonoBehaviour
         if (!Input.GetMouseButtonUp(0) || !pressStartedWhileOpen)
             return;
         pressStartedWhileOpen = false;
+
+        // 대사 중이면 화면 클릭은 '다음'으로 쓰임 (DialogueManager). 이번 클릭으로 대사가 막 끝났어도 무시
+        if ((DialogueManager.Instance != null && DialogueManager.Instance.IsDialogueOpen)
+            || DialogueManager.LastClickAdvanceFrame == Time.frameCount)
+            return;
 
         Vector2 screen = Input.mousePosition;
 
