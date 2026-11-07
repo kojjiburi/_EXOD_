@@ -2,8 +2,9 @@
 // - 화장실 선반의 손거울을 클릭하면 MirrorMazeGimmick.Open()으로 이 기믹이 스테이지 화면 위에 열린다.
 // - 손거울을 마우스로 끌어 움직이면, 거울 안에만 "반대편 벽"(립스틱으로 그려진 미로)이 비친다.
 // - WASD / 방향키로 미로 속 흰 점을 움직인다. 점도 거울 안에서만 보이므로 거울로 따라가야 한다.
-// - [터치] 왼쪽 아래 조이스틱으로도 움직일 수 있고, 오른쪽 아래 [다시하기]·[나가기] 버튼이 R·ESC 대신이다.
-//   손가락 여러 개를 따로 추적하므로 한 손가락은 조이스틱, 다른 손가락은 손거울을 동시에 끌 수 있다.
+// - [터치] 왼쪽 아래 화살표 버튼(↑↓←→)으로도 움직일 수 있고 (한 번 누르면 한 칸, 누르고 있으면 계속),
+//   오른쪽 아래 [다시하기]·[나가기] 버튼이 R·ESC 대신이다.
+//   손가락 여러 개를 따로 추적하므로 한 손가락은 화살표, 다른 손가락은 손거울을 동시에 끌 수 있다.
 // - 붉은 점(출구)에 도착하면 클리어 → onSolved / Solved 이벤트가 호출된다 (화면에 숫자는 표시하지 않음).
 // - 오른쪽 위 X 버튼 또는 ESC로 닫으면 원래 화면으로 돌아간다.
 // 별도 스프라이트/프리팹 없이 동작한다. 기믹은 월드의 먼 곳(worldOffset)에 자기 카메라로 그려지므로 스테이지 오브젝트와 겹치지 않는다.
@@ -130,11 +131,13 @@ public class MirrorMazeGimmick : MonoBehaviour
     Text popupText;
     GameObject popupPanel, canvasGo;
     RectTransform closeButton;
-    // [터치] 조이스틱 · 다시하기 · 나가기 버튼
-    RectTransform joyBase, joyKnob, restartButton, exitButton;
-    const float JoyRadius = 120f;          // 손잡이가 움직이는 최대 거리 (캔버스 단위)
-    const float JoyDeadZone = 0.35f;       // 이만큼(반지름 비율) 이상 밀어야 이동
-    int joyPointerId = int.MinValue;       // 조이스틱을 잡은 손가락 (마우스 = -1)
+    // [터치] 화살표 버튼 · 다시하기 · 나가기 버튼
+    RectTransform joyBase, restartButton, exitButton;
+    const float ArrowKey = 110f;           // 화살표 버튼 한 칸 크기 (캔버스 단위). 3×3 칸의 십자 모양
+    readonly Image[] arrowImages = new Image[4];   // 위, 아래, 왼쪽, 오른쪽
+    static readonly Vector2Int[] ArrowDirs = { Vector2Int.up, Vector2Int.down, Vector2Int.left, Vector2Int.right };
+    static readonly Color ArrowIdle = new Color(0.82f, 0.82f, 0.85f, 0.85f), ArrowHeld = new Color(1f, 0.55f, 0.55f, 1f);
+    int joyPointerId = int.MinValue;       // 화살표를 누른 손가락 (마우스 = -1)
     int dragPointerId = int.MinValue;      // 손거울을 잡은 손가락 (마우스 = -1)
     Vector2Int joyDir;
     const int NoPointer = int.MinValue, MousePointer = -1;
@@ -414,7 +417,7 @@ public class MirrorMazeGimmick : MonoBehaviour
         var bimg = blocker.AddComponent<Image>();
         bimg.color = new Color(0, 0, 0, 0);
 
-        MakeText(canvasGo.transform, "Guide", "손거울을 끌어 반대편을 비춰보자   ·   조이스틱: 이동   ·   벽에 3번 부딪히면 실패",
+        MakeText(canvasGo.transform, "Guide", "손거울을 끌어 반대편을 비춰보자   ·   화살표: 이동   ·   벽에 3번 부딪히면 실패",
             new Vector2(0.5f, 0f), new Vector2(0, 225), new Vector2(1800, 50), 28, new Color(1f, 1f, 1f, 0.92f));
 
 
@@ -459,13 +462,41 @@ public class MirrorMazeGimmick : MonoBehaviour
         popupPanel.SetActive(false);
     }
 
-    // [터치] 왼쪽 아래 조이스틱 + 오른쪽 아래 [다시하기]·[나가기] 버튼
+    // [터치] 왼쪽 아래 화살표 버튼(십자) + 오른쪽 아래 [다시하기]·[나가기] 버튼
     void BuildTouchControls()
     {
-        joyBase = MakeCircleUI("JoystickBase", canvasGo.transform, new Vector2(0f, 0f), new Vector2(230, 230), JoyRadius * 2f + 40f, new Color(1f, 1f, 1f, 0.16f));
-        var ring = MakeCircleUI("Ring", joyBase, new Vector2(0.5f, 0.5f), Vector2.zero, JoyRadius * 2f + 40f, new Color(1f, 1f, 1f, 0.35f));
-        ring.GetComponent<Image>().sprite = ringSprite;
-        joyKnob = MakeCircleUI("JoystickKnob", joyBase, new Vector2(0.5f, 0.5f), Vector2.zero, 120f, new Color(0.9f, 0.9f, 0.93f, 0.85f));
+        var padGo = new GameObject("ArrowPad");
+        padGo.transform.SetParent(canvasGo.transform, false);
+        joyBase = padGo.AddComponent<RectTransform>();
+        joyBase.anchorMin = joyBase.anchorMax = Vector2.zero;
+        joyBase.anchoredPosition = new Vector2(70f + ArrowKey * 1.5f, 50f + ArrowKey * 1.5f);
+        joyBase.sizeDelta = new Vector2(ArrowKey * 3f, ArrowKey * 3f);
+
+        Sprite tri = MakeTriangleSprite(64);
+        for (int i = 0; i < 4; i++)
+        {
+            Vector2Int d = ArrowDirs[i];
+            var key = new GameObject("Arrow" + d);
+            key.transform.SetParent(joyBase, false);
+            var krt = key.AddComponent<RectTransform>();
+            krt.anchorMin = krt.anchorMax = new Vector2(0.5f, 0.5f);
+            krt.anchoredPosition = new Vector2(d.x, d.y) * ArrowKey;
+            krt.sizeDelta = new Vector2(ArrowKey - 8f, ArrowKey - 8f);
+            var kimg = key.AddComponent<Image>();
+            kimg.color = new Color(0.06f, 0.06f, 0.09f, 0.85f);
+            kimg.raycastTarget = false;
+
+            var arrow = new GameObject("Triangle");
+            arrow.transform.SetParent(key.transform, false);
+            var art = arrow.AddComponent<RectTransform>();
+            art.anchorMin = art.anchorMax = new Vector2(0.5f, 0.5f);
+            art.sizeDelta = new Vector2(ArrowKey * 0.5f, ArrowKey * 0.5f);
+            art.localRotation = Quaternion.Euler(0f, 0f, Mathf.Atan2(d.y, d.x) * Mathf.Rad2Deg - 90f);   // 삼각형 기본 = 위쪽
+            arrowImages[i] = arrow.AddComponent<Image>();
+            arrowImages[i].sprite = tri;
+            arrowImages[i].color = ArrowIdle;
+            arrowImages[i].raycastTarget = false;
+        }
 
         restartButton = MakeButtonUI("RestartButton", "다시하기", new Vector2(-330, 110));
         exitButton = MakeButtonUI("ExitButton", "나가기", new Vector2(-130, 110));
@@ -597,9 +628,7 @@ public class MirrorMazeGimmick : MonoBehaviour
             RectTransformUtility.RectangleContainsScreenPoint(exitButton, screen, cam)) { Close(); return true; }
         if (RectTransformUtility.RectangleContainsScreenPoint(restartButton, screen, cam)) { RestartMaze(); return false; }
 
-        if (joyPointerId == NoPointer &&
-            RectTransformUtility.ScreenPointToLocalPointInRectangle(joyBase, screen, cam, out var jl) &&
-            jl.magnitude <= JoyRadius + 60f)
+        if (joyPointerId == NoPointer && ArrowAt(screen) != Vector2Int.zero)
         {
             joyPointerId = id;
             UpdateJoystick(screen);
@@ -637,21 +666,36 @@ public class MirrorMazeGimmick : MonoBehaviour
         return false;
     }
 
+    /// <summary>화면 좌표가 어느 화살표 버튼 위인지 (십자 3×3 칸 기준, 아니면 zero)</summary>
+    Vector2Int ArrowAt(Vector2 screen)
+    {
+        if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(joyBase, screen, cam, out var local)) return Vector2Int.zero;
+        int cx = Mathf.FloorToInt(local.x / ArrowKey + 1.5f), cy = Mathf.FloorToInt(local.y / ArrowKey + 1.5f);
+        if (cx == 1 && cy == 2) return Vector2Int.up;
+        if (cx == 1 && cy == 0) return Vector2Int.down;
+        if (cx == 0 && cy == 1) return Vector2Int.left;
+        if (cx == 2 && cy == 1) return Vector2Int.right;
+        return Vector2Int.zero;
+    }
+
+    // 누른 손가락이 다른 화살표로 미끄러지면 그 방향으로 바뀜. 화살표 밖으로 나가면 멈춤.
     void UpdateJoystick(Vector2 screen)
     {
-        RectTransformUtility.ScreenPointToLocalPointInRectangle(joyBase, screen, cam, out var local);
-        local = Vector2.ClampMagnitude(local, JoyRadius);
-        joyKnob.anchoredPosition = local;
-        if (local.magnitude < JoyRadius * JoyDeadZone) { joyDir = Vector2Int.zero; return; }
-        if (Mathf.Abs(local.x) >= Mathf.Abs(local.y)) joyDir = local.x > 0 ? Vector2Int.right : Vector2Int.left;
-        else joyDir = local.y > 0 ? Vector2Int.up : Vector2Int.down;
+        joyDir = ArrowAt(screen);
+        RefreshArrowColors();
     }
 
     void ReleaseJoystick()
     {
         joyPointerId = NoPointer;
         joyDir = Vector2Int.zero;
-        joyKnob.anchoredPosition = Vector2.zero;
+        RefreshArrowColors();
+    }
+
+    void RefreshArrowColors()
+    {
+        for (int i = 0; i < 4; i++)
+            if (arrowImages[i] != null) arrowImages[i].color = ArrowDirs[i] == joyDir ? ArrowHeld : ArrowIdle;
     }
 
     void MoveMirrorTo(Vector2 target)
@@ -675,7 +719,7 @@ public class MirrorMazeGimmick : MonoBehaviour
             else if (kb.aKey.isPressed || kb.leftArrowKey.isPressed) dir = Vector2Int.left;
             else if (kb.dKey.isPressed || kb.rightArrowKey.isPressed) dir = Vector2Int.right;
         }
-        if (dir == Vector2Int.zero) dir = joyDir; // [터치] 조이스틱
+        if (dir == Vector2Int.zero) dir = joyDir; // [터치] 화살표 버튼
         if (dir == Vector2Int.zero) { heldDir = Vector2Int.zero; return; }
 
         bool fresh = dir != heldDir, fire = false;
@@ -907,6 +951,25 @@ public class MirrorMazeGimmick : MonoBehaviour
     }
 
     static Sprite MakeCircleSprite(int res) => MakeArcSprite(res, 0f, 0f, 360f);
+
+    // [터치] 위쪽을 가리키는 삼각형 (화살표 버튼용)
+    static Sprite MakeTriangleSprite(int res)
+    {
+        var tex = new Texture2D(res, res, TextureFormat.RGBA32, false) { filterMode = FilterMode.Bilinear, wrapMode = TextureWrapMode.Clamp };
+        float top = res * 0.85f, bottom = res * 0.18f, half = res * 0.40f, c = res * 0.5f;
+        for (int y = 0; y < res; y++)
+            for (int x = 0; x < res; x++)
+            {
+                float py = y + 0.5f, px = x + 0.5f;
+                float t = (top - py) / (top - bottom);           // 0 = 꼭짓점, 1 = 밑변
+                float w = half * t;
+                float a = (py < bottom || py > top) ? 0f : Mathf.Clamp01(w - Mathf.Abs(px - c) + 0.5f);
+                a *= Mathf.Clamp01(py - bottom + 0.5f);
+                tex.SetPixel(x, y, new Color(1f, 1f, 1f, a));
+            }
+        tex.Apply();
+        return Sprite.Create(tex, new Rect(0, 0, res, res), new Vector2(0.5f, 0.5f), 100f);
+    }
     static Sprite MakeRingSprite(int res, float innerRatio) => MakeArcSprite(res, innerRatio, 0f, 360f);
 
     /// <summary>원/링/호 스프라이트 (크기 1유닛). innerRatio: 안쪽 반지름 비율, 각도는 도 단위(0=오른쪽, 반시계)</summary>
