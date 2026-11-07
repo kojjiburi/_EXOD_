@@ -41,8 +41,17 @@ namespace EXOD.Walk
             Vector2 topRight = new Vector2(1f, 1f);
             var hint = WalkUi.CreateOutlinedText("조작", statusGroup.transform, 22, TextAnchor.MiddleCenter);
             WalkUi.Place(hint.rectTransform, topRight, new Vector2(-170f, -150f), new Vector2(420f, 34f));
-            hint.text = "Esc 그만두기";
-            hint.color = new Color(1f, 1f, 1f, 0.75f);
+            hint.text = "[ 그만두기 ]";
+            hint.color = new Color(1f, 1f, 1f, 0.9f);
+            // [터치] 눌러도 그만두기 (Esc와 같음)
+            hint.raycastTarget = true;
+            var quitButton = hint.gameObject.AddComponent<Button>();
+            quitButton.targetGraphic = hint;
+            var quitColors = quitButton.colors;
+            quitColors.highlightedColor = new Color(1f, 0.75f, 0.78f, 1f);
+            quitColors.pressedColor = new Color(0.85f, 0.35f, 0.40f, 1f);
+            quitButton.colors = quitColors;
+            quitButton.onClick.AddListener(WalkInput.RequestQuitWalk);
 
             hoverText = WalkUi.CreateNameBox("물체 이름", canvas.transform, out hoverBox, 32);
             hoverBox.anchorMin = hoverBox.anchorMax = new Vector2(0.5f, 0.5f);

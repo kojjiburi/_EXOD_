@@ -21,8 +21,37 @@ namespace EXOD.Walk
         /// <summary>켜 두면 산책 화면 클릭·Esc·좌우 이동 입력을 모두 무시 (부스 운영 모드 강제 탈출 엔딩 연출용, 2026-11-03)</summary>
         public static bool BlockAll;
 
+        // [터치] 마지막으로 누른 곳이 손가락이었는지 (IsPointerOverUI가 그 자리로 UI를 확인)
+        static bool lastPressWasTouch;
+        static Vector2 lastPressPosition;
+        static int lastPressFrame = -1;
+        // [터치] 화면의 [그만두기] 버튼을 누른 프레임 (Esc 대신)
+        static int quitRequestedFrame = -10;
+
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        static void ResetStatics() { ExtraPointerOverUi = null; BlockAll = false; }
+        static void ResetStatics() { ExtraPointerOverUi = null; BlockAll = false; lastPressWasTouch = false; lastPressFrame = -1; quitRequestedFrame = -10; }
+
+        /// <summary>[터치] 화면의 [그만두기] 버튼에서 부른다. 다음 QuitWalkDown()이 true가 된다.</summary>
+        public static void RequestQuitWalk() { quitRequestedFrame = Time.frameCount; }
+
+#if ENABLE_INPUT_SYSTEM
+        /// <summary>[터치] 이번 프레임에 화면을 새로 누른 손가락이 있으면 그 위치</summary>
+        static bool TouchPressedThisFrame(out Vector2 screenPosition)
+        {
+            var ts = Touchscreen.current;
+            if (ts != null)
+            {
+                foreach (var t in ts.touches)
+                {
+                    if (!t.press.wasPressedThisFrame) continue;
+                    screenPosition = t.position.ReadValue();
+                    return true;
+                }
+            }
+            screenPosition = default;
+            return false;
+        }
+#endif
 
         /// <summary>A/D 또는 ←/→ : -1 ~ 1</summary>
         public static float Horizontal()
@@ -64,10 +93,16 @@ namespace EXOD.Walk
                 return false;
             }
 #if ENABLE_INPUT_SYSTEM
+            if (TouchPressedThisFrame(out screenPosition))
+            {
+                lastPressWasTouch = true; lastPressPosition = screenPosition; lastPressFrame = Time.frameCount;
+                return true;
+            }
             var mouse = Mouse.current;
             if (mouse != null && mouse.leftButton.wasPressedThisFrame)
             {
                 screenPosition = mouse.position.ReadValue();
+                lastPressWasTouch = false; lastPressFrame = Time.frameCount;
                 return true;
             }
 #else
@@ -85,6 +120,9 @@ namespace EXOD.Walk
         public static Vector2 PointerScreenPosition()
         {
 #if ENABLE_INPUT_SYSTEM
+            var ts = Touchscreen.current;
+            if (ts != null && ts.primaryTouch.press.isPressed) return ts.primaryTouch.position.ReadValue();
+            if (lastPressWasTouch) return new Vector2(-10000f, -10000f);   // 손가락을 뗐으면 마우스 올림 표시는 안 함
             var mouse = Mouse.current;
             return mouse != null ? mouse.position.ReadValue() : Vector2.zero;
 #else
@@ -96,6 +134,7 @@ namespace EXOD.Walk
         public static bool QuitWalkDown()
         {
             if (BlockAll) return false;
+            if (Time.frameCount - quitRequestedFrame <= 1) { quitRequestedFrame = -10; return true; }   // [터치] [그만두기] 버튼
 #if ENABLE_INPUT_SYSTEM
             var kb = Keyboard.current;
             return kb != null && kb.escapeKey.wasPressedThisFrame;
@@ -120,7 +159,16 @@ namespace EXOD.Walk
         {
             if (ExtraPointerOverUi != null && ExtraPointerOverUi()) return true;
             var es = EventSystem.current;
-            return es != null && es.IsPointerOverGameObject();
+            if (es == null) return false;
+            // [터치] 손가락으로 누른 경우: 누른 자리에 UI가 있는지 직접 확인
+            if (lastPressWasTouch && Time.frameCount - lastPressFrame <= 1)
+            {
+                var data = new PointerEventData(es) { position = lastPressPosition };
+                var hits = new System.Collections.Generic.List<RaycastResult>();
+                es.RaycastAll(data, hits);
+                return hits.Count > 0;
+            }
+            return es.IsPointerOverGameObject();
         }
 
         /// <summary>화면 좌표 아래에 있는 Collider2D 중 T를 가진 것을 찾는다 (정렬 순서가 가장 앞인 것 우선).</summary>

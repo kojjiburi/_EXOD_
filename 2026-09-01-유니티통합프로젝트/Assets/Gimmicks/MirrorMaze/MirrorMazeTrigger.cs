@@ -61,11 +61,17 @@ public class MirrorMazeTrigger : MonoBehaviour, IPointerClickHandler
     {
         // Collider2D가 있으면 직접 클릭 판정 (EventSystem 없이도 동작)
         if (col == null || MirrorMazeGimmick.IsOpen) return;
+        Vector2 sp = default;
+        bool pressed = false;
+        var ts = Touchscreen.current;   // [터치] 손가락으로 눌러도 열림
+        if (ts != null)
+            foreach (var t in ts.touches)
+                if (t.press.wasPressedThisFrame) { sp = t.position.ReadValue(); pressed = true; break; }
         var mouse = Mouse.current;
-        if (mouse == null || !mouse.leftButton.wasPressedThisFrame) return;
+        if (!pressed && mouse != null && mouse.leftButton.wasPressedThisFrame) { sp = mouse.position.ReadValue(); pressed = true; }
+        if (!pressed) return;
         var cam = Camera.main;
         if (cam == null) return;
-        Vector2 sp = mouse.position.ReadValue();
         Vector3 wp = cam.ScreenToWorldPoint(new Vector3(sp.x, sp.y, Mathf.Abs(cam.transform.position.z - transform.position.z)));
         if (col.OverlapPoint(wp)) OpenGimmick();
     }
