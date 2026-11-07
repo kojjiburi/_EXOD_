@@ -5,6 +5,8 @@ using UnityEngine.UI;
 
 /// <summary>
 /// 침실 서랍의 세 자리 비밀번호를 검사하고 정답이면 서랍을 엽니다.
+/// [터치] 입력 상자 오른쪽에 숫자 패드(1~9, ←, 0, 확인)를 붙여 키보드 없이도 입력할 수 있습니다.
+///   터치 화면에서는 입력칸을 자동으로 선택하지 않고 화상 키보드도 띄우지 않습니다.
 /// </summary>
 public class PasswordDrawer : MonoBehaviour
 {
@@ -27,6 +29,7 @@ public class PasswordDrawer : MonoBehaviour
     private bool isUnlocked;
     private bool isKeyCollected;
     private int lastTypedLength;
+    private GameObject numberPad;   // [터치] 숫자 패드 (처음 열 때 만듦)
 
     public bool IsUnlocked => isUnlocked;
     public bool IsKeyCollected => isKeyCollected;
@@ -102,7 +105,8 @@ public class PasswordDrawer : MonoBehaviour
 
         passwordPanel.SetActive(true);
         passwordInput.text = string.Empty;
-        passwordInput.ActivateInputField();
+        EnsureNumberPad();
+        FocusInput();
 
         if (resultText != null)
             resultText.text = "달력, 사진, 메모에서 찾은 숫자를 입력하자.";
@@ -141,7 +145,103 @@ public class PasswordDrawer : MonoBehaviour
                 resultText.text = "비밀번호가 맞지 않는다.";
 
             passwordInput.text = string.Empty;
+            FocusInput();
+        }
+    }
+
+    // ─── [터치] 숫자 패드 ───
+
+    // 키보드로도 칠 수 있게 입력칸을 선택. 터치 화면이면 화상 키보드가 뜨지 않게 선택하지 않음.
+    private void FocusInput()
+    {
+        passwordInput.shouldHideSoftKeyboard = true;
+        if (!Input.touchSupported)
             passwordInput.ActivateInputField();
+    }
+
+    private void PressDigit(int digit)
+    {
+        if (passwordInput == null || isUnlocked)
+            return;
+        int limit = passwordInput.characterLimit > 0 ? passwordInput.characterLimit : 3;
+        if (passwordInput.text.Length >= limit)
+            return;
+        passwordInput.text += digit.ToString();   // onValueChanged → 버튼 소리
+    }
+
+    private void PressBackspace()
+    {
+        if (passwordInput == null || isUnlocked || passwordInput.text.Length == 0)
+            return;
+        passwordInput.text = passwordInput.text.Substring(0, passwordInput.text.Length - 1);
+        EXODSound.Play("keypad_press", 0.6f);
+    }
+
+    // 입력 상자 오른쪽에 3×4 숫자 패드: 1 2 3 / 4 5 6 / 7 8 9 / ← 0 확인
+    private void EnsureNumberPad()
+    {
+        if (numberPad != null || passwordInput == null)
+            return;
+        RectTransform box = passwordInput.transform.parent as RectTransform;
+        if (box == null)
+            return;
+
+        const float key = 96f, gap = 10f, pad = 16f;
+        Vector2 padSize = new Vector2(key * 3f + gap * 2f + pad * 2f, key * 4f + gap * 3f + pad * 2f);
+
+        numberPad = new GameObject("숫자 패드 (터치)", typeof(RectTransform), typeof(Image));
+        numberPad.transform.SetParent(box, false);
+        RectTransform padRect = (RectTransform)numberPad.transform;
+        padRect.anchorMin = padRect.anchorMax = new Vector2(1f, 0.5f);
+        padRect.pivot = new Vector2(0f, 0.5f);
+        padRect.anchoredPosition = new Vector2(24f, 0f);
+        padRect.sizeDelta = padSize;
+        Image boxImage = box.GetComponent<Image>();
+        numberPad.GetComponent<Image>().color = boxImage != null ? boxImage.color : new Color(0.11f, 0.075f, 0.07f, 0.98f);
+
+        TMP_FontAsset font = resultText != null ? resultText.font : null;
+        string[] labels = { "1", "2", "3", "4", "5", "6", "7", "8", "9", "←", "0", "확인" };
+        for (int i = 0; i < labels.Length; i++)
+        {
+            int col = i % 3, row = i / 3;
+            Vector2 pos = new Vector2(pad + col * (key + gap) + key * 0.5f, -(pad + row * (key + gap) + key * 0.5f));
+
+            GameObject keyObject = new GameObject("키 " + labels[i], typeof(RectTransform), typeof(Image), typeof(Button));
+            keyObject.transform.SetParent(numberPad.transform, false);
+            RectTransform keyRect = (RectTransform)keyObject.transform;
+            keyRect.anchorMin = keyRect.anchorMax = new Vector2(0f, 1f);
+            keyRect.pivot = new Vector2(0.5f, 0.5f);
+            keyRect.anchoredPosition = pos;
+            keyRect.sizeDelta = new Vector2(key, key);
+
+            bool isConfirm = labels[i] == "확인";
+            keyObject.GetComponent<Image>().color = isConfirm ? new Color(0.38f, 0.10f, 0.09f, 1f) : new Color(0.92f, 0.88f, 0.80f, 1f);
+
+            GameObject labelObject = new GameObject("글자", typeof(RectTransform), typeof(TextMeshProUGUI));
+            labelObject.transform.SetParent(keyObject.transform, false);
+            RectTransform labelRect = (RectTransform)labelObject.transform;
+            labelRect.anchorMin = Vector2.zero;
+            labelRect.anchorMax = Vector2.one;
+            labelRect.offsetMin = labelRect.offsetMax = Vector2.zero;
+            TextMeshProUGUI label = labelObject.GetComponent<TextMeshProUGUI>();
+            if (font != null)
+                label.font = font;
+            label.text = labels[i];
+            label.fontSize = isConfirm ? 30f : 44f;
+            label.alignment = TextAlignmentOptions.Center;
+            label.color = isConfirm ? Color.white : new Color(0.18f, 0.06f, 0.05f);
+            label.raycastTarget = false;
+
+            Button button = keyObject.GetComponent<Button>();
+            if (isConfirm)
+                button.onClick.AddListener(Submit);
+            else if (labels[i] == "←")
+                button.onClick.AddListener(PressBackspace);
+            else
+            {
+                int digit = int.Parse(labels[i]);
+                button.onClick.AddListener(() => PressDigit(digit));
+            }
         }
     }
 
