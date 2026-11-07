@@ -2,6 +2,8 @@
 // - 화장실 선반의 손거울을 클릭하면 MirrorMazeGimmick.Open()으로 이 기믹이 스테이지 화면 위에 열린다.
 // - 손거울을 마우스로 끌어 움직이면, 거울 안에만 "반대편 벽"(립스틱으로 그려진 미로)이 비친다.
 // - WASD / 방향키로 미로 속 흰 점을 움직인다. 점도 거울 안에서만 보이므로 거울로 따라가야 한다.
+// - [터치] 왼쪽 아래 조이스틱으로도 움직일 수 있고, 오른쪽 아래 [다시하기]·[나가기] 버튼이 R·ESC 대신이다.
+//   손가락 여러 개를 따로 추적하므로 한 손가락은 조이스틱, 다른 손가락은 손거울을 동시에 끌 수 있다.
 // - 붉은 점(출구)에 도착하면 클리어 → onSolved / Solved 이벤트가 호출된다 (화면에 숫자는 표시하지 않음).
 // - 오른쪽 위 X 버튼 또는 ESC로 닫으면 원래 화면으로 돌아간다.
 // 별도 스프라이트/프리팹 없이 동작한다. 기믹은 월드의 먼 곳(worldOffset)에 자기 카메라로 그려지므로 스테이지 오브젝트와 겹치지 않는다.
@@ -128,6 +130,14 @@ public class MirrorMazeGimmick : MonoBehaviour
     Text popupText;
     GameObject popupPanel, canvasGo;
     RectTransform closeButton;
+    // [터치] 조이스틱 · 다시하기 · 나가기 버튼
+    RectTransform joyBase, joyKnob, restartButton, exitButton;
+    const float JoyRadius = 120f;          // 손잡이가 움직이는 최대 거리 (캔버스 단위)
+    const float JoyDeadZone = 0.35f;       // 이만큼(반지름 비율) 이상 밀어야 이동
+    int joyPointerId = int.MinValue;       // 조이스틱을 잡은 손가락 (마우스 = -1)
+    int dragPointerId = int.MinValue;      // 손거울을 잡은 손가락 (마우스 = -1)
+    Vector2Int joyDir;
+    const int NoPointer = int.MinValue, MousePointer = -1;
     SpriteRenderer keySr, keyGlintSr;
     Sprite keySprite;
     Image popupIcon;
@@ -404,7 +414,7 @@ public class MirrorMazeGimmick : MonoBehaviour
         var bimg = blocker.AddComponent<Image>();
         bimg.color = new Color(0, 0, 0, 0);
 
-        MakeText(canvasGo.transform, "Guide", "손거울을 끌어 반대편을 비춰보자   ·   WASD / 방향키: 이동   ·   벽에 3번 부딪히면 실패   ·   ESC: 나가기",
+        MakeText(canvasGo.transform, "Guide", "손거울을 끌어 반대편을 비춰보자   ·   조이스틱: 이동   ·   벽에 3번 부딪히면 실패",
             new Vector2(0.5f, 0f), new Vector2(0, 225), new Vector2(1800, 50), 28, new Color(1f, 1f, 1f, 0.92f));
 
 
@@ -423,6 +433,8 @@ public class MirrorMazeGimmick : MonoBehaviour
         var x = MakeText(cb.transform, "X", "X", new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(84, 84), 52, new Color(0.08f, 0.08f, 0.1f));
         x.fontStyle = FontStyle.Bold;
         x.GetComponent<Shadow>().enabled = false;
+
+        BuildTouchControls();
 
         popupPanel = new GameObject("Popup");
         popupPanel.transform.SetParent(canvasGo.transform, false);
@@ -445,6 +457,50 @@ public class MirrorMazeGimmick : MonoBehaviour
         popupIcon.preserveAspect = true;
         iconGo.SetActive(false);
         popupPanel.SetActive(false);
+    }
+
+    // [터치] 왼쪽 아래 조이스틱 + 오른쪽 아래 [다시하기]·[나가기] 버튼
+    void BuildTouchControls()
+    {
+        joyBase = MakeCircleUI("JoystickBase", canvasGo.transform, new Vector2(0f, 0f), new Vector2(230, 230), JoyRadius * 2f + 40f, new Color(1f, 1f, 1f, 0.16f));
+        var ring = MakeCircleUI("Ring", joyBase, new Vector2(0.5f, 0.5f), Vector2.zero, JoyRadius * 2f + 40f, new Color(1f, 1f, 1f, 0.35f));
+        ring.GetComponent<Image>().sprite = ringSprite;
+        joyKnob = MakeCircleUI("JoystickKnob", joyBase, new Vector2(0.5f, 0.5f), Vector2.zero, 120f, new Color(0.9f, 0.9f, 0.93f, 0.85f));
+
+        restartButton = MakeButtonUI("RestartButton", "다시하기", new Vector2(-330, 110));
+        exitButton = MakeButtonUI("ExitButton", "나가기", new Vector2(-130, 110));
+    }
+
+    RectTransform MakeCircleUI(string name, Transform parent, Vector2 anchor, Vector2 pos, float size, Color color)
+    {
+        var go = new GameObject(name);
+        go.transform.SetParent(parent, false);
+        var rt = go.AddComponent<RectTransform>();
+        rt.anchorMin = rt.anchorMax = anchor;
+        rt.anchoredPosition = pos;
+        rt.sizeDelta = new Vector2(size, size);
+        var img = go.AddComponent<Image>();
+        img.sprite = circleSprite; img.color = color; img.raycastTarget = false;
+        return rt;
+    }
+
+    RectTransform MakeButtonUI(string name, string label, Vector2 pos)
+    {
+        var go = new GameObject(name);
+        go.transform.SetParent(canvasGo.transform, false);
+        var rt = go.AddComponent<RectTransform>();
+        rt.anchorMin = rt.anchorMax = new Vector2(1f, 0f);
+        rt.anchoredPosition = pos;
+        rt.sizeDelta = new Vector2(180, 90);
+        var img = go.AddComponent<Image>();
+        img.color = new Color(0.06f, 0.06f, 0.09f, 0.9f);
+        var inner = new GameObject("Inner"); inner.transform.SetParent(go.transform, false);
+        var irt = inner.AddComponent<RectTransform>(); irt.anchorMin = Vector2.zero; irt.anchorMax = Vector2.one; irt.offsetMin = new Vector2(4, 4); irt.offsetMax = new Vector2(-4, -4);
+        var iimg = inner.AddComponent<Image>(); iimg.color = new Color(0.82f, 0.82f, 0.85f); iimg.raycastTarget = false;
+        var t = MakeText(go.transform, "Label", label, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(180, 90), 36, new Color(0.08f, 0.08f, 0.1f));
+        t.fontStyle = FontStyle.Bold;
+        t.GetComponent<Shadow>().enabled = false;
+        return rt;
     }
 
     Text MakeText(Transform parent, string name, string content, Vector2 anchor, Vector2 pos, Vector2 size, int fontSize, Color color)
@@ -472,7 +528,7 @@ public class MirrorMazeGimmick : MonoBehaviour
         if (mazeRoot == null || closing) return;
         var kb = Keyboard.current;
         if (kb != null && kb.escapeKey.wasPressedThisFrame) { Close(); return; }
-        if (kb != null && kb.rKey.wasPressedThisFrame && !solved) { BuildMaze(); MoveMirrorTo(playerSr.transform.position); }
+        if (kb != null && kb.rKey.wasPressedThisFrame) RestartMaze();
 
         if (failTimer >= 0f)
         {
@@ -488,33 +544,114 @@ public class MirrorMazeGimmick : MonoBehaviour
         HandleEffects();
     }
 
+    void RestartMaze()
+    {
+        if (solved) return;
+        BuildMaze();
+        MoveMirrorTo(playerSr.transform.position);
+    }
+
+    // [터치] 마우스와 손가락을 함께 처리한다. 손가락마다 번호(touchId)로 따로 추적해서
+    // 조이스틱과 손거울을 동시에 잡을 수 있다. 터치 중에는 마우스 입력을 무시한다 (터치가 마우스로도 들어오는 경우 대비).
     void HandlePointer()
     {
-        Vector2 screen; bool pressed, held;
-        var mouse = Mouse.current;
-        if (mouse != null) { screen = mouse.position.ReadValue(); pressed = mouse.leftButton.wasPressedThisFrame; held = mouse.leftButton.isPressed; }
-        else if (Touchscreen.current != null)
+        bool touchActive = false;
+        var ts = Touchscreen.current;
+        if (ts != null)
         {
-            var t = Touchscreen.current.primaryTouch;
-            screen = t.position.ReadValue(); pressed = t.press.wasPressedThisFrame; held = t.press.isPressed;
+            foreach (var t in ts.touches)
+            {
+                if (!t.press.isPressed && !t.press.wasPressedThisFrame) continue;
+                touchActive = true;
+                if (t.press.wasPressedThisFrame && PointerDown(t.touchId.ReadValue(), t.position.ReadValue())) return;
+            }
         }
-        else return;
 
-        if (pressed && RectTransformUtility.RectangleContainsScreenPoint(closeButton, screen, cam)) { Close(); return; }
+        var mouse = Mouse.current;
+        bool useMouse = !touchActive && mouse != null;
+        if (useMouse && mouse.leftButton.wasPressedThisFrame && PointerDown(MousePointer, mouse.position.ReadValue())) return;
+
+        // 조이스틱
+        if (joyPointerId != NoPointer)
+        {
+            if (TryGetHeld(joyPointerId, ts, useMouse ? mouse : null, out var p)) UpdateJoystick(p);
+            else ReleaseJoystick();
+        }
+
+        // 손거울 끌기
+        if (dragging)
+        {
+            if (TryGetHeld(dragPointerId, ts, useMouse ? mouse : null, out var p))
+            {
+                Vector2 world = cam.ScreenToWorldPoint(new Vector3(p.x, p.y, 10f));
+                MoveMirrorTo(world + dragOffset);
+            }
+            else { dragging = false; dragPointerId = NoPointer; }
+        }
+    }
+
+    /// <summary>손가락/마우스를 누른 순간. Close 했으면 true</summary>
+    bool PointerDown(int id, Vector2 screen)
+    {
+        if (RectTransformUtility.RectangleContainsScreenPoint(closeButton, screen, cam) ||
+            RectTransformUtility.RectangleContainsScreenPoint(exitButton, screen, cam)) { Close(); return true; }
+        if (RectTransformUtility.RectangleContainsScreenPoint(restartButton, screen, cam)) { RestartMaze(); return false; }
+
+        if (joyPointerId == NoPointer &&
+            RectTransformUtility.ScreenPointToLocalPointInRectangle(joyBase, screen, cam, out var jl) &&
+            jl.magnitude <= JoyRadius + 60f)
+        {
+            joyPointerId = id;
+            UpdateJoystick(screen);
+            return false;
+        }
 
         Vector2 world = cam.ScreenToWorldPoint(new Vector3(screen.x, screen.y, 10f));
-        if (pressed && keySr != null && keySr.gameObject.activeSelf && keyTakeT < 0f &&
-            Vector2.Distance(world, keySr.transform.position) <= 0.75f) { TakeKey(); return; }
+        if (keySr != null && keySr.gameObject.activeSelf && keyTakeT < 0f &&
+            Vector2.Distance(world, keySr.transform.position) <= 0.75f) { TakeKey(); return false; }
+        if (dragging) return false;
         Vector2 mp = mirrorRoot.position;
-        if (pressed)
+        Vector2 local = world - mp;
+        bool onGlass = local.magnitude <= mirrorRadius + 0.3f;
+        bool onHandle = Mathf.Abs(local.x) <= 0.35f && local.y < -mirrorRadius && local.y > -mirrorRadius - 1.9f;
+        if (onGlass || onHandle) { dragging = true; dragPointerId = id; dragOffset = mp - world; }
+        return false;
+    }
+
+    static bool TryGetHeld(int id, Touchscreen ts, Mouse mouse, out Vector2 screen)
+    {
+        screen = default;
+        if (id == MousePointer)
         {
-            Vector2 local = world - mp;
-            bool onGlass = local.magnitude <= mirrorRadius + 0.3f;
-            bool onHandle = Mathf.Abs(local.x) <= 0.35f && local.y < -mirrorRadius && local.y > -mirrorRadius - 1.9f;
-            if (onGlass || onHandle) { dragging = true; dragOffset = mp - world; }
+            if (mouse == null || !mouse.leftButton.isPressed) return false;
+            screen = mouse.position.ReadValue();
+            return true;
         }
-        if (!held) dragging = false;
-        if (dragging) MoveMirrorTo(world + dragOffset);
+        if (ts == null) return false;
+        foreach (var t in ts.touches)
+        {
+            if (!t.press.isPressed || t.touchId.ReadValue() != id) continue;
+            screen = t.position.ReadValue();
+            return true;
+        }
+        return false;
+    }
+
+    void UpdateJoystick(Vector2 screen)
+    {
+        RectTransformUtility.ScreenPointToLocalPointInRectangle(joyBase, screen, cam, out var local);
+        local = Vector2.ClampMagnitude(local, JoyRadius);
+        joyKnob.anchoredPosition = local;
+        if (local.magnitude < JoyRadius * JoyDeadZone) { joyDir = Vector2Int.zero; return; }
+        if (Mathf.Abs(local.x) >= Mathf.Abs(local.y)) joyDir = local.x > 0 ? Vector2Int.right : Vector2Int.left;
+        else joyDir = local.y > 0 ? Vector2Int.up : Vector2Int.down;
+    }
+
+    void ReleaseJoystick()
+    {
+        joyPointerId = NoPointer;
+        joyDir = Vector2Int.zero;
+        joyKnob.anchoredPosition = Vector2.zero;
     }
 
     void MoveMirrorTo(Vector2 target)
@@ -530,12 +667,15 @@ public class MirrorMazeGimmick : MonoBehaviour
     {
         if (solved) return;
         var kb = Keyboard.current;
-        if (kb == null) return;
         Vector2Int dir = Vector2Int.zero;
-        if (kb.wKey.isPressed || kb.upArrowKey.isPressed) dir = Vector2Int.up;
-        else if (kb.sKey.isPressed || kb.downArrowKey.isPressed) dir = Vector2Int.down;
-        else if (kb.aKey.isPressed || kb.leftArrowKey.isPressed) dir = Vector2Int.left;
-        else if (kb.dKey.isPressed || kb.rightArrowKey.isPressed) dir = Vector2Int.right;
+        if (kb != null)
+        {
+            if (kb.wKey.isPressed || kb.upArrowKey.isPressed) dir = Vector2Int.up;
+            else if (kb.sKey.isPressed || kb.downArrowKey.isPressed) dir = Vector2Int.down;
+            else if (kb.aKey.isPressed || kb.leftArrowKey.isPressed) dir = Vector2Int.left;
+            else if (kb.dKey.isPressed || kb.rightArrowKey.isPressed) dir = Vector2Int.right;
+        }
+        if (dir == Vector2Int.zero) dir = joyDir; // [터치] 조이스틱
         if (dir == Vector2Int.zero) { heldDir = Vector2Int.zero; return; }
 
         bool fresh = dir != heldDir, fire = false;
@@ -585,7 +725,7 @@ public class MirrorMazeGimmick : MonoBehaviour
             SpawnKey(drop: fireEvents);
             ShowPopup("거울 속 미로를 빠져나왔다…\n<size=28>선반 위에 무언가 떨어졌다</size>", null);
         }
-        else ShowPopup("거울 속 미로를 빠져나왔다…\n<size=24>ESC / X : 돌아가기</size>", null);
+        else ShowPopup("거울 속 미로를 빠져나왔다…\n<size=24>[나가기] / X : 돌아가기</size>", null);
 
         if (!fireEvents) return;
         IsSolved = true;
@@ -652,7 +792,7 @@ public class MirrorMazeGimmick : MonoBehaviour
         }
         RewardTaken = true;
         keyTakeT = 0f;
-        ShowPopup($"<color=#ff5a66>{rewardName}</color>을(를) 얻었다.\n<size=24>ESC / X : 돌아가기</size>", GetKeySprite());
+        ShowPopup($"<color=#ff5a66>{rewardName}</color>을(를) 얻었다.\n<size=24>[나가기] / X : 돌아가기</size>", GetKeySprite());
         onRewardObtained?.Invoke(rewardItemId);
         RewardObtained?.Invoke(rewardItemId);
     }
