@@ -5,6 +5,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using UnityEngine.Events;
+using UnityEngine.EventSystems;
 
 /// <summary>
 /// 대화창 텍스트 매니저
@@ -67,9 +68,27 @@ public class DialogueManager : MonoBehaviour
         CloseDialogue();
     }
 
+    // [터치] 대사가 떠 있을 때 화면 아무 데나 눌러도 '다음' 버튼과 같음
+    private bool _pressStartedWhileOpen;
+    private readonly List<RaycastResult> _clickHits = new List<RaycastResult>();
+    /// <summary>화면 클릭으로 대사를 넘긴 프레임 (같은 클릭이 다른 곳에서 또 쓰이지 않게)</summary>
+    public static int LastClickAdvanceFrame { get; private set; } = -1;
+
     void Update()
     {
-        if (!_isDialogueOpen) return;
+        if (!_isDialogueOpen) { _pressStartedWhileOpen = false; return; }
+
+        if (Input.GetMouseButtonDown(0)) _pressStartedWhileOpen = true;
+        if (Input.GetMouseButtonUp(0) && _pressStartedWhileOpen)
+        {
+            _pressStartedWhileOpen = false;
+            if (!_isChoosing && !IsPointerOnOtherButton(Input.mousePosition))
+            {
+                LastClickAdvanceFrame = Time.frameCount;
+                AdvanceDialogue();
+                return;
+            }
+        }
 
         // 선택지가 떠 있으면 숫자 키(1, 2, …)로만 고를 수 있습니다.
         if (_isChoosing)
@@ -217,6 +236,18 @@ public class DialogueManager : MonoBehaviour
             SkipTyping();
         else
             NextLine();
+    }
+
+    // [터치] 누른 곳 맨 위가 버튼(다음 버튼·선택지·퀵슬롯 등)이면 그 버튼이 처리하도록 화면 클릭으로 치지 않음
+    private bool IsPointerOnOtherButton(Vector2 screen)
+    {
+        EventSystem es = EventSystem.current;
+        if (es == null) return false;
+        _clickHits.Clear();
+        es.RaycastAll(new PointerEventData(es) { position = screen }, _clickHits);
+        if (_clickHits.Count == 0) return false;
+        Selectable selectable = _clickHits[0].gameObject.GetComponentInParent<Selectable>();
+        return selectable != null && selectable.enabled && selectable.IsInteractable();
     }
 
     // ═══════════════════════════════════════════════════
