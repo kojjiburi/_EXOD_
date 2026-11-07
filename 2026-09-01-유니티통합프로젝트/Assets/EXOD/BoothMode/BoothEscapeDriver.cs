@@ -121,8 +121,20 @@ public sealed class BoothEscapeDriver : MonoBehaviour
         // 다른 곳에서 엔딩이 또 뜨지 않게
         PhoneBoothProgress.EndingShown = true;
 
-        if (!Stage2HouseLink.IsInStage2)
-            Stage2HouseLink.ForceEnterWalk();
+        // 이미 산책 중이었으면 (예: 전화 부스 창 안에서 시간 초과) 부스 창이 열린 채라 걷지도 못하고
+        // 산책이 멈춰 있어 화면이 먹통이 됨 (사용자 제보 2026-11-07) → 집으로 갔다가 산책을 새로 시작
+        while (Stage2HouseLink.IsTransitioning)
+            yield return null;
+        if (Stage2HouseLink.IsInStage2)
+        {
+            bool left = false;
+            Stage2HouseLink.ForceLeaveWalk(() => left = true);
+            while (!left)
+                yield return null;
+        }
+        while (Stage2HouseLink.IsTransitioning)
+            yield return null;
+        Stage2HouseLink.ForceEnterWalk();
 
         float waited = 0f;
         while (WalkGameManager.Current == null || !WalkGameManager.Current.IsRunning)
