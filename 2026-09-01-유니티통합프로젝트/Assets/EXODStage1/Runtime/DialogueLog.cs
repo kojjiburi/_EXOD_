@@ -164,7 +164,7 @@ public sealed class DialogueLog : MonoBehaviour
 
         buttonGroup = go.GetComponent<CanvasGroup>();
 
-        TextMeshProUGUI label = CreateText("글자", go.transform, "대화 기록 (L)", 22f, LineColor, TextAlignmentOptions.Center);
+        TextMeshProUGUI label = CreateText("글자", go.transform, "대화 기록", 22f, LineColor, TextAlignmentOptions.Center);
         Stretch(label.rectTransform);
     }
 
@@ -187,7 +187,7 @@ public sealed class DialogueLog : MonoBehaviour
         TextMeshProUGUI title = CreateText("제목", panel.transform, "대화 기록", 40f, NameColor, TextAlignmentOptions.Center);
         Place(title.rectTransform, new Vector2(0f, 352f), new Vector2(600f, 60f));
 
-        TextMeshProUGUI hint = CreateText("안내", panel.transform, "L · Esc 로 닫기", 22f, ThoughtColor, TextAlignmentOptions.Center);
+        TextMeshProUGUI hint = CreateText("안내", panel.transform, "X 또는 바깥을 눌러 닫기", 22f, ThoughtColor, TextAlignmentOptions.Center);
         Place(hint.rectTransform, new Vector2(0f, -368f), new Vector2(600f, 40f));
 
         Image close = CreateImage("닫기", panel.transform, new Color(0.20f, 0.14f, 0.14f, 1f));

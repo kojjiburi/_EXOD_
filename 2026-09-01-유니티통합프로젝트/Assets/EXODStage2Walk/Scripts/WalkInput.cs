@@ -21,8 +21,14 @@ namespace EXOD.Walk
         /// <summary>켜 두면 산책 화면 클릭·Esc·좌우 이동 입력을 모두 무시 (부스 운영 모드 강제 탈출 엔딩 연출용, 2026-11-03)</summary>
         public static bool BlockAll;
 
+        // 화면의 [그만두기] 버튼을 누른 프레임 (Esc 대신)
+        static int quitRequestedFrame = -10;
+
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        static void ResetStatics() { ExtraPointerOverUi = null; BlockAll = false; }
+        static void ResetStatics() { ExtraPointerOverUi = null; BlockAll = false; quitRequestedFrame = -10; }
+
+        /// <summary>화면의 [그만두기] 버튼에서 부른다. 다음 QuitWalkDown()이 true가 된다.</summary>
+        public static void RequestQuitWalk() { quitRequestedFrame = Time.frameCount; }
 
         /// <summary>A/D 또는 ←/→ : -1 ~ 1</summary>
         public static float Horizontal()
@@ -96,6 +102,7 @@ namespace EXOD.Walk
         public static bool QuitWalkDown()
         {
             if (BlockAll) return false;
+            if (Time.frameCount - quitRequestedFrame <= 1) { quitRequestedFrame = -10; return true; }   // [그만두기] 버튼
 #if ENABLE_INPUT_SYSTEM
             var kb = Keyboard.current;
             return kb != null && kb.escapeKey.wasPressedThisFrame;
