@@ -1,8 +1,14 @@
+using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 /// <summary>
 /// 물건 확대 화면을 열고 닫으며 현재 선택된 물건의 자세한 조사를 처리합니다.
+/// [터치] 확대 화면에서 누른 곳에 따라:
+///   - 물건 그림(실제로 그려진 부분)을 누르면 → 조사 (대사 중이면 다음 줄)
+///   - 대화창·버튼·퀵슬롯 등 다른 UI를 누르면 → 그 UI가 처리 (여기서는 아무것도 안 함)
+///   - 그 밖의 빈 곳을 누르면 → [뒤로가기]와 같이 닫기 (선택지가 떠 있을 때는 닫지 않음)
 /// </summary>
 public class InspectionManager : MonoBehaviour
 {
@@ -21,6 +27,9 @@ public class InspectionManager : MonoBehaviour
     private InspectableItem currentItem;
     private bool[] hiddenUiPreviousStates;
     private bool hasStoredUiStates;
+    private bool pressStartedWhileOpen;   // [터치] 확대 화면이 열린 뒤에 누르기 시작한 클릭만 처리
+    private readonly List<RaycastResult> raycastHits = new List<RaycastResult>();
+    private const string DialogueDimName = "대화 배경 어둡게";   // DialogueDimmer가 만드는 대사 중 배경 막
 
     private static readonly Vector2 DefaultDetailSize = new Vector2(760f, 540f);
     private static readonly Vector2 CalendarDetailSize = new Vector2(780f, 780f);
@@ -40,8 +49,9 @@ public class InspectionManager : MonoBehaviour
 
         DisableHiddenUiBackgroundRaycasts();
 
+        // [터치] 물건 그림 클릭은 Update의 HandlePointer가 직접 처리합니다 (그림의 투명한 여백·대사 중 배경 막 때문)
         if (detailButton != null)
-            detailButton.onClick.AddListener(ExamineCurrentItem);
+            detailButton.transition = Selectable.Transition.None;
 
         if (closeButton != null)
             closeButton.onClick.AddListener(Close);
@@ -54,9 +64,6 @@ public class InspectionManager : MonoBehaviour
     {
         RestoreOtherUi();
 
-        if (detailButton != null)
-            detailButton.onClick.RemoveListener(ExamineCurrentItem);
-
         if (closeButton != null)
             closeButton.onClick.RemoveListener(Close);
 
@@ -68,6 +75,104 @@ public class InspectionManager : MonoBehaviour
     {
         if (IsOpen && Input.GetKeyDown(KeyCode.Escape))
             Close();
+
+        HandlePointer();
+    }
+
+    // [터치] 누른 곳(마우스·손가락)에 따라 조사 / 닫기. 손을 뗄 때 처리합니다 (UI 버튼과 같은 때).
+    private void HandlePointer()
+    {
+        if (!IsOpen)
+        {
+            pressStartedWhileOpen = false;
+            return;
+        }
+
+        if (Input.GetMouseButtonDown(0))
+            pressStartedWhileOpen = true;
+        if (!Input.GetMouseButtonUp(0) || !pressStartedWhileOpen)
+            return;
+        pressStartedWhileOpen = false;
+
+        Vector2 screen = Input.mousePosition;
+
+        // 맨 위에 있는 UI가 대화창·버튼·비밀번호 창 같은 다른 UI면 그쪽에 맡김
+        EventSystem es = EventSystem.current;
+        if (es != null)
+        {
+            raycastHits.Clear();
+            es.RaycastAll(new PointerEventData(es) { position = screen }, raycastHits);
+            if (raycastHits.Count > 0 && !IsInspectionBackground(raycastHits[0].gameObject))
+                return;
+        }
+
+        // 대화창(글자 부분처럼 클릭을 받지 않는 곳 포함)을 누른 건 닫기로 치지 않음
+        if (IsPointOnDialogueBox(screen))
+            return;
+
+        if (IsPointOnObject(screen))
+        {
+            ExamineCurrentItem();
+            return;
+        }
+
+        // 선택지가 떠 있으면 빈 곳을 눌러도 닫지 않음 (골라야 함)
+        if (DialogueManager.Instance != null && DialogueManager.Instance.IsChoosing)
+            return;
+
+        EXODSound.Play("ui_click", 0.5f);
+        Close();
+    }
+
+    // 확대 화면의 어두운 바탕, 물건 그림, 대사 중 배경 막 → 이 화면이 직접 처리하는 곳
+    private bool IsInspectionBackground(GameObject go)
+    {
+        if (go == null)
+            return true;
+        if (inspectionPanel != null && go == inspectionPanel)
+            return true;
+        if (detailImage != null && go == detailImage.gameObject)
+            return true;
+        return go.name == DialogueDimName;
+    }
+
+    private static bool IsPointOnDialogueBox(Vector2 screen)
+    {
+        DialogueManager dm = DialogueManager.Instance;
+        if (dm == null || !dm.IsDialogueOpen)
+            return false;
+        return ContainsScreenPoint(dm.DialoguePanelRect, screen) || ContainsScreenPoint(dm.NamePanelRect, screen);
+    }
+
+    private static bool ContainsScreenPoint(RectTransform rect, Vector2 screen)
+    {
+        if (rect == null || !rect.gameObject.activeInHierarchy)
+            return false;
+        Canvas canvas = rect.GetComponentInParent<Canvas>();
+        Camera cam = canvas != null && canvas.renderMode != RenderMode.ScreenSpaceOverlay ? canvas.worldCamera : null;
+        return RectTransformUtility.RectangleContainsScreenPoint(rect, screen, cam);
+    }
+
+    // 물건 그림이 실제로 그려진 영역(preserveAspect로 생기는 투명한 여백 제외)을 눌렀는지
+    private bool IsPointOnObject(Vector2 screen)
+    {
+        if (detailImage == null || !detailImage.gameObject.activeInHierarchy)
+            return false;
+
+        RectTransform rect = detailImage.rectTransform;
+        Canvas canvas = detailImage.canvas;
+        Camera cam = canvas != null && canvas.renderMode != RenderMode.ScreenSpaceOverlay ? canvas.worldCamera : null;
+        if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(rect, screen, cam, out Vector2 local))
+            return false;
+
+        Rect r = rect.rect;
+        float w = r.width, h = r.height;
+        if (detailImage.sprite != null && detailImage.preserveAspect)
+        {
+            float spriteAspect = detailImage.sprite.rect.width / detailImage.sprite.rect.height;
+            if (w / h > spriteAspect) w = h * spriteAspect; else h = w / spriteAspect;
+        }
+        return Mathf.Abs(local.x - r.center.x) <= w * 0.5f && Mathf.Abs(local.y - r.center.y) <= h * 0.5f;
     }
 
     public void Open(InspectableItem item)
