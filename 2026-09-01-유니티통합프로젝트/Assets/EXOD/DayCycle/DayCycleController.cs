@@ -49,7 +49,10 @@ public sealed class DayCycleController : MonoBehaviour
 
     // 침대 클릭 영역 (침실 그림 1920x1080 기준, 위쪽이 y=0)
     // 베개·사진 조사 영역과 서랍장 조사 영역을 피해 이불 아랫부분만 잡습니다.
-    private static readonly RectInt BedRect = new RectInt(580, 620, 680, 180);
+    // 침대 전체(이불·매트리스, 베개 아래부터 침대 다리 위까지). 베개 쪽은 사진 조사 영역이 먼저 받음 (2026-11-13)
+    private static readonly RectInt BedRect = new RectInt(560, 545, 800, 400);
+    // 베개와 사진 조사 영역을 베개·사진 그림 크기로 줄임 (예전엔 침대 윗부분까지 덮어서 침대를 누르면 사진이 눌림)
+    private static readonly RectInt PillowPhotoRect = new RectInt(740, 335, 440, 215);
 
     private static readonly string[] FirstWarningLines =
     {
@@ -402,6 +405,22 @@ public sealed class DayCycleController : MonoBehaviour
         Button button = bedButton.GetComponent<Button>();
         button.transition = Selectable.Transition.None;
         button.onClick.AddListener(OnBedClicked);
+
+        ShrinkPillowPhotoArea(bedroom);
+    }
+
+    private static void ShrinkPillowPhotoArea(Transform bedroom)
+    {
+        foreach (InspectableItem item in bedroom.GetComponentsInChildren<InspectableItem>(true))
+        {
+            if (item.ItemId != "bedroom_photo")
+                continue;
+            RectTransform rect = (RectTransform)item.transform;
+            rect.anchorMin = new Vector2(PillowPhotoRect.xMin / ReferenceWidth, 1f - PillowPhotoRect.yMax / ReferenceHeight);
+            rect.anchorMax = new Vector2(PillowPhotoRect.xMax / ReferenceWidth, 1f - PillowPhotoRect.yMin / ReferenceHeight);
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
+        }
     }
 
     // ═══════════════════════════════════════════════════
